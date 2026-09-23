@@ -1,12 +1,14 @@
 /**
- * 人力资源模块 · 菜单可见性口径对账（只读）
+ * 人力资源模块 · 菜单下发内容盘点（只读）
  *
- * 目的：验证「后端下发」与「前端渲染」两套权限判定是否同口径。
- *   后端 SysMenuServiceImpl.getUserMegaMenus → MenuPermissionDeriver：**前缀匹配**
- *     （权限码 a:b:c 展开出 a:b、a 也进集合；菜单码在集合里即命中）
- *   前端 MegaMenuPanel.hasPermission → userStore.hasPermission：**全等匹配**
- *     （this.permissions.includes(menuCode)）
- * 只要某菜单的 menu_code 不是一条真实存在的权限码本身，前端就渲染不出来。
+ * 目的：以指定账号登录，打印**后端实际下发的菜单树**，用于判断某个角色能拿到哪些 HR 菜单。
+ *   判定口径只有一处：`SysMenuServiceImpl.getUserMegaMenus` → `MenuPermissionDeriver`
+ *   （权限码按 `:` 边界展开成前缀集合；菜单码在集合里才算「有对应权限码」并需要持有，
+ *    权限码库里没有任何权限码命中它的菜单码一律保持可见 —— fail-open）。
+ *
+ * ⚠️ 2026-09-23 之前此脚本还会模拟 `MegaMenuPanel` 里那份**全等匹配**的前端副本，
+ *    并把「后端下发但前端会隐藏」当成结论 —— 那份副本已删除（详见 MegaMenuPanel 内注释）。
+ *    前端渲染结果的真机回归改用 `tools/verify-menu-visibility.cjs`。
  *
  * 用法：node tools/audit-hr-menu-visibility.cjs
  *   账号：默认 e2e_hr_ta（非超管，SYSTEM_ADMIN）；可用 E2E_USER / E2E_PWD / E2E_TENANT 覆盖
@@ -88,18 +90,12 @@ function walk(menus, out = [], depth = 0) {
     console.log(`  ${'  '.repeat(m._depth)}[${m.menuType}] id=${m.id} ${m.menuName} menuCode=${m.menuCode}`)
   }
 
-  console.log('\n— 前端 MegaMenuPanel 判定（menuType=1 才校验，全等匹配） —')
-  let hidden = 0
-  for (const m of hr) {
-    if (m.menuType !== 1) continue
-    const ok = feHasPermission(permissions, m.menuCode)
-    if (!ok) hidden++
-    console.log(`  ${ok ? '显示' : '隐藏'} id=${m.id} ${m.menuName} menuCode=${m.menuCode}`)
-  }
-  console.log(`\n结论：后端下发但前端会隐藏的叶子菜单 = ${hidden} 个`)
-
-  // 全站口径抽样：所有 type=1 菜单里有多少 menuCode 不在权限码清单中
+  // 全站口径抽样：叶子菜单里有多少 menu_code 恰好等于一条真实权限码
+  // （只有这批才可能被「有权限码却没授予」的规则挡掉；其余是 fail-open 的）
   const leaves = flat.filter(m => m.menuType === 1 && m.menuCode)
-  const notExact = leaves.filter(m => !feHasPermission(permissions, m.menuCode))
-  console.log(`全站抽样：后端下发叶子菜单 ${leaves.length} 个，其中前端全等匹配不中 ${notExact.length} 个`)
+  const exact = leaves.filter(m => permissions.includes(m.menuCode) || permissions.includes('*'))
+  console.log(`\n全站：后端下发叶子菜单 ${leaves.length} 个，其中 menu_code 恰好等于一条所持权限码的 ${exact.length} 个`)
+
+  console.log('\n结论：以上即前端实际渲染集合（前端不再做二次权限过滤）。')
+  console.log('      真机渲染回归请看 node tools/verify-menu-visibility.cjs')
 })().catch(e => { console.error(e); process.exit(1) })

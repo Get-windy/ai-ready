@@ -321,7 +321,10 @@ async function confirmPrint() {
   try {
     await request.post('/erp/purchase/exchange/batch-print', { template: printTemplate.value, ids: selectedRowKeys.value })
     localStorage.setItem('purchase-exchange-last-print-template', printTemplate.value)
-    message.success(`已发送打印（模板: ${printTemplate.value}）`)
+    // 后端 batch-print 只做「打印次数 +1」——打印链路（erp-printing）当前无模板/客户端数据，
+    // 建了任务也不会出纸。这里改为调用浏览器打印产出真实单据，同时把次数记在台账上。
+    window.print()
+    message.success(`已记录打印次数并打开打印预览（模板: ${printTemplate.value}）`)
     showPrintDialog.value = false
     fetchData()
   } catch { message.error('打印失败') }

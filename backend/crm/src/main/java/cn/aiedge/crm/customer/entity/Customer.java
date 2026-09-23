@@ -111,4 +111,14 @@ public class Customer {
     
     @Version
     private Integer version;
+
+    /**
+     * 关联的 ERP 往来单位 ID（{@code biz_party.id}）。
+     *
+     * <p>本模块 README 的红线要求：CRM 客户只是「可能客户」，真正的交易主体是 ERP 往来单位，
+     * 业务单据（销售订单等）的 {@code customer_id} 必须写 ERP 往来单位 ID。
+     * 该列是 CRM 客户 → ERP 往来单位的唯一映射位；为空表示尚未建档到往来单位，
+     * 此时任何「转订单」类动作都必须**拒绝**，而不是把 CRM 客户 ID 直接写进 ERP 单据。</p>
+     */
+    private Long mdPartnerId;
 }

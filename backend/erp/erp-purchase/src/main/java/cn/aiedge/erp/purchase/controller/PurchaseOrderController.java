@@ -240,7 +240,7 @@ public class PurchaseOrderController {
      */
     @Operation(summary = "导出采购订单")
     @GetMapping("/export")
-    @SaCheckPermission("purchase:order:list")
+    @SaCheckPermission("purchase:order:export")
     public ApiResponse<List<PurchaseOrder>> exportOrders(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
             @Parameter(description = "订单号") @RequestParam(required = false) String orderNo,
@@ -255,10 +255,9 @@ public class PurchaseOrderController {
      */
     @Operation(summary = "批量导入采购订单")
     @PostMapping("/import")
-    @SaCheckPermission("purchase:order:create")
-    public ApiResponse<Map<String, Integer>> importOrders(@RequestParam("file") MultipartFile file) {
-        int count = purchaseOrderService.importOrders(file);
-        return ApiResponse.ok(Map.of("count", count));
+    @SaCheckPermission("purchase:order:import")
+    public ApiResponse<Map<String, Object>> importOrders(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(purchaseOrderService.importOrders(file));
     }
 
     /**
@@ -266,7 +265,7 @@ public class PurchaseOrderController {
      */
     @Operation(summary = "批量打印采购订单")
     @PostMapping("/batch-print")
-    @SaCheckPermission("purchase:order:list")
+    @SaCheckPermission("purchase:order:print")
     public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
         // 雪花 ID 超出 JS 安全整数范围，前端一律以字符串透传；Number / String 两种入参都需兼容
         List<?> rawIds = (List<?>) params.get("ids");

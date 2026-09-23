@@ -3,13 +3,14 @@
     <PageContainer full-height>
       <!--
         购物车（交易 → 商城订单组 → 购物车，路由 trade/cart/list）
-        · 定位：商城前台顾客加购集合的**后台查看/清理页**（只读列表 + 行级删除/批量删除/清空）
+        · 定位：商城前台顾客加购集合的**后台查看/清理页**（只读列表 + 行级删除/批量删除）
         · 对标：ql361 无独立购物车页（购物车开发文档「对标来源」），本页按本系统实现 + 业界标准
         · 骨架（路线 A）：CategoryListLayout + BillDetailTable（表头序号齿轮列配置：个人/全局）+ PageConfigPanel
         · 后端（`MallCartController @RequestMapping("/api/v1/mall/cart")`；request baseURL 为 `/api`，故前端路径 `/v1/mall/cart`）：
           - `GET /page`      分页 + 会员关键字 memberKeyword + 商品关键字 productKeyword（真实分页 SQL，返回 {records,total}）
           - `DELETE /batch`  body 裸数组 `[1,2,3]`
-          - `DELETE /{id}`   单条删除；`DELETE /` 清空；`GET /` 裸数组（未分页）
+          - `DELETE /{id}`   单条删除；`GET /` 裸数组（未分页）
+          - ⚠️ `DELETE /`（清空）**不可用于管理端**：它按调用者本人清空（见模板内注释与审计报告 P1-8）
         · 分页/查询口径：**服务端分页**（mallCartApi.page），StandardPagination 的 total 用后端 total
       -->
       <CategoryListLayout
@@ -17,7 +18,15 @@
         :show-category-panel="false"
         :show-table-footer="true"
       >
-        <!-- ═══ 工具栏左侧：批量删除 / 清空购物车 ═══ -->
+        <!-- ═══ 工具栏左侧：批量删除 ═══ -->
+        <!--
+          ⚠️ 2026-09-23 移除「清空购物车」按钮：它调的是 `DELETE /v1/mall/cart`，
+          该端点在后端按**调用者本人**（`StpUtil.getLoginIdAsLong()` 当 customerId）清空，
+          而本页是管理端、列表展示的是**全体会员**的购物车 ⇒ 点了对列表没有任何影响，
+          属"看似能用实则无效"的假按钮（详见 TRADE_MODULE_AUDIT_20260923.md P1-8）。
+          要清空某位会员的购物车，用「勾选该会员的行 → 批量删除」即可（本页已具备）。
+          若将来要做「按会员一键清空」，需后端新增按 customerId 的管理端端点，不能复用 C 端的 DELETE /。
+        -->
         <template #toolbar-left>
           <a-space :size="8">
             <a-button
@@ -29,22 +38,6 @@
             >
               <DeleteOutlined /> 批量删除{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
             </a-button>
-            <a-popconfirm
-              v-if="isButtonEnabled('clearCart')"
-              title="确定清空当前用户的整个购物车？"
-              ok-text="确定清空"
-              cancel-text="取消"
-              :disabled="tableData.length === 0"
-              @confirm="handleClearCart"
-            >
-              <a-button
-                size="small"
-                danger
-                :disabled="tableData.length === 0"
-              >
-                <ClearOutlined /> 清空购物车
-              </a-button>
-            </a-popconfirm>
           </a-space>
         </template>
 
@@ -187,7 +180,7 @@ import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
   ReloadOutlined, PrinterOutlined, DownloadOutlined, SettingOutlined,
-  DeleteOutlined, ClearOutlined
+  DeleteOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -245,8 +238,8 @@ const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'printF8', label: '打印(F8)', enabled: true },
   { key: 'export', label: '导出', enabled: true },
-  { key: 'batchDelete', label: '批量删除', enabled: true },
-  { key: 'clearCart', label: '清空购物车', enabled: true }
+  { key: 'batchDelete', label: '批量删除', enabled: true }
+  // 2026-09-23 移除 'clearCart' 按钮项（假按钮，见模板内注释与审计报告 P1-8）
 ]
 const queryFields = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
 const functionButtons = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
@@ -375,22 +368,9 @@ function handleBatchDelete() {
   })
 }
 
-function handleClearCart() {
-  Modal.confirm({
-    title: '清空购物车',
-    content: '确定清空当前用户的整个购物车？该操作不可恢复。',
-    okType: 'danger',
-    onOk: async () => {
-      try {
-        await mallCartApi.clearCart()
-        message.success('购物车已清空')
-        fetchData()
-      } catch (error: any) {
-        message.error(error?.response?.data?.message || error?.message || '清空失败')
-      }
-    }
-  })
-}
+// 2026-09-23 移除 handleClearCart()：原实现调 mallCartApi.clearCart()
+// （`DELETE /v1/mall/cart`），该端点按**调用者本人**清空，与管理端列表口径不符，
+// 点了对列表无影响（审计报告 P1-8）。清空需求用「勾选行 → 批量删除」覆盖。
 
 // ═══ 打印(F8)：真实打印模板（与列表同口径，打印当前页） ═══
 function escapeHtml(v: any): string {

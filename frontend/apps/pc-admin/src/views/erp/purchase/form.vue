@@ -219,6 +219,7 @@ import { useUserStore } from '@/stores/user'
 import { userPageConfigApi } from '@/api/erp'
 import optionsApi from '@/api/options'
 import request from '@/utils/request'
+import { showImportResult } from '@/utils/importResult'
 import { PRODUCT_PURCHASE_DEFAULTS } from '@/utils/productDefaults'
 
 defineOptions({ name: 'PurchaseOrderForm' })
@@ -587,7 +588,7 @@ const basicInfoFields = computed<BasicInfoField[]>(() =>
           : f.key === 'buyerId'
             ? (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id }))
             : f.key === 'deptId'
-              ? (departmentOptions || []).map((d: any) => ({ label: d.name, value: d.id }))
+              ? (departmentOptions.value || []).map((d: any) => ({ label: d.name, value: d.id }))
               : f.options,
       loading: (f.key === 'supplierId' || f.key === 'warehouseId' || f.key === 'buyerId' || f.key === 'deptId') ? loadingOptions.value : undefined,
     }))

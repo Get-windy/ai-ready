@@ -274,9 +274,6 @@ export const purchaseExchangeApi = {
   getItems(exchangeId: number): Promise<ApiResponse<PurchaseExchangeItem[]>> {
     return request.get(`/erp/purchase/exchange/${exchangeId}/items`)
   },
-  getItemsByWarehouseType(exchangeId: number, warehouseType: number): Promise<ApiResponse<PurchaseExchangeItem[]>> {
-    return request.get(`/erp/purchase/exchange/${exchangeId}/items/${warehouseType}`)
-  },
   create(data: PurchaseExchangePayload): Promise<ApiResponse<PurchaseExchange>> {
     return request.post('/erp/purchase/exchange', data)
   },
@@ -292,9 +289,6 @@ export const purchaseExchangeApi = {
   approve(id: number, remark?: string | { remark?: string; approved?: boolean }): Promise<ApiResponse<PurchaseExchange>> {
     const remarkStr = typeof remark === 'string' ? remark : (remark && typeof remark === 'object' ? (remark.remark ?? '') : '')
     return request.post(`/erp/purchase/exchange/${id}/approve`, null, { params: { remark: remarkStr } })
-  },
-  batchApprove(ids: number[]): Promise<ApiResponse<number>> {
-    return request.post('/erp/purchase/exchange/batch-approve', ids)
   },
   reject(id: number, remark: string): Promise<ApiResponse<PurchaseExchange>> {
     return request.post(`/erp/purchase/exchange/${id}/reject`, null, { params: { remark } })

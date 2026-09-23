@@ -3,6 +3,7 @@ package cn.aiedge.trade.channel;
 import cn.aiedge.trade.dto.ExternalOrderDTO;
 import cn.aiedge.trade.dto.InventoryQueryResult;
 import cn.aiedge.trade.dto.ProductSyncResult;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ import java.util.*;
  * 3. 调用淘宝API获取订单
  * 4. 推送库存/价格变更
  */
+@Slf4j
 @Component
 public class TaobaoChannelAdapter implements ExternalChannelAdapter {
 
@@ -41,10 +43,17 @@ public class TaobaoChannelAdapter implements ExternalChannelAdapter {
         // TaobaoClient client = new DefaultTaobaoClient(config.get("apiEndpoint"), config.get("appId"), config.get("appSecret"));
     }
 
+    /**
+     * 是否已与淘宝建立可用连接。
+     *
+     * <p>⚠️ 2026-09-23 由「无条件返回 true」改为 false：本类尚未接入淘宝 SDK，
+     * {@link #initialize} 是空实现，**没有任何连接存在**。原先恒 true 会让调用方
+     * （{@code ExternalOrderServiceImpl#pullOrders}）以为渠道已就绪而继续往下走。
+     * 等真正接入 SDK 后，这里应改为「校验 access_token 有效性」。</p>
+     */
     @Override
     public boolean isConnected() {
-        // TODO: 检查token有效性
-        return true;
+        return false;
     }
 
     @Override
@@ -52,24 +61,22 @@ public class TaobaoChannelAdapter implements ExternalChannelAdapter {
         // TODO: 使用refresh_token刷新access_token
     }
 
+    /**
+     * 拉取淘宝订单。
+     *
+     * <p>⚠️ 2026-09-23 移除原先的**硬编码假数据**（曾返回固定的一条
+     * `TB_ORDER_001`／淘宝买家／张三／13800138000／金额 100.00）。那些「订单」一旦
+     * 经 {@code ExternalOrderServiceImpl#pullOrders} 落库，就会变成 `external_order_raw`
+     * 里的**假台账**，且带真实买家姓名手机号（看起来完全像真数据，极难事后识别）。
+     * 未实现就返回**空列表**，让「同步成功但 0 条」如实反映事实。
+     * 实现时应调用 `taobao.trades.sold.get` 并做字段映射。</p>
+     */
     @Override
     public List<ExternalOrderDTO> pullOrders(String startTime, String endTime, Integer pageSize) {
-        // TODO: 调用taobao.trades.sold.get接口
-        List<ExternalOrderDTO> orders = new ArrayList<>();
-        // 模拟数据
-        ExternalOrderDTO dto = new ExternalOrderDTO();
-        dto.setExternalOrderId("TB_" + System.currentTimeMillis());
-        dto.setExternalOrderNo("TB_ORDER_001");
-        dto.setChannelCode(getChannelCode());
-        dto.setExternalStatus("WAIT_SEND_GOODS");
-        dto.setOrderAmount(BigDecimal.valueOf(100.00));
-        dto.setPaidAmount(BigDecimal.valueOf(95.00));
-        dto.setBuyerName("淘宝买家");
-        dto.setReceiverName("张三");
-        dto.setReceiverPhone("13800138000");
-        dto.setOrderTime(java.time.LocalDateTime.now());
-        orders.add(dto);
-        return orders;
+        // TODO: 调用 taobao.trades.sold.get 接口（尚未实现，故不返回任何数据）
+        log.warn("淘宝渠道订单拉取尚未实现，返回空列表: start={}, end={}, pageSize={}",
+                startTime, endTime, pageSize);
+        return Collections.emptyList();
     }
 
     @Override

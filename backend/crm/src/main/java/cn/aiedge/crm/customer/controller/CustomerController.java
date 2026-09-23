@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerFollowUp;
 import cn.aiedge.crm.customer.service.CustomerFollowUpService;
@@ -41,7 +42,13 @@ public class CustomerController {
     @SaCheckPermission("crm:customer:view")
     @GetMapping("/{id}")
     public Customer getDetail(@PathVariable Long id) {
-        return customerService.getById(id);
+        // 空值语义与同模块其它控制器（contract/quotation/marketing）统一：不存在报 404，
+        // 不再返回 200 + 空响应体（前端须写两套判空，对外语义也不规范）
+        Customer customer = customerService.getById(id);
+        if (customer == null) {
+            throw BusinessException.notFound("客户不存在");
+        }
+        return customer;
     }
     
     @Operation(summary = "根据编码查询客户")

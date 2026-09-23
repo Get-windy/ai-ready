@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerLead;
 import cn.aiedge.crm.customer.service.CustomerLeadService;
@@ -39,7 +40,12 @@ public class CustomerLeadController {
     @SaCheckPermission("crm:lead:view")
     @GetMapping("/{id}")
     public CustomerLead getDetail(@PathVariable Long id) {
-        return customerLeadService.getById(id);
+        // 空值语义与同模块其它控制器统一：不存在报 404，不再返回 200 + 空响应体
+        CustomerLead lead = customerLeadService.getById(id);
+        if (lead == null) {
+            throw BusinessException.notFound("线索不存在");
+        }
+        return lead;
     }
     
     @Operation(summary = "根据编码查询线索")

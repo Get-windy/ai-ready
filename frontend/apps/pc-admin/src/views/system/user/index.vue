@@ -27,8 +27,12 @@
             >
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
+            <!-- 权限码用 `tenant-admin:user:list`：页面的数据来源就是 GET /user/page，
+                 而该端点由 SysUserController 上的 @SaCheckPermission("tenant-admin:user:list") 守卫。
+                 原值 `system:user:query` 在 sys_permission 里**不存在**（实测），而 v-permission 是
+                 全等匹配 + fail-closed ⇒ 除超管（`*`）外**所有人都看不到这个刷新按钮**。 -->
             <a-button
-              v-permission="'system:user:query'"
+              v-permission="'tenant-admin:user:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)"

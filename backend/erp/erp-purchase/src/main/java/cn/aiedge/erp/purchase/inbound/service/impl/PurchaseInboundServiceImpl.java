@@ -35,7 +35,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -50,6 +52,9 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
     private final PurchaseOrderMapper purchaseOrderMapper;
     private final PurchaseOrderItemMapper purchaseOrderItemMapper;
     private final InboundNameLookupMapper nameLookupMapper;
+
+    /** Excel 导入：名称 → 主数据主键 的回查 */
+    private final cn.aiedge.erp.purchase.mapper.PurchaseImportLookupMapper importLookupMapper;
 
     @Override
     public PurchaseInbound getByInboundNo(String inboundNo) {
@@ -272,38 +277,37 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int importOrders(org.springframework.web.multipart.MultipartFile file) {
+    public Map<String, Object> importOrders(org.springframework.web.multipart.MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new cn.aiedge.common.exception.BusinessException("导入文件不能为空");
         }
+        // 列序：0=供应商名 1=仓库名 2=商品名 3=数量 4=单价
+        // 原实现只写「名称」：明细没有商品主键、仓库为空 ⇒ 单据建得出来但既不能入库也不能记账
+        // （updateStock 直接抛「入库单未指定仓库」）。这里按名称回查主数据拿真实主键。
         int count = 0;
+        List<String> errors = new ArrayList<>();
         try (var inputStream = file.getInputStream()) {
             var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(inputStream);
             var sheet = workbook.getSheetAt(0);
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 var row = sheet.getRow(i);
-                if (row == null) continue;
-                var supplierCell = row.getCell(0);
-                var warehouseCell = row.getCell(1);
-                var productCell = row.getCell(2);
-                var qtyCell = row.getCell(3);
-                var priceCell = row.getCell(4);
-                if (productCell == null || productCell.getStringCellValue().trim().isEmpty()) continue;
-                PurchaseInbound inbound = new PurchaseInbound();
-                if (supplierCell != null) inbound.setSupplierName(supplierCell.getStringCellValue());
-                if (warehouseCell != null) inbound.setWarehouseName(warehouseCell.getStringCellValue());
-                // 租户取会话，不能写死 1（否则导入的单据会落到租户 1 名下）
-                inbound.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
-                PurchaseInboundItem item = new PurchaseInboundItem();
-                item.setProductName(productCell.getStringCellValue());
-                item.setOrderQuantity(qtyCell != null ? BigDecimal.valueOf(qtyCell.getNumericCellValue()) : BigDecimal.ZERO);
-                item.setUnitPrice(priceCell != null ? BigDecimal.valueOf(priceCell.getNumericCellValue()) : BigDecimal.ZERO);
-                item.setTaxRate(BigDecimal.ZERO);
+                if (row == null) {
+                    continue;
+                }
+                String supplierName = cellText(row.getCell(0));
+                String warehouseName = cellText(row.getCell(1));
+                String productName = cellText(row.getCell(2));
+                if (productName == null || productName.isBlank()) {
+                    continue; // 空行跳过（不算失败）
+                }
                 try {
-                    createInbound(inbound, List.of(item));
+                    ImportRowLine parsed = buildImportInbound(row, supplierName, warehouseName, productName);
+                    createInbound(parsed.inbound(), List.of(parsed.item()));
                     count++;
                 } catch (Exception e) {
-                    log.warn("导入第{}行失败: {}", i, e.getMessage());
+                    String msg = "第" + (i + 1) + "行: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                    errors.add(msg);
+                    log.warn("导入采购入库单失败 {}", msg);
                 }
             }
             workbook.close();
@@ -312,7 +316,91 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         } catch (Exception e) {
             throw new cn.aiedge.common.exception.BusinessException("导入文件解析失败: " + e.getMessage());
         }
-        return count;
+        Map<String, Object> result = new HashMap<>();
+        result.put("count", count);
+        result.put("failed", errors.size());
+        result.put("errors", errors);
+        return result;
+    }
+
+    /** 导入时单行解析结果：单据头 + 唯一明细行。 */
+    private record ImportRowLine(PurchaseInbound inbound, PurchaseInboundItem item) {
+    }
+
+    /** Excel 一行 → 可落库的入库单（含真实主键的供应商 / 仓库 / 商品）。 */
+    private ImportRowLine buildImportInbound(org.apache.poi.ss.usermodel.Row row,
+                                             String supplierName, String warehouseName, String productName) {
+        Long productId = importLookupMapper.selectProductIdByName(productName.trim());
+        if (productId == null) {
+            throw new cn.aiedge.common.exception.BusinessException("商品[" + productName + "]在商品档案中不存在");
+        }
+        if (warehouseName == null || warehouseName.isBlank()) {
+            throw new cn.aiedge.common.exception.BusinessException("缺少仓库列，无法入库");
+        }
+        Long warehouseId = importLookupMapper.selectWarehouseIdByName(warehouseName.trim());
+        if (warehouseId == null) {
+            throw new cn.aiedge.common.exception.BusinessException("仓库[" + warehouseName + "]不存在");
+        }
+        Long supplierId = null;
+        if (supplierName != null && !supplierName.isBlank()) {
+            supplierId = importLookupMapper.selectPartyIdByName(supplierName.trim());
+            if (supplierId == null) {
+                throw new cn.aiedge.common.exception.BusinessException("供应商[" + supplierName + "]在往来单位中不存在");
+            }
+        }
+
+        PurchaseInbound inbound = new PurchaseInbound();
+        inbound.setSupplierId(supplierId);
+        inbound.setSupplierName(supplierName);
+        inbound.setWarehouseId(warehouseId);
+        inbound.setWarehouseName(warehouseName.trim());
+        // 租户取会话，不能写死 1（否则导入的单据会落到租户 1 名下）
+        inbound.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
+
+        PurchaseInboundItem item = new PurchaseInboundItem();
+        item.setProductId(productId);
+        item.setProductName(productName.trim());
+        item.setProductCode(importLookupMapper.selectProductCode(productId));
+        item.setProductSpec(importLookupMapper.selectProductSpec(productId));
+        item.setProductUnit(importLookupMapper.selectProductUnit(productId));
+        BigDecimal qty = numeric(row.getCell(3));
+        BigDecimal price = numeric(row.getCell(4));
+        item.setOrderQuantity(qty == null ? BigDecimal.ZERO : qty);
+        item.setUnitPrice(price == null ? BigDecimal.ZERO : price);
+        item.setTaxRate(BigDecimal.ZERO);
+        return new ImportRowLine(inbound, item);
+    }
+
+    /** 单元格取文本；空返回 null。 */
+    private static String cellText(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        try {
+            return switch (cell.getCellType()) {
+                case STRING -> cell.getStringCellValue();
+                case NUMERIC -> new BigDecimal(String.valueOf(cell.getNumericCellValue())).stripTrailingZeros().toPlainString();
+                default -> null;
+            };
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 单元格取数值；空/非数字返回 null。 */
+    private static BigDecimal numeric(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        try {
+            return switch (cell.getCellType()) {
+                case NUMERIC -> BigDecimal.valueOf(cell.getNumericCellValue());
+                case STRING -> new BigDecimal(cell.getStringCellValue().trim());
+                default -> null;
+            };
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

@@ -65,20 +65,6 @@ public class HrPerformanceServiceImpl extends ServiceImpl<HrPerformanceMapper, H
     }
 
     @Override
-    public List<HrPerformance> listForExport(String reviewPeriod, String reviewType,
-                                             String level, Integer status, Long deptId) {
-        LambdaQueryWrapper<HrPerformance> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StringUtils.hasText(reviewPeriod), HrPerformance::getReviewPeriod, reviewPeriod)
-                .eq(StringUtils.hasText(reviewType), HrPerformance::getReviewType, reviewType)
-                .eq(StringUtils.hasText(level), HrPerformance::getLevel, level)
-                .eq(status != null, HrPerformance::getStatus, status);
-        applyDeptScope(wrapper, deptId);
-        List<HrPerformance> rows = list(wrapper.orderByDesc(HrPerformance::getReviewPeriod));
-        enrich(rows);
-        return rows;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public Long submitReview(HrPerformance performance) {
         validate(performance);

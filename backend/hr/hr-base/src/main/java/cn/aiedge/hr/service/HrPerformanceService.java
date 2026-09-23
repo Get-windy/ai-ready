@@ -26,8 +26,4 @@ public interface HrPerformanceService extends IService<HrPerformance> {
 
     /** 绩效统计：考核单数 / 平均分 / 各等级人数 */
     Map<String, Object> statistics(String reviewPeriod, Long deptId);
-
-    /** 导出用全量查询 */
-    List<HrPerformance> listForExport(String reviewPeriod, String reviewType,
-                                      String level, Integer status, Long deptId);
 }

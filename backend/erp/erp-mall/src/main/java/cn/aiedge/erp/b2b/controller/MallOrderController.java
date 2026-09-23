@@ -60,30 +60,14 @@ public class MallOrderController {
         return ApiResponse.success("已确认收货", null);
     }
 
-    @Operation(summary = "支付订单", description = "发起订单支付")
-    @PostMapping("/{id}/pay")
-    public ApiResponse<Void> payOrder(
-            @Parameter(description = "订单ID") @PathVariable Long id) {
-        mallOrderService.payOrder(id);
-        return ApiResponse.success("支付成功", null);
-    }
-
-    @Operation(summary = "审核通过", description = "管理端审核通过订单")
-    @PutMapping("/{id}/approve")
-    public ApiResponse<Void> approveOrder(
-            @Parameter(description = "订单ID") @PathVariable Long id) {
-        mallOrderService.approveOrder(id);
-        return ApiResponse.success("审核通过", null);
-    }
-
-    @Operation(summary = "审核驳回", description = "管理端审核驳回订单")
-    @PutMapping("/{id}/reject")
-    public ApiResponse<Void> rejectOrder(
-            @Parameter(description = "订单ID") @PathVariable Long id,
-            @Parameter(description = "驳回原因") @RequestParam String reason) {
-        mallOrderService.rejectOrder(id, reason);
-        return ApiResponse.success("已驳回", null);
-    }
+    // ⚠️ 2026-09-23 移除三个「买家端」端点：POST /{id}/pay、PUT /{id}/approve、PUT /{id}/reject。
+    //   · 它们只校验「已登录」，且服务实现不校验订单归属 ⇒ 任意登录用户可按 id 把
+    //     别人的（或自己的）订单置为已付款 / 审核通过（详见 TRADE_MODULE_AUDIT_20260923.md P0-5、P2-5）；
+    //   · payOrder 只改状态、不产生支付记录，等于"白拿单"通道；
+    //   · approve/reject 是审核动作，管理端已有带 @SaCheckPermission 的等价端点
+    //     （/erp/mall/admin/order/{id}/approve|reject），不应在买家端重复暴露；
+    //   · 三者在前端两个应用里均无调用方（pc-admin 用管理端端点，mobile-mall 未接）。
+    //   将来做 C 端支付时，应走 core-payment 的 createPayment + 渠道回调驱动订单状态。
 
     @Operation(summary = "支付方式列表", description = "获取可用的支付方式列表")
     @GetMapping("/payment-methods")

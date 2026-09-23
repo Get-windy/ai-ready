@@ -24,6 +24,11 @@ BACKEND_JSON = os.path.join(ROOT, 'tool-results', 'dms-backend-audit.json')
 # （request.get<Result<Record<string, any>>>('/x')），[^>]* 会匹配失败而漏报。
 CALL = re.compile(r'request\s*\.\s*(get|post|put|delete|patch)\b')
 
+# ⚠️ 通用导入组件（BaseDataImportWizard）的 URL 走 props，内部才 request.get(props.templateUrl)，
+#    字面量抓不到 → 会把 /xxx/import-template、/xxx/import-excel 误报成「无前端消费方」。
+#    必须单独提取组件属性上的 URL。
+PROP_URL = re.compile(r'(?:v-bind:)?:?(?:template-url|import-url|templateUrl|importUrl)\s*=\s*[\'"]([^\'"]+)[\'"]')
+
 
 def url_after(src, pos):
     """跳过泛型 <...>（可嵌套）与空白，取 request.xxx( 的第一个引号串"""
@@ -115,6 +120,17 @@ def main():
                     continue
                 line = src[:m.start()].count('\n') + 1
                 front[(verb, n)].append('%s:%d' % (rel, line))
+            # 组件属性形式的 URL（导入模板下载 GET / 导入 POST）
+            for pm in PROP_URL.finditer(src):
+                u = pm.group(1)
+                if not u.startswith('/'):
+                    continue
+                n = norm(u)
+                if not is_dms(n):
+                    continue
+                verb = 'GET' if 'template' in pm.group(0).lower() else 'POST'
+                line = src[:pm.start()].count('\n') + 1
+                front[(verb, n)].append('%s:%d(组件属性)' % (rel, line))
 
     missing = sorted(k for k in front if k not in backend)
     unused = sorted(k for k in backend if k not in front)

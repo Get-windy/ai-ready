@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.dto.CustomerFollowUpQuery;
 import cn.aiedge.crm.customer.entity.CustomerFollowUp;
 import cn.aiedge.crm.customer.service.CustomerFollowUpService;
@@ -32,7 +33,12 @@ public class CustomerFollowUpController {
     @SaCheckPermission("crm:follow-up:detail")
     @GetMapping("/{id}")
     public CustomerFollowUp getDetail(@PathVariable Long id) {
-        return customerFollowUpService.getById(id);
+        // 空值语义与同模块其它控制器统一：不存在报 404，不再返回 200 + 空响应体
+        CustomerFollowUp followUp = customerFollowUpService.getById(id);
+        if (followUp == null) {
+            throw BusinessException.notFound("跟进记录不存在");
+        }
+        return followUp;
     }
     
     @Operation(summary = "根据编码查询跟进记录")

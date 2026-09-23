@@ -160,21 +160,6 @@ public class HrAttendanceServiceImpl extends ServiceImpl<HrAttendanceMapper, HrA
         return list(wrapper.orderByAsc(HrAttendance::getAttendanceDate));
     }
 
-    @Override
-    public List<HrAttendance> listForExport(String month, Long deptId, Long employeeId,
-                                            String status, LocalDate dateStart, LocalDate dateEnd) {
-        LambdaQueryWrapper<HrAttendance> wrapper = new LambdaQueryWrapper<HrAttendance>()
-                .eq(employeeId != null, HrAttendance::getEmployeeId, employeeId)
-                .eq(StringUtils.hasText(status), HrAttendance::getStatus, status);
-        applyMonthRange(wrapper, month);
-        wrapper.ge(dateStart != null, HrAttendance::getAttendanceDate, dateStart)
-                .le(dateEnd != null, HrAttendance::getAttendanceDate, dateEnd);
-        applyDeptScope(wrapper, deptId);
-        List<HrAttendance> rows = list(wrapper.orderByDesc(HrAttendance::getAttendanceDate));
-        enrich(rows);
-        return rows;
-    }
-
     /** month 用区间匹配，避免旧实现 `like('2026-09')` 命中 `2026-0901` 这类脏数据 */
     private void applyMonthRange(LambdaQueryWrapper<HrAttendance> wrapper, String month) {
         if (!StringUtils.hasText(month)) {

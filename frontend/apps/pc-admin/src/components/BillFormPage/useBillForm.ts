@@ -305,16 +305,34 @@ export function useBillForm(options: UseBillFormOptions) {
   const totalWithTax = computed(() => formData.products.reduce((s: number, p: any) => s + (p.quantity || 0) * (p.unitPrice || 0) * (1 + (p.taxRate || 0) / 100), 0))
   const totalWithTaxFormatted = computed(() => `¥${totalWithTax.value.toFixed(2)}`)
 
+  // ── 复制模式：带出既有单据的内容，但作为**新单**保存 ──
+  // 源单 id 来自 ?copyFrom=（单据查询页的「复制」按钮）。它只带内容、不带身份：
+  // 单据号必须重新取号、状态回草稿、id 清空 —— 否则保存会走 update 覆盖掉原单。
+  // 放在这里（而不是各页面）是因为入库/退货/换货等单据表单共用本 composable。
+  async function loadCopySource(sourceId: number | string) {
+    await loadDetail(sourceId)
+    formData.id = undefined
+    formData.status = 0
+    formData.orderNo = ''
+    // 明细行去掉原主键，确保按新增插入而不是更新原单明细
+    formData.products = (formData.products || []).map((p: any, i: number) => ({ ...p, id: `detail-${i}` }))
+    await generateBillNo()
+  }
+
   // ── 生命周期 ──
   onMounted(() => {
     const editId = route.params.id || route.query.id
-    // 编辑/查看模式不取新号：generateBillNo 是异步的，会晚于 loadDetail 回来并覆盖真实单号
-    if (!(editId && effectiveMode.value === 'edit')) {
+    const copyFrom = route.query.copyFrom
+    // 编辑/查看模式不取新号：generateBillNo 是异步的，会晚于 loadDetail 回来并覆盖真实单号。
+    // 复制模式也由 loadCopySource 在载入内容之后重新取号，此处不重复调用（避免两次取号互相覆盖）。
+    if (!copyFrom && !(editId && effectiveMode.value === 'edit')) {
       generateBillNo()  // async, fires and forgets
     }
     loadOptions()
     document.addEventListener('keydown', handleKeydown)
-    if (editId && effectiveMode.value === 'edit') {
+    if (copyFrom) {
+      loadCopySource(String(copyFrom))
+    } else if (editId && effectiveMode.value === 'edit') {
       loadDetail(editId)
     }
   })

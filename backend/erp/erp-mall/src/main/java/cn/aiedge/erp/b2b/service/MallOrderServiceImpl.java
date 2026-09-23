@@ -391,13 +391,58 @@ public class MallOrderServiceImpl implements MallOrderService {
         return result;
     }
 
-    @Override
-    public OrderDetailDTO getOrderDetail(Long id) {
-        log.info("获取订单详情: {}", id);
+    /**
+     * 当前调用者的「身份标识」——与 {@link #listOrders} 里 {@code queryPartyId} **同一口径**：
+     * 会话激活身份 → shop_user.partyId → shop_user.id（下单时的兜底值）。
+     *
+     * <p>抽成一处是刻意的：订单写入时的 {@code customer_id} 用的就是这套解析
+     * （见 {@code createOrder}），列表查询用的也是它。若这里再写第二套口径，
+     * 迟早出现「列表看得到、详情说无权」这类自相矛盾。</p>
+     */
+    private Long currentCallerPartyId() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        Object activeObj = StpUtil.getSession().get("activePartyId");
+        Long activePartyId = activeObj instanceof Number ? ((Number) activeObj).longValue() : null;
+        if (activePartyId != null) {
+            return activePartyId;
+        }
+        ShopUser user = shopUserMapper.selectById(userId);
+        if (user != null && user.getPartyId() != null) {
+            return user.getPartyId();
+        }
+        return userId;
+    }
+
+    /**
+     * 取出**属于当前调用者**的订单；不属于则拒绝。
+     *
+     * <p>2026-09-23 补：本类此前所有按 id 的操作都是 {@code selectById} 之后直接用，
+     * 不校验归属 —— 商城端点（{@code /api/v1/mall/orders/**}）只要求「已登录」，
+     * 于是同租户内任意买家可按 id 读别人的订单（含收件人/电话/地址）、取消/确认别人的订单
+     * （IDOR / BOLA，见 TRADE_MODULE_AUDIT_20260923.md P0-5）。
+     * 租户维度由租户拦截器兜住（跨租户查到的是 null），**租户内跨用户**此前完全没有防线。</p>
+     *
+     * <p>返回 403 而非 404：调用方本来就是"合法登录但无权看这一单"，
+     * 与"订单不存在"是两种不同的运维语义，分开更好排障。</p>
+     */
+    private ErpSaleOrderMall requireMyOrder(Long id) {
         ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
         if (order == null) {
             throw BusinessException.notFound("订单不存在: " + id);
         }
+        Long callerPartyId = currentCallerPartyId();
+        if (!Objects.equals(order.getCustomerId(), callerPartyId)) {
+            log.warn("越权访问商城订单被拒: orderId={}, orderCustomerId={}, caller={}",
+                    id, order.getCustomerId(), callerPartyId);
+            throw BusinessException.forbidden("无权访问该订单");
+        }
+        return order;
+    }
+
+    @Override
+    public OrderDetailDTO getOrderDetail(Long id) {
+        log.info("获取订单详情: {}", id);
+        ErpSaleOrderMall order = requireMyOrder(id);
 
         List<ErpSaleOrderItemMall> items = erpSaleOrderItemMapper.selectList(
                 new LambdaQueryWrapper<ErpSaleOrderItemMall>()
@@ -411,10 +456,7 @@ public class MallOrderServiceImpl implements MallOrderService {
     @Transactional
     public void cancelOrder(Long id) {
         log.info("取消订单: {}", id);
-        ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在: " + id);
-        }
+        ErpSaleOrderMall order = requireMyOrder(id);
 
         String currentMallStatus = toMallStatus(order);
         if (!"PENDING_PAYMENT".equals(currentMallStatus)) {
@@ -434,10 +476,7 @@ public class MallOrderServiceImpl implements MallOrderService {
     @Transactional
     public void confirmOrder(Long id) {
         log.info("确认收货: {}", id);
-        ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在: " + id);
-        }
+        ErpSaleOrderMall order = requireMyOrder(id);
 
         String currentMallStatus = toMallStatus(order);
         if (!"SHIPPED".equals(currentMallStatus)) {
@@ -452,73 +491,13 @@ public class MallOrderServiceImpl implements MallOrderService {
         log.info("订单已确认收货: {}", order.getOrderNo());
     }
 
-    @Override
-    @Transactional
-    public void payOrder(Long id) {
-        log.info("支付订单: {}", id);
-        ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在: " + id);
-        }
-
-        String currentMallStatus = toMallStatus(order);
-        if (!"PENDING_PAYMENT".equals(currentMallStatus)) {
-            throw BusinessException.badRequest("当前订单状态不允许支付");
-        }
-
-        order.setStatus(toErpStatus("PAID"));
-        order.setPaymentStatus(toErpPaymentStatus("PAID"));
-        order.setReceivedAmount(order.getTotalAmount());
-        order.setExtInfo(buildExtInfo("PAID"));
-        erpSaleOrderMapper.updateById(order);
-
-        log.info("订单支付成功: {}", order.getOrderNo());
-    }
-
-    @Override
-    @Transactional
-    public void approveOrder(Long id) {
-        log.info("审核通过订单: {}", id);
-        ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在: " + id);
-        }
-
-        String currentMallStatus = toMallStatus(order);
-        if (!"PAID".equals(currentMallStatus)) {
-            throw BusinessException.badRequest("当前订单状态不允许审核");
-        }
-
-        order.setStatus(toErpStatus("APPROVED"));
-        order.setExtInfo(buildExtInfo("APPROVED"));
-        erpSaleOrderMapper.updateById(order);
-
-        log.info("订单已审核通过: {}", order.getOrderNo());
-    }
-
-    @Override
-    @Transactional
-    public void rejectOrder(Long id, String reason) {
-        log.info("审核驳回订单: {}", id);
-        ErpSaleOrderMall order = erpSaleOrderMapper.selectById(id);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在: " + id);
-        }
-
-        String currentMallStatus = toMallStatus(order);
-        if (!"PAID".equals(currentMallStatus) && !"PENDING_PAYMENT".equals(currentMallStatus)) {
-            throw BusinessException.badRequest("当前订单状态不允许驳回");
-        }
-
-        order.setStatus(toErpStatus("REJECTED"));
-        order.setRemark(reason);
-        order.setExtInfo(buildExtInfo("REJECTED"));
-        erpSaleOrderMapper.updateById(order);
-
-        // 无需归还库存：createOrder 已不再由商城侧扣减库存（见其修复说明），
-        // 原 restoreStock() 回写 mall_product.stock_quantity 的写法已随之移除。
-        log.info("订单已驳回: {}", order.getOrderNo());
-    }
+    // ⚠️ 2026-09-23 移除三个方法：payOrder / approveOrder / rejectOrder。
+    //   · payOrder 只置状态为已付（receivedAmount=总额）而**不产生支付记录** ⇒ 买卖双方任一侧
+    //     调一次即可"白拿单"；正确路径是 core-payment 的 createPayment + 渠道回调驱动状态。
+    //   · approve/reject 是**审核动作**，在买家端暴露等于买家可自审通过；管理端已有带
+    //     @SaCheckPermission 的等价实现（MallAdminServiceImpl#approveOrder/rejectOrder）。
+    //   · 三者在前端 pc-admin / mobile-mall 中零调用方；对应控制器端点同步移除。
+    //   详见 TRADE_MODULE_AUDIT_20260923.md P0-5、P2-5。
 
     @Override
     public List<Map<String, Object>> getPaymentMethods() {

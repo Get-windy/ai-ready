@@ -1644,6 +1644,8 @@ onMounted(async () => {
   window.addEventListener('crm:create' as any, handleParentCreate as any)
   window.addEventListener('crm:refresh' as any, handleRefresh as any)
   document.addEventListener('keydown', handleKeydown)
+  // 工具栏写着「打印(F8)」，但此前从未绑定监听 ⇒ 提示是假的；与 quotation/form.vue 口径一致补上
+  document.addEventListener('keydown', handleF8Key)
 })
 
 onUnmounted(() => {
@@ -1652,6 +1654,7 @@ onUnmounted(() => {
   window.removeEventListener('crm:create' as any, handleParentCreate as any)
   window.removeEventListener('crm:refresh' as any, handleRefresh as any)
   document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('keydown', handleF8Key)
 })
 
 defineExpose({ handleQuery: fetchList })

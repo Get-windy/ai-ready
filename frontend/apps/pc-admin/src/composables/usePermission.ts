@@ -152,54 +152,6 @@ export function usePermission() {
 }
 
 /**
- * 使用菜单权限
- * @returns 菜单权限相关方法
- */
-export function useMenuPermission() {
-  const { checkPermission, checkAnyPermission } = usePermission()
-
-  /**
-   * 检查菜单是否可访问
-   * @param menuCode 菜单编码
-   * @returns 是否可访问
-   */
-  const canAccessMenu = (menuCode: string): boolean => {
-    return checkPermission(`menu:${menuCode}`) || checkPermission('*')
-  }
-
-  /**
-   * 检查任意菜单是否可访问
-   * @param menuCodes 菜单编码数组
-   * @returns 是否有任一菜单可访问
-   */
-  const canAccessAnyMenu = (menuCodes: string[]): boolean => {
-    return checkAnyPermission(menuCodes.map(code => `menu:${code}`))
-  }
-
-  /**
-   * 过滤菜单列表
-   * @param menus 菜单列表
-   * @returns 过滤后的菜单列表
-   */
-  const filterMenus = <T extends { permissions?: string[] }>(menus: T[]): T[] => {
-    const { permissions } = usePermission()
-    
-    if (permissions.value.includes('*')) return menus
-    
-    return menus.filter(menu => {
-      if (!menu.permissions || menu.permissions.length === 0) return true
-      return menu.permissions.some(perm => checkPermission(perm))
-    })
-  }
-
-  return {
-    canAccessMenu,
-    canAccessAnyMenu,
-    filterMenus
-  }
-}
-
-/**
  * 使用按钮权限
  * @returns 按钮权限相关方法
  */
@@ -258,7 +210,7 @@ export function useButtonPermission() {
  * @returns 数据权限相关方法
  */
 export function useDataPermission() {
-  const { checkPermission, checkAnyPermission, isSuperAdminUser } = usePermission()
+  const { checkPermission, isSuperAdminUser } = usePermission()
 
   /**
    * 检查数据范围权限
@@ -321,7 +273,6 @@ export function useDataPermission() {
 
 export default {
   usePermission,
-  useMenuPermission,
   useButtonPermission,
   useDataPermission
 }

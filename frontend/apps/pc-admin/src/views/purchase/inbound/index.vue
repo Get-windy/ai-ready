@@ -100,6 +100,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { userPageConfigApi } from '@/api/erp'
 import request from '@/utils/request'
+import { showImportResult } from '@/utils/importResult'
 import { exportCsvFromColumns } from '@/utils/exportCsv'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type {
@@ -396,7 +397,11 @@ async function confirmPrint() {
   try {
     await request.post('/erp/purchase/inbound/batch-print', { template: printTemplate.value, ids: selectedRowKeys.value })
     localStorage.setItem('purchase-inbound-last-print-template', printTemplate.value)
-    message.success(`已发送打印（模板: ${printTemplate.value}）`)
+    // 后端 batch-print 只做「打印次数 +1」——打印链路（erp-printing）当前无模板/客户端数据，
+    // 建了任务也不会出纸。这里改为调用浏览器打印产出真实单据，同时把次数记在台账上，
+    // 让按钮的提示语与实际发生的事一致。
+    window.print()
+    message.success(`已记录打印次数并打开打印预览（模板: ${printTemplate.value}）`)
     showPrintDialog.value = false
     fetchData()
   } catch { message.error('打印失败') }
@@ -411,7 +416,7 @@ async function handleImportFileChange(e: Event) {
   importLoading.value = true
   try {
     const res: any = await request.post('/erp/purchase/inbound/import', fd)
-    message.success(`导入成功: ${res?.data?.count || 0} 条`)
+    showImportResult(res?.data)
     fetchData()
   } catch { message.error('导入失败，请检查文件格式') }
   finally { importLoading.value = false; input.value = '' }

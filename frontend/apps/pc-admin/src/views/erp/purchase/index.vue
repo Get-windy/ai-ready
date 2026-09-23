@@ -122,6 +122,7 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { userPageConfigApi } from '@/api/erp'
 import { PURCHASE_ORDER_STATUS } from '@/utils/statusConfig'
 import request from '@/utils/request'
+import { showImportResult } from '@/utils/importResult'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type {
   SearchConfigMap, SearchCheckboxConfigMap,
@@ -624,14 +625,21 @@ function loadLastPrintTemplate(): string {
 }
 
 function saveLastPrintTemplate(template: string) {
-  try { localStorage.setItem('purchase-order-last-print-template', template) } catch {}
+  try {
+    localStorage.setItem('purchase-order-last-print-template', template)
+  } catch {
+    // 隐私模式/配额满时写不进 localStorage，不影响打印本身
+  }
 }
 
 async function confirmPrint() {
   try {
     await request.post('/erp/purchase/order/batch-print', { template: printTemplate.value })
     saveLastPrintTemplate(printTemplate.value)
-    message.success(`已发送打印（模板: ${printTemplate.value}）`)
+    // 后端 batch-print 只做「打印次数 +1」——打印链路（erp-printing）当前无模板/客户端数据，
+    // 建了任务也不会出纸。这里改为调用浏览器打印产出真实单据，同时把次数记在台账上。
+    window.print()
+    message.success(`已记录打印次数并打开打印预览（模板: ${printTemplate.value}）`)
     showPrintDialog.value = false
     fetchData()
   } catch {
@@ -648,7 +656,7 @@ async function handleImportFileChange(e: Event) {
   importLoading.value = true
   try {
     const res: any = await request.post('/erp/purchase/order/import', fd)
-    message.success(`导入成功: ${res?.data?.count || 0} 条`)
+    showImportResult(res?.data)
     fetchData()
   } catch {
     message.error('导入失败，请检查文件格式')

@@ -87,7 +87,7 @@
           <div class="search-area">
             <div class="search-container" :data-expanded="showMoreConditions || null">
             <div class="search-grid" ref="gridRef">
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('dateRange')" class="search-field-item">
                 <a-range-picker
                   v-model:value="documentDateRange"
                   size="small"
@@ -95,7 +95,7 @@
                   @change="handleDocumentDateChange"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('orderNo')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.orderNo"
                   placeholder="单据编号"
@@ -103,7 +103,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('saleType')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">销售类型</span>
                   <a-select
@@ -118,7 +118,7 @@
                   </a-select>
                 </div>
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('generationMethod')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.generationMethod"
                   placeholder="录入方式"
@@ -126,7 +126,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('customerName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.customerName"
                   placeholder="客户"
@@ -135,7 +135,7 @@
                   :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('salesmanName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.salesmanName"
                   placeholder="经手人"
@@ -144,7 +144,7 @@
                   :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('deptName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.deptName"
                   placeholder="部门"
@@ -152,7 +152,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('creatorName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.creatorName"
                   placeholder="制单人"
@@ -160,7 +160,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('submitterName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.submitterName"
                   placeholder="提交人"
@@ -168,7 +168,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('auditorName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.auditorName"
                   placeholder="审核人"
@@ -176,7 +176,7 @@
                   size="small"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('warehouseName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.warehouseName"
                   placeholder="仓库"
@@ -185,7 +185,7 @@
                   :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('productName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.productName"
                   placeholder="商品"
@@ -194,7 +194,7 @@
                   :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
                 />
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('status')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">单据状态</span>
                   <a-select
@@ -213,7 +213,7 @@
                   </a-select>
                 </div>
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('bookkeepingStatus')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">记账状态</span>
                   <a-select
@@ -227,7 +227,7 @@
                   </a-select>
                 </div>
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('paymentStatus')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">支付状态</span>
                   <a-select
@@ -245,7 +245,7 @@
 
               <!-- 更多条件（展开后显示） -->
               <template v-if="showMoreConditions">
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('shipDate')" class="search-field-item">
                   <a-range-picker
                     v-model:value="shipDateRange"
                     size="small"
@@ -253,7 +253,7 @@
                     @change="handleShipDateChange"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('receiverName')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.receiverName"
                     placeholder="收货人"
@@ -261,7 +261,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('receiverPhone')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.receiverPhone"
                     placeholder="联系电话"
@@ -269,7 +269,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('shippingAddress')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.shippingAddress"
                     placeholder="收货地址"
@@ -277,7 +277,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('logisticsCompany')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.logisticsCompany"
                     placeholder="物流公司"
@@ -285,7 +285,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('waybillNo')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.waybillNo"
                     placeholder="运单号"
@@ -293,7 +293,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('depositAccount1')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.depositAccount1"
                     placeholder="订金账户1"
@@ -301,7 +301,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('depositAccount2')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.depositAccount2"
                     placeholder="订金账户2"
@@ -309,7 +309,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('sellerRemark')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.sellerRemark"
                     placeholder="卖家备注"
@@ -317,7 +317,7 @@
                     size="small"
                   />
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('buyerRemark')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.buyerRemark"
                     placeholder="买家备注"
@@ -334,17 +334,17 @@
                     <SearchOutlined /> 查询
                   </a-button>
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('onlyCoupon')" class="search-field-item">
                   <a-checkbox v-model:checked="searchParams.onlyCoupon">
                     只查看用了优惠券的订单
                   </a-checkbox>
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('showCancelled')" class="search-field-item">
                   <a-checkbox v-model:checked="searchParams.showCancelled">
                     显示已取消
                   </a-checkbox>
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('onlySelected')" class="search-field-item">
                   <a-checkbox v-model:checked="searchParams.onlySelected">
                     仅显示已选中
                   </a-checkbox>
@@ -419,7 +419,7 @@
       :open="showPageConfig"
       :query-fields-config="queryFieldsConfig"
       :function-buttons-config="functionButtonConfig"
-      storage-key="purchase-sales-driven-page-config"
+      :storage-key="PAGE_CONFIG_STORAGE_KEY"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -629,19 +629,22 @@ const queryFieldsConfig = ref([
   { key: 'status', label: '单据状态', visible: true },
   { key: 'bookkeepingStatus', label: '记账状态', visible: true },
   { key: 'paymentStatus', label: '支付状态', visible: true },
-  { key: 'shipDate', label: '发货日期', visible: false },
-  { key: 'receiverName', label: '收货人', visible: false },
-  { key: 'receiverPhone', label: '联系电话', visible: false },
-  { key: 'shippingAddress', label: '收货地址', visible: false },
-  { key: 'logisticsCompany', label: '物流公司', visible: false },
-  { key: 'waybillNo', label: '运单号', visible: false },
-  { key: 'depositAccount1', label: '订金账户1', visible: false },
-  { key: 'depositAccount2', label: '订金账户2', visible: false },
-  { key: 'sellerRemark', label: '卖家备注', visible: false },
-  { key: 'buyerRemark', label: '买家备注', visible: false },
-  { key: 'onlyCoupon', label: '只查看用了优惠券的订单', visible: false },
-  { key: 'showCancelled', label: '显示已取消', visible: false },
-  { key: 'onlySelected', label: '仅显示已选中', visible: false },
+  // ⚠️ 语义统一为「该查询条件是否启用」，**不是**「是否已折叠进更多条件」。
+  // 这些字段本来就在「更多条件」折叠区里，展开/收起由 showMoreConditions 控制；
+  // 若这里再给 false，用户展开「更多条件」后仍看不到它们（页面配置与折叠区互相打架）。
+  { key: 'shipDate', label: '发货日期', visible: true },
+  { key: 'receiverName', label: '收货人', visible: true },
+  { key: 'receiverPhone', label: '联系电话', visible: true },
+  { key: 'shippingAddress', label: '收货地址', visible: true },
+  { key: 'logisticsCompany', label: '物流公司', visible: true },
+  { key: 'waybillNo', label: '运单号', visible: true },
+  { key: 'depositAccount1', label: '订金账户1', visible: true },
+  { key: 'depositAccount2', label: '订金账户2', visible: true },
+  { key: 'sellerRemark', label: '卖家备注', visible: true },
+  { key: 'buyerRemark', label: '买家备注', visible: true },
+  { key: 'onlyCoupon', label: '只查看用了优惠券的订单', visible: true },
+  { key: 'showCancelled', label: '显示已取消', visible: true },
+  { key: 'onlySelected', label: '仅显示已选中', visible: true },
 ])
 
 const functionButtonConfig = ref([
@@ -653,7 +656,38 @@ const functionButtonConfig = ref([
   { key: 'config', label: '配置', enabled: true },
 ])
 
-const handlePageConfigChange = () => { /* PageConfigPanel 自行持久化 */ }
+/** 页面配置在 localStorage 的键，与 PageConfigPanel 的 storage-key 同源 */
+const PAGE_CONFIG_STORAGE_KEY = 'purchase-sales-driven-page-config'
+
+/** 查询条件是否启用（由页面配置弹窗的「查询条件」页签控制） */
+function queryFieldVisible(key: string): boolean {
+  const field = queryFieldsConfig.value.find(f => f.key === key)
+  return field ? field.visible : true
+}
+
+/** 应用一份页面配置（弹窗 change 时传入；挂载时从 localStorage 还原） */
+function applyPageConfig(config: { queryFields?: any[] }) {
+  if (Array.isArray(config?.queryFields)) {
+    queryFieldsConfig.value = queryFieldsConfig.value.map(df => {
+      const saved = config.queryFields!.find((f: any) => f.key === df.key)
+      return saved ? { ...df, visible: saved.visible !== false } : df
+    })
+  }
+}
+
+function handlePageConfigChange(config: any) {
+  applyPageConfig(config || {})
+}
+
+/** 挂载时还原已保存配置：PageConfigPanel 只在被打开时才读存档，不会主动同步给页面 */
+function restoreSavedPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) {
+      applyPageConfig(JSON.parse(raw))
+    }
+  } catch { /* 配置损坏时按默认展示 */ }
+}
 
 // ═══ 日期处理 ═══
 const handleDocumentDateChange = (dates: [Dayjs, Dayjs] | null) => {
@@ -852,6 +886,7 @@ const handleError = (e: Error) => {
 }
 
 onMounted(() => {
+  restoreSavedPageConfig()
   setQuickDate('thisWeek')
 })
 </script>

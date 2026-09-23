@@ -232,8 +232,11 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
             }
         }
         
-        BigDecimal winRate = totalCount > 0 
-                ? BigDecimal.valueOf(winCount * 100).divide(BigDecimal.valueOf(winCount + loseCount), 2, BigDecimal.ROUND_HALF_UP)
+        // 分母是「已赢 + 已输」，与 totalCount 无关：一条已结商机都没有时分母为 0。
+        // 原写法只判 totalCount > 0 ⇒ 除零 ArithmeticException 被兜底成 500（2026-09-23 真机实测）
+        int closedCount = winCount + loseCount;
+        BigDecimal winRate = closedCount > 0
+                ? BigDecimal.valueOf(winCount * 100).divide(BigDecimal.valueOf(closedCount), 2, BigDecimal.ROUND_HALF_UP)
                 : BigDecimal.ZERO;
         
         Map<String, Object> statistics = new HashMap<>();

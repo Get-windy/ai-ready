@@ -191,7 +191,11 @@ public class DocQueryService {
             + "creator_name, bookkeeper_name, summary, remark, " + HAS_ATTACHMENT + ", create_time, "
             + "bookkeeping_time, print_count, NULL::integer, (status::text = '5') FROM erp_stock_overflow",
             "tenant_id = ? AND deleted = 0", true, "AND status = 1", "AND status = 0"),
-        // JPA 表：无 tenant_id/deleted/create_by 列
+        // ⚠️ 2026-09-23 修复：此处原写「JPA 表：无 tenant_id/deleted/create_by 列」并把 baseWhere 置为 "1=1"、
+        //    hasTenant=false —— **断言与库结构不符**：expense_application 实测两列都在
+        //    （deleted boolean、tenant_id character varying，见 V11.25.0__Rebuild_Expense_Tables.sql）。
+        //    后果是每个租户的「经营历程/待审批单据/业务草稿」都会列出**全部租户**的费用申请单，且已软删的也入列。
+        //    注意该表 tenant_id 是 **varchar**（本文件其余 12 张表是 bigint），故比较时需显式 ::text 转换。
         new DocBranch("EXPENSE", "费用申请单",
             "SELECT application_code, apply_date::timestamp, applicant_name, total_amount, status, "
             + "CASE status WHEN 'DRAFT' THEN '草稿' WHEN 'SUBMITTED' THEN '待审批' "
@@ -205,7 +209,7 @@ public class DocQueryService {
             + "created_at, NULL::timestamp, NULL::integer, "
             + "CASE WHEN payment_date IS NOT NULL THEN (payment_date - apply_date) ELSE NULL END, "
             + "(status = 'CANCELLED') FROM expense_application",
-            "1=1", false,
+            "tenant_id = ?::text AND deleted = false", true,
             "AND status IN ('SUBMITTED','DEPARTMENT_APPROVING','FINANCE_APPROVING','GENERAL_MANAGER_APPROVING')",
             "AND status = 'DRAFT'")
     );

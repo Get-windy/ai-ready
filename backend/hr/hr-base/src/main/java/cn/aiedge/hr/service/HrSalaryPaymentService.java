@@ -31,10 +31,6 @@ public interface HrSalaryPaymentService extends IService<HrSalaryPayment> {
     /** 薪资统计：人数 / 应发合计 / 实发合计 / 社保合计 / 公积金合计 / 个税合计 */
     Map<String, Object> statistics(String paymentMonth, Long deptId);
 
-    /** 导出用全量查询 */
-    List<HrSalaryPayment> listForExport(String paymentMonth, Long deptId,
-                                        Long employeeId, Integer status);
-
     /** 工资条明细（按员工+月份单条回读，含薪资结构口径） */
     Map<String, Object> payslip(Long id);
 }

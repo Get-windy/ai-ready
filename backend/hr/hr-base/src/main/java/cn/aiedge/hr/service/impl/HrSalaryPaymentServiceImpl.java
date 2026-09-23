@@ -101,19 +101,6 @@ public class HrSalaryPaymentServiceImpl extends ServiceImpl<HrSalaryPaymentMappe
     }
 
     @Override
-    public List<HrSalaryPayment> listForExport(String paymentMonth, Long deptId,
-                                               Long employeeId, Integer status) {
-        LambdaQueryWrapper<HrSalaryPayment> wrapper = new LambdaQueryWrapper<HrSalaryPayment>()
-                .eq(employeeId != null, HrSalaryPayment::getEmployeeId, employeeId)
-                .eq(StringUtils.hasText(paymentMonth), HrSalaryPayment::getPaymentMonth, paymentMonth)
-                .eq(status != null, HrSalaryPayment::getStatus, status);
-        applyDeptScope(wrapper, deptId, null);
-        List<HrSalaryPayment> rows = list(wrapper.orderByDesc(HrSalaryPayment::getPaymentMonth));
-        enrich(rows);
-        return rows;
-    }
-
-    @Override
     public Map<String, Object> payslip(Long id) {
         HrSalaryPayment payment = id == null ? null : getById(id);
         if (payment == null) {

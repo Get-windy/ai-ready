@@ -1,6 +1,8 @@
 package cn.aiedge.crm.quotation.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.crm.customer.entity.Customer;
+import cn.aiedge.crm.customer.service.CustomerService;
 import cn.aiedge.crm.quotation.entity.Quotation;
 import cn.aiedge.crm.quotation.entity.QuotationItem;
 import cn.aiedge.crm.quotation.enums.QuotationStatus;
@@ -29,6 +31,8 @@ import java.util.List;
 public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation> implements QuotationService {
 
     private final QuotationItemMapper quotationItemMapper;
+    /** 转订单时需把 CRM 客户解析为 ERP 往来单位（红线：ERP 单据的 customer_id 必须是 biz_party.id） */
+    private final CustomerService customerService;
 
     @Override
     public Quotation getByQuotationNo(String quotationNo) {
@@ -386,12 +390,28 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     }
 
     private void createSaleOrder(Quotation quotation) {
+        // ⚠️ 红线校验（CRM README §红线）：ERP 单据的 customer_id 必须是 **ERP 往来单位** ID，
+        //    绝不能把 CRM 客户 ID 写进去 —— 两者 ID 域不同，混用会让订单挂到错误的交易主体上
+        //    （2026-09-23 实测：CRM 客户 1 写进 erp_sale_order 后，订单显示客户为 biz_party#1「散客（零售默认）」，
+        //     而 customer_name 列却是 CRM 客户名，ID 与名称自相矛盾）。
+        //    因此这里要求 CRM 客户必须先通过 md_partner_id 关联到 ERP 往来单位，否则拒绝转单。
+        Customer crmCustomer = quotation.getCustomerId() == null
+                ? null : customerService.getById(quotation.getCustomerId());
+        if (crmCustomer == null) {
+            throw BusinessException.badRequest("报价单未关联有效客户，不能转订单");
+        }
+        if (crmCustomer.getMdPartnerId() == null) {
+            throw BusinessException.badRequest(
+                    "客户「" + crmCustomer.getCustomerName() + "」尚未关联 ERP 往来单位，不能转订单。"
+                            + "请先在「资料 → 往来单位」建档，并回填该 CRM 客户的关联往来单位后再转单。");
+        }
+
         // 用 Java 生成单一订单 ID，避免 NEXTVAL/CURRVAL 关联问题
         long orderId = (System.currentTimeMillis() << 10 | ThreadLocalRandom.current().nextInt(1024));
-        String orderNo = "QO" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + String.format("%04d", orderId % 10000);
+        String orderNo = generateSaleOrderNo();
 
-        // 插入订单头
-        baseMapper.insertSaleOrderRaw(orderId, orderNo, quotation);
+        // 插入订单头（customer_id 用解析后的 ERP 往来单位 ID）
+        baseMapper.insertSaleOrderRaw(orderId, orderNo, quotation, crmCustomer.getMdPartnerId());
         // 插入明细行
         List<QuotationItem> items = quotationItemMapper.selectList(
             new LambdaQueryWrapper<QuotationItem>()
@@ -400,8 +420,32 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
         );
         for (int i = 0; i < items.size(); i++) {
             QuotationItem item = items.get(i);
-            baseMapper.insertSaleOrderItem((System.currentTimeMillis() << 10 | ThreadLocalRandom.current().nextInt(1024)), orderId, i + 1, item);
+            baseMapper.insertSaleOrderItem(
+                    (System.currentTimeMillis() << 10 | ThreadLocalRandom.current().nextInt(1024)),
+                    orderId, i + 1, item, quotation.getTenantId(), quotation.getCreateBy());
         }
+    }
+
+    /**
+     * 销售订单号：{@code QO + yyyyMMdd + 4 位当日序号}。
+     *
+     * <p>原实现是 {@code "QO" + 日期 + String.format("%04d", orderId % 10000)} —— 对毫秒级 ID 取模后只剩
+     * 4 位，同一自然日内按生日悖论很快会算出重复号；而 {@code erp_sale_order.order_no} **没有唯一索引**，
+     * 撞号既不报错也不告警，属于静默重号。改为「查当日最大序号 + 1」。
+     * 注：仍是"查最大 +1"，并发下依旧有竞态；要彻底解决需改用序列，属独立裁定。</p>
+     */
+    private String generateSaleOrderNo() {
+        String prefix = "QO" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String maxNo = baseMapper.selectMaxSaleOrderNo(prefix);
+        int next = 1;
+        if (maxNo != null && maxNo.length() > prefix.length()) {
+            try {
+                next = Integer.parseInt(maxNo.substring(prefix.length())) + 1;
+            } catch (NumberFormatException e) {
+                log.warn("销售订单号 {} 后缀非数字，本次从 1 开始", maxNo);
+            }
+        }
+        return prefix + String.format("%04d", next);
     }
 
 

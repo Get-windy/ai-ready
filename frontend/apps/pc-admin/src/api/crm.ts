@@ -376,7 +376,9 @@ export const followUpApi = {
   },
   /** 删除跟进记录（逻辑删，返回裸 boolean） */
   delete(id: number): Promise<boolean> {
-    return request.delete(`${CRM_BASE}/followUp/${id}`)
+    // ⚠️ 标准 `request` 实例的 baseURL 已是 `/api`，此处必须写相对路径；
+    //    写成 `${CRM_BASE}/...` 会合成 `/api/api/...` 直接 404（2026-09-23 真机实测）
+    return request.delete(`/crm/followUp/${id}`)
   },
   /** 查询客户的跟进记录（裸 List） */
   listByCustomer(customerId: number): Promise<FollowUpRecord[]> {

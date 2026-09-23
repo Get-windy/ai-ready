@@ -33,9 +33,20 @@
               {{ item.menuName }}
             </div>
 
-            <!-- 普通菜单项 (需权限校验) -->
+            <!--
+              普通菜单项。
+              ⚠️ 这里**不再**做权限判定：菜单可见性由后端单点决定
+              （`SysMenuServiceImpl.getUserMegaMenus` + `MenuPermissionDeriver`：
+               权限码按 `:` 边界展开成前缀集合，菜单码落在集合里才算「有对应权限码」；
+               库中没有对应权限码的菜单码一律保持可见，即 fail-open）。
+              这里曾经有一份 `userStore.hasPermission(item.menuCode)` 的**全等匹配**副本，
+              与后端的前缀口径不同源：实测全库 306 条叶子菜单里只有 4 条的 menu_code
+              恰好等于某条权限码，于是**非超管用户 190/190 个叶子菜单全部渲染不出来**
+              （后端已下发、前端又被隐藏，二级面板只剩列标题）。
+              前端再判一次等于把「哪些菜单该显示」维护成两套口径，故删掉。
+            -->
             <div
-              v-else-if="item.menuType === 1 && hasPermission(item)"
+              v-else-if="item.menuType === 1"
               class="mega-menu-item-row"
             >
               <a
@@ -65,7 +76,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
 import { getIcon } from '@/utils/iconMap'
 import type { MenuInfo } from '@/api/menu'
 import type { TriggerPosition } from '@/composables/useHoverDelay'
@@ -89,7 +99,6 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const userStore = useUserStore()
 const panelRef = ref<HTMLElement | null>(null)
 
 /** 面板自然高度（不受 max-height 约束时的真实高度） */
@@ -191,12 +200,6 @@ const panelStyle = computed(() => {
 
   return style
 })
-
-/** 权限校验 */
-function hasPermission(item: MenuInfo): boolean {
-  if (!item.menuCode) return true
-  return userStore.hasPermission(item.menuCode)
-}
 
 /** 导航到菜单路由 — 添加标签时主按钮跳列表页(path)，历史/列表标签跳表单页(path) */
 function navigateTo(item: MenuInfo) {

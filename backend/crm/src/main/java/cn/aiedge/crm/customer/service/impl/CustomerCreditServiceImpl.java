@@ -101,11 +101,13 @@ public class CustomerCreditServiceImpl extends ServiceImpl<CustomerMapper, Custo
         }
         status.put("usageRate", usageRate);
         
+        // ⚠️ 顺序必须是「先 overdue 后 warning」：≥100 也满足 ≥80，
+        //    先判 80 会让 overdue 分支永不命中（与本类 getCreditStatistics 的口径对齐）
         String creditStatus = "normal";
-        if (usageRate.compareTo(BigDecimal.valueOf(80)) >= 0) {
-            creditStatus = "warning";
-        } else if (usageRate.compareTo(BigDecimal.valueOf(100)) >= 0) {
+        if (usageRate.compareTo(BigDecimal.valueOf(100)) >= 0) {
             creditStatus = "overdue";
+        } else if (usageRate.compareTo(BigDecimal.valueOf(80)) >= 0) {
+            creditStatus = "warning";
         }
         status.put("creditStatus", creditStatus);
         

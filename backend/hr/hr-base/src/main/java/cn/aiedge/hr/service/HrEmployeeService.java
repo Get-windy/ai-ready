@@ -16,8 +16,6 @@ public interface HrEmployeeService extends IService<HrEmployee> {
     /** 员工台账分页查询（条件全部可选） */
     Page<HrEmployee> pageEmployees(Page<HrEmployee> page, HrEmployeeQuery query);
 
-    HrEmployee getByEmployeeNo(String employeeNo);
-
     /** 生成下一个工号（号段 EMP，租户内唯一） */
     String nextEmployeeNo();
 
@@ -44,9 +42,6 @@ public interface HrEmployeeService extends IService<HrEmployee> {
 
     /** 台账统计：在职/试用/离职/本月入职 */
     Map<String, Object> statistics(Long deptId);
-
-    /** 导出用全量查询（不分页，沿用列表筛选条件） */
-    List<HrEmployee> listForExport(HrEmployeeQuery query);
 
     /** 人事异动记录分页（入职/转正/调岗/调薪/离职的历史留痕） */
     Page<cn.aiedge.hr.change.HrEmployeeChange> pageChanges(Page<cn.aiedge.hr.change.HrEmployeeChange> page,

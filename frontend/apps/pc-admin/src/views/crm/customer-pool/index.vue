@@ -534,7 +534,10 @@ const checking = ref(false)
 function handleAutoRecovery() {
   Modal.confirm({
     title: '执行自动回收',
-    content: '将按「30 天无跟进」的规则把符合条件的客户自动放入公海池，确定执行？',
+    // 口径与后端 CustomerPoolServiceImpl#autoRecovery 对齐：只回收「有归属 + 有跟进记录但超期」的客户；
+    // 从未跟进的客户不回收（无基准可算，避免把当天新建的客户立刻回收）
+    content: '将把「已分配给业务员、且最近一次跟进已超过 30 天」的客户放入公海池。'
+      + '从未有跟进记录的客户不在本次回收范围内。确定执行？',
     okText: '执行',
     cancelText: '取消',
     onOk: async () => {

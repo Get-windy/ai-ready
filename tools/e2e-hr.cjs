@@ -751,6 +751,36 @@ async function runCleanup() {
   const hrPages = sql("select count(*) as c from sys_menu where id in (90001,90002,90003,90004,90005,90006,80530,80531,80532,907) and deleted = 0")
   check('HR 10 个菜单页全部存在', Number(hrPages[0]?.c) === 10, JSON.stringify(hrPages))
 
+  // ── 第三轮审计（2026-09-23）四条回归，见 HR_MODULE_AUDIT_20260923.md §6.5 ──
+  // ⚠️ 这里的 SQL 一律写成**单行**：`sql()/sqlOne()` 是经 execSync 调 tools/dbq.py 的，
+  //    在 Windows 上走 cmd.exe，多行字符串会被拆断 —— 实测多行写法会让 WHERE 条件整段失效
+  //    （返回全表行数，断言假失败）。下面的断言都已踩过这个坑，勿改成多行。
+
+  // ① 工号唯一约束必须含 tenant_id：否则两个租户同一天各建第一个员工都会得到
+  //    EMP-YYYYMMDD-0001（号段 per-tenant、按天重置、前缀相同）→ 撞唯一约束 400。
+  const empIdx = sqlOne("select indexdef from pg_indexes where tablename = 'hr_employee' and indexname = 'uk_hr_employee_tenant_employee_no'")
+  check('★ hr_employee 工号唯一索引含 tenant_id 且带 deleted 条件（P0-3）',
+    !!(empIdx && /tenant_id/.test(empIdx.indexdef) && /employee_no/.test(empIdx.indexdef)
+      && /deleted\s*=\s*0/.test(empIdx.indexdef)), JSON.stringify(empIdx))
+  const oldIdx = sqlOne("select count(*) as c from pg_indexes where tablename = 'hr_employee' and indexname = 'hr_employee_employee_no_key'")
+  check('旧的「仅 employee_no」唯一索引已移除', Number(oldIdx?.c) === 0, JSON.stringify(oldIdx))
+
+  // ② 招聘菜单的 menu_code 必须与接口鉴权码同源（hr:recruitment:*），否则菜单派生
+  //    对它整体失效（fail-open 恒可见），而接口仍 403。
+  const menu907Code = sqlOne("select menu_code from sys_menu where id = 907 and deleted = 0")
+  check('★ 招聘菜单 907 的 menu_code 已对齐权限码前缀 hr:recruitment（P1-4）',
+    menu907Code?.menu_code === 'hr:recruitment', JSON.stringify(menu907Code))
+
+  // ③ 叶子菜单 menu_level 必须为 0：getUserMegaMenus 对「非系统租户且非超管」强制
+  //    menu_level = 0，写成 3 的页面普通租户管理员看不到。
+  const badLevelMenus = sql("select id, menu_name, menu_level from sys_menu where deleted = 0 and menu_level <> 0 and id in (90001,90002,90003,90004,90005,90006,80530,80531,80532,907)")
+  check('HR 叶子菜单 menu_level 均为 0（P2-2）', badLevelMenus.length === 0, JSON.stringify(badLevelMenus))
+
+  // ④ 删除类权限码必须独立（此前挂 :update，导致角色页权限矩阵的「删除」列恒为空）
+  const delPerms = sqlOne("select count(*) as c from sys_permission where deleted = 0 and status = 0 and permission_code in ('hr:salary:delete', 'hr:performance:delete')")
+  check('删除类权限码已入库（hr:salary:delete / hr:performance:delete，P1-6）',
+    Number(delPerms?.c) === 2, JSON.stringify(delPerms))
+
   // ── 租户隔离（2026-09-18 修复：sys_user 在多租户忽略表内且查询无租户条件 → 跨租户可见）──
   // 口径：**平台超管豁免（保持全局视野 / 可切租户），非超管强制限本租户**。
   // 靶子账号 e2e_hr_t2 属租户 2，由 tools/e2e-hr-user.sql 创建。
@@ -878,17 +908,24 @@ async function runCleanup() {
       // 登录：走接口拿 token 后注入 localStorage。
       // ⚠️ 不在登录页填表单 —— 登录页需要图形验证码，脚本填不出来；注入 token 是等价且稳定的做法
       //（路由守卫读的正是 localStorage.token，随后自行拉用户信息与动态路由）。
+      // 第 3 列 = 期望形态：
+      //   'category' HR 路线 A 页面（CategoryListLayout + 自绘电子表格 + 表头齿轮）
+      //   'system'   V11.422.0 / V11.429.0 之后挂到 80531/80532 的**系统域页面**
+      //              （views/system/{role,user}/index.vue）—— 它们有自己的 PageContainer
+      //              布局，**没有** `.category-list-layout` 也没有 `.ss-grid` 齿轮。
+      //              2026-09-23 之前这里对所有页面都套 category 断言 ⇒ 这两页恒失败，
+      //              属「断言没跟着菜单改指走」，不是页面缺陷。
       const PAGES = [
-        ['员工列表', 'hr/employee'],
-        ['考勤记录', 'hr/attendance'],
-        ['请假管理', 'hr/leave'],
-        ['薪资管理', 'hr/salary'],
-        ['绩效考核', 'hr/performance'],
-        ['职位管理', 'hr/organization/position'],
-        ['职员部门', 'md/staff-dept'],
-        ['岗位权限', 'md/staff-role'],
-        ['全部操作员', 'md/staff-all'],
-        ['招聘管理', 'hr/recruitment'],
+        ['员工列表', 'hr/employee', 'category'],
+        ['考勤记录', 'hr/attendance', 'category'],
+        ['请假管理', 'hr/leave', 'category'],
+        ['薪资管理', 'hr/salary', 'category'],
+        ['绩效考核', 'hr/performance', 'category'],
+        ['岗位编制', 'hr/organization/position', 'category'],
+        ['职员部门', 'md/staff-dept', 'category'],
+        ['岗位权限', 'md/staff-role', 'system', '.role-page-header'],
+        ['全部操作员', 'md/staff-all', 'system', '.user-page-header'],
+        ['招聘管理', 'hr/recruitment', 'category'],
       ]
 
       // 后端全局限流（ai-ready.rate-limit：默认 100 QPS / 桶容量 200，按 IP 计）——
@@ -912,21 +949,29 @@ async function runCleanup() {
       consoleErrors.length = 0
       bad4xx.length = 0
 
-      for (const [label, route] of PAGES) {
+      for (const [label, route, kind = 'category', headerSel] of PAGES) {
         const before = consoleErrors.length
         await page.goto(`${FE}/${route}`, { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(4000)
-        const hasLayout = await page.locator('.category-list-layout').count()
-        // 数据表用 BillDetailTable / BillTableList（后者内置前者），渲染出的是自绘电子表格
-        // `.bill-detail-table > .spreadsheet-table > table.ss-grid`，**不是** `.ant-table`
-        const hasTable = await page.locator('.bill-detail-table, .ant-table, table.ss-grid').count()
-        // 列配置齿轮挂在序号列的 `.ss-header-settings` 表头单元格里（组件内置，页面零接入）
-        const hasGear = await page.locator('.ss-header-settings, .ss-header-settings .th-settings-btn, .ant-table-thead .anticon-setting').count()
         const newErr = consoleErrors.slice(before)
-        check(`UI「${label}」渲染出金标准骨架（CategoryListLayout + 表格）`,
-          hasLayout > 0 && hasTable > 0, `layout=${hasLayout} table=${hasTable}`)
-        check(`UI「${label}」表头存在列配置齿轮`,
-          hasGear > 0, `gear=${hasGear}`)
+        if (kind === 'system') {
+          // 系统域页面：断言「自己的页头渲染出来了 + 页面上有数据表 + 无 console error」
+          const hasHeader = await page.locator(headerSel).count()
+          const hasTable = await page.locator('.ant-table, .bill-detail-table, table.ss-grid').count()
+          check(`UI「${label}」渲染出系统域页面（${headerSel} + 表格）`,
+            hasHeader > 0 && hasTable > 0, `header=${hasHeader} table=${hasTable}`)
+        } else {
+          const hasLayout = await page.locator('.category-list-layout').count()
+          // 数据表用 BillDetailTable / BillTableList（后者内置前者），渲染出的是自绘电子表格
+          // `.bill-detail-table > .spreadsheet-table > table.ss-grid`，**不是** `.ant-table`
+          const hasTable = await page.locator('.bill-detail-table, .ant-table, table.ss-grid').count()
+          // 列配置齿轮挂在序号列的 `.ss-header-settings` 表头单元格里（组件内置，页面零接入）
+          const hasGear = await page.locator('.ss-header-settings, .ss-header-settings .th-settings-btn, .ant-table-thead .anticon-setting').count()
+          check(`UI「${label}」渲染出金标准骨架（CategoryListLayout + 表格）`,
+            hasLayout > 0 && hasTable > 0, `layout=${hasLayout} table=${hasTable}`)
+          check(`UI「${label}」表头存在列配置齿轮`,
+            hasGear > 0, `gear=${hasGear}`)
+        }
         check(`UI「${label}」控制台无新增 error`, newErr.length === 0, newErr.slice(0, 2).join(' | '))
         await page.screenshot({ path: path.join(SHOTS, `${route.replace(/\//g, '_')}.png`), fullPage: false })
       }

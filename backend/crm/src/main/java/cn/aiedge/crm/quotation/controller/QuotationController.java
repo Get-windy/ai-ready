@@ -92,6 +92,10 @@ public class QuotationController {
     @Operation(summary = "获取报价单版本列表")
     public List<QuotationVO> listVersions(@PathVariable Long id) {
         Quotation quotation = quotationService.getById(id);
+        // 缺失空值守卫时 NPE 会被兜底成 500（2026-09-23 真机实测），应报 404
+        if (quotation == null) {
+            throw BusinessException.notFound("报价单不存在");
+        }
         Long parentId = quotation.getParentId() != null ? quotation.getParentId() : quotation.getId();
         return quotationService.listVersions(parentId).stream()
                 .map(this::convertToVO).collect(Collectors.toList());

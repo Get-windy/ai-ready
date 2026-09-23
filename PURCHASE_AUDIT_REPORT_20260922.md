@@ -554,6 +554,40 @@ GREATEST(COALESCE(o.total_quantity,0) - COALESCE(o.received_amount,0), 0) AS unr
 | 询价接口（补列后） | ✅ 200，未出现期望中的「字段 tenant_id 不存在」 |
 | `V11.498.0` 菜单迁移 | 事务内执行 + 回滚，可执行且零残留（尚未应用到库，等下次重启） |
 
+---
+
+# 附录 C：第三轮（2026-09-23 续，按"未做清单"逐项执行）
+
+## 已完成
+
+| 项 | 改动 | 验证 |
+|---|---|---|
+| **「复制单据」无接收方** | 在 `useBillForm`（入库/退货/换货等单据表单共用）里新增 `loadCopySource()`：读 `?copyFrom=` 带出源单内容，但清空 `id`/`status`/重新取号/明细行去主键——作为**新单**保存。组件级修复，一处覆盖所有用该 composable 的表单页 | 已核对 `UnifiedPurchaseConverter` 的 `id` 就是源实体主键、`documentType`∈{INBOUND,RETURN,EXCHANGE} 与前端路由映射一致 |
+| **Excel 导入半成品** | 新增 `PurchaseImportLookupMapper`（名称→主数据主键回查）；订单/入库两个 `importOrders` 重写：解析供应商/仓库/商品的**真实 ID**、写 `productId`/`warehouseId`/`supplierId`，失败行**逐行回报行号+原因**（返回值由 `int` 改为 `{count, failed, errors}`）；前端新增共享 `utils/importResult.ts` 统一展示 | 编译通过；`erp-purchase` 无相关测试故签名变更不阻塞 test-compile |
+| **采购询价无建单入口** | 新增 `views/purchase/inquiry/form.vue`（分区卡片 + 两列栅格 + 行内校验）+ 静态路由 `purchase/inquiry/form` + 列表页「新增」按钮；并修正 `goEdit` 原本与 `goDetail` 指向同一只读页的缺陷 | eslint 0 error |
+| **查询条件显隐（doc-query / sales-driven）** | 按上一轮给出的配方实施：把 `visible` 语义统一为「该条件是否启用」（折叠区字段默认值 false→true，展开/收起仍由 showMoreConditions 控制），18 + 28 个字段全部 `v-show` 绑定，弹窗 change 与挂载时 localStorage 还原 | `v-show` 计数 18/28 与字段数一致；eslint 0 error |
+| **打印按钮是假成功** | 4 个采购列表页：保留打印次数台账 + `window.print()` 产出真实单据，提示语改为与事实相符 | 见下"为什么没接 erp-printing" |
+| **P2 清理** | ① 删 87 个嵌套 `.atcode` 污染目录（170 个被 git 跟踪的重复 workflow 文件，与仓库根 `.atcode` **逐字节相同**，已 `diff` 核对）；② 删前端死方法（`purchaseOrderApi.batchDelete/close/print`、`purchaseStatsApi`+`PurchaseStats`、换货的 `getItemsByWarehouseType/batchApprove`——后端均无对应端点）；③ 删 `PurchaseContractMapper` 无 SQL 无调用的 `updateExecutionProgress` 二参重载（一旦被调必抛 `InvalidBoundStatementException`）；④ **僵尸权限码 11 → 0** | 编译通过；僵尸码用脚本按"库中码 × 代码引用"重算为 0 |
+
+**僵尸权限码的修法说明**：这 5 条（合同 submit/view、订单 export/import/print）不是"该删的码"，而是**端点挂了更粗的码**（如 `/{id}/submit` 挂 `contract:update`）。故按与价格跟踪同一口径处理——把端点绑回已种子的精确码，而不是删码。删码会让粒度永久退化。
+
+## 仍然没做（附理由）
+
+| 项 | 理由 |
+|---|---|
+| 退货/换货表单页「页面配置」弹窗 | **我上一轮的配方是错的**：入库表单页并未使用 `PageConfigPanel`（它是自写内联弹窗），而 `PageConfigPanel` 的页签是**列表页专用**。正确做法是新建共享的「单据表单页配置面板」+ `useFormPageConfig` 组合式（把 inbound 那套抽取出来）再接回 3 个表单页 —— 属跨 4 页的组件抽取迁移，会动到最重的表单页，且当前环境无法跑 E2E，不宜在收尾阶段硬上 |
+| 317 列僵尸表 DROP | 破坏性操作，且需确认无外部系统依赖，按纪律先出方案 |
+| 重复服务实现（`PurchaseDemandAnalysisService` ~950 行无入口、`PurchaseQuoteComparisonService` 只被测试引用） | 属"这个功能产品还要不要"的裁定，不代为删除；我复核过引用面（确实只有自身文件），删起来安全，但删的是**功能**不是死代码 |
+
+## ⚠️ 另一会话已把我的改动提交了（须知悉）
+
+提交 `0004c656 chore(release): 0.3.24 —— 财务审计修复 + 仓储/采购重构 + 死代码清理` 由**并行会话**创建，其中**顺带提交了本轮采购修复**：`PURCHASE_AUDIT_REPORT_20260922.md`、迁移 `V11.495.0` 与 `V11.498.0`、以及采购/换货/退货/记账/费用分摊等 Java 改动。
+
+影响：
+- 该提交把这些改动与**财务/仓储/商城**的工作混在一个 release commit 里，提交信息并未反映采购内容。
+- 我是在编辑过程中才发现文件已不在 `git status` 里；**这不是我提交的**。
+- 若需要拆分或补提交信息，请在合并前处理。我后续改动（附录 C 的这批）尚未提交。
+
 ## ⚠️ Flyway 重号（已处置）
 
 本轮结束前发现并行会话也取了 `V11.496.0`（`Add_Wms_Ship_Cancel_Permission`），**两条 11.496.0 并存会让后端启动直接失败**（正是项目历史上「重号迁移致启动死锁」那一类）。

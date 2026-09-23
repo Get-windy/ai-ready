@@ -49,8 +49,4 @@ public interface HrLeaveRequestService extends IService<HrLeaveRequest> {
 
     /** 请假统计：待审批/已批准/已拒绝 单数、批准总天数 */
     Map<String, Object> statistics(Integer year, Long deptId);
-
-    /** 导出用全量查询 */
-    List<HrLeaveRequest> listForExport(Integer status, String leaveType, Long deptId,
-                                       LocalDate startDateFrom, LocalDate startDateTo);
 }

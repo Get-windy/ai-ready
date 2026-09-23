@@ -92,16 +92,6 @@ export function getCurrentRoles(): string[] {
 }
 
 /**
- * 检查菜单是否可访问
- * @param menuCode 菜单编码
- * @returns 是否可访问
- */
-export function canAccessMenu(menuCode: string): boolean {
-  const userStore = useUserStore()
-  return userStore.permissions.includes(`menu:${menuCode}`) || userStore.permissions.includes('*')
-}
-
-/**
  * 检查按钮是否可操作
  * @param buttonCode 按钮权限编码
  * @returns 是否可操作
@@ -221,7 +211,6 @@ export default {
   isAdmin,
   getCurrentPermissions,
   getCurrentRoles,
-  canAccessMenu,
   canOperate,
   filterMenusByPermission,
   RequirePermission,

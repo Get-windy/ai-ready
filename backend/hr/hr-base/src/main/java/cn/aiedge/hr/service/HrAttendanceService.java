@@ -36,10 +36,6 @@ public interface HrAttendanceService extends IService<HrAttendance> {
     /** 考勤统计：正常/迟到/早退/缺勤/休假 天数、总工时 */
     Map<String, Object> statistics(String month, Long deptId, Long employeeId);
 
-    /** 导出用全量查询 */
-    List<HrAttendance> listForExport(String month, Long deptId, Long employeeId,
-                                     String status, LocalDate dateStart, LocalDate dateEnd);
-
     /** 重算迟到/早退/工时（按当前租户的考勤规则） */
     void recalculate(Long id);
 

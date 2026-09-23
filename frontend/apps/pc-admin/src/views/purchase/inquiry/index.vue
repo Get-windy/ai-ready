@@ -198,6 +198,7 @@ const statCardConfig: StatCardConfigMap = {
 // ═══ 工具栏 ═══
 const toolbarConfig: ToolbarConfigMap = {
   'all.list': [
+    { key: 'add', label: '新增', type: 'primary', icon: 'PlusOutlined' },
     { key: 'refresh', label: '刷新' },
     { key: 'pageConfig', label: '配置', icon: 'SettingsOutlined', visibleFor: () => true },
   ],
@@ -335,6 +336,7 @@ const showPageConfig = ref(false)
 
 const handleToolbarAction = (action: string) => {
   switch (action) {
+    case 'add': router.push('/purchase/inquiry/form'); break
     case 'refresh': fetchData(); break
     case 'pageConfig': showPageConfig.value = true; break
   }
@@ -342,7 +344,8 @@ const handleToolbarAction = (action: string) => {
 
 // ═══ 行操作 ═══
 const goDetail = (record: any) => { router.push(`/purchase/inquiry/${record.id}`) }
-const goEdit = (record: any) => { router.push(`/purchase/inquiry/${record.id}`) }
+// 原先与 goDetail 指向同一个只读详情页 —— 点「编辑」其实改不了任何东西
+const goEdit = (record: any) => { router.push(`/purchase/inquiry/form?id=${record.id}`) }
 
 /** 发送询价：后端 send 与 publish 为同一接口，统一走 inquiryApi.send */
 const handleSend = (record: any) => {

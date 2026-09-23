@@ -25,11 +25,16 @@ import json
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 交易模块自己的后端（用于「冗余端点」「鉴权覆盖」统计）
 BACKEND_DIRS = [
     os.path.join(ROOT, 'backend', 'erp', 'erp-mall', 'src', 'main', 'java'),
     os.path.join(ROOT, 'backend', 'core', 'base', 'core-base', 'src', 'main', 'java', 'cn', 'aiedge', 'trade'),
     os.path.join(ROOT, 'backend', 'core', 'payment', 'core-payment', 'src', 'main', 'java'),
 ]
+# 断链判定的端点全集：必须扫**整个后端**。
+# ⚠️ 只扫交易模块自己的三个目录会把跨模块调用（如 商品上架 页用到的
+#   `/erp/mall-tag/*`，实现落在 erp-stock）误报成「断链」（实测假阳性 7 条）。
+BACKEND_ALL = os.path.join(ROOT, 'backend')
 FRONTEND_SRC = os.path.join(ROOT, 'frontend', 'apps', 'pc-admin', 'src')
 FRONT_DIRS = [
     os.path.join(FRONTEND_SRC, 'views', 'trade'),
@@ -37,9 +42,16 @@ FRONT_DIRS = [
     os.path.join(FRONTEND_SRC, 'views', 'payment'),
 ]
 FRONT_FILES = [
+    # 22 个交易页面的 api 依赖（由页面 import 语句反查得到，见报告 §附）
     os.path.join(FRONTEND_SRC, 'api', 'erp', 'mall.ts'),
-    os.path.join(FRONTEND_SRC, 'api', 'trade', 'index.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'erp.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'erp', 'partner.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'erp', 'product.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'erp', 'warehousePlan.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'options.ts'),
     os.path.join(FRONTEND_SRC, 'api', 'payment', 'index.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'sys-region.ts'),
+    os.path.join(FRONTEND_SRC, 'api', 'trade', 'index.ts'),
 ]
 
 # C 端商城（mobile-mall）用 axios baseURL='/api/v1/mall'，路径字面量是**相对**的，
@@ -54,13 +66,14 @@ PERM_RE = re.compile(r'@(SaCheckPermission|PreAuthorize|SaCheckRole|SaCheckLogin
 CODE_RE = re.compile(r'@SaCheckPermission\(\s*(?:value\s*=\s*)?\{?\s*["\']([^"\']+)["\']')
 
 
-def collect_backend_endpoints():
+def collect_backend_endpoints(dirs=None):
     eps = []
-    for base_dir in BACKEND_DIRS:
+    for base_dir in (dirs if dirs is not None else BACKEND_DIRS):
         if not os.path.isdir(base_dir):
             print(f'[WARN] 后端目录不存在: {base_dir}', file=sys.stderr)
             continue
-        for dirpath, _dirnames, filenames in os.walk(base_dir):
+        for dirpath, dirnames, filenames in os.walk(base_dir):
+            dirnames[:] = [d for d in dirnames if d != 'target']
             for fn in filenames:
                 if not fn.endswith('.java'):
                     continue
@@ -69,19 +82,29 @@ def collect_backend_endpoints():
                 base_m = BASE_RE.search(src)
                 base = base_m.group(1) if base_m else ''
                 rel = os.path.relpath(full, ROOT).replace('\\', '/')
-                for m in VERB_RE.finditer(src):
+                matches = list(VERB_RE.finditer(src))
+                for idx, m in enumerate(matches):
                     verb = m.group(1).upper()
                     sub = m.group(3) or ''
                     path = (base.rstrip('/') + '/' + sub.lstrip('/')).rstrip('/')
                     if not path:
                         path = base
                     line = src[:m.start()].count('\n') + 1
+                    # 向前窗口**必须止于「上一个映射注解」与「上一个方法签名」二者中更晚的那个**：
+                    #   · 只止于上一个映射注解还不够 —— 本仓有两种写法，注解可能挂在映射**之后**，
+                    #     于是上一个方法的 @SaCheckPermission 仍落在窗口里（实测
+                    #     POST /api/payment/callback/{channel} 因此被误判为"有鉴权"）；
+                    #   · 方法签名行是天然的边界：当前方法的注解一定在其后。
+                    sig_iter = [sm2.start() for sm2 in
+                                re.finditer(r'\n\s*(?:public|private|protected)\s', src[:m.start()])]
+                    prev_sig_end = (sig_iter[-1] + 1) if sig_iter else 0
+                    back_start = max(matches[idx - 1].end() if idx > 0 else 0, prev_sig_end)
+                    back = src[back_start:m.start()]
                     fwd = src[m.end():m.end() + 1200]
                     cut = re.search(r'\n\s*(?:public|private|protected)\s', fwd)
-                    anns = PERM_RE.findall(src[max(0, m.start() - 900):m.start()]) + \
-                        PERM_RE.findall(fwd[:cut.start()] if cut else fwd)
-                    codes = CODE_RE.findall(src[max(0, m.start() - 900):m.start()]) + \
-                        CODE_RE.findall(fwd[:cut.start()] if cut else fwd)
+                    fwd = fwd[:cut.start()] if cut else fwd
+                    anns = PERM_RE.findall(back) + PERM_RE.findall(fwd)
+                    codes = CODE_RE.findall(back) + CODE_RE.findall(fwd)
                     eps.append({
                         'verb': verb, 'path': path, 'file': rel, 'line': line,
                         'anns': sorted(set(anns)), 'codes': sorted(set(codes)),
@@ -181,6 +204,9 @@ def main():
     eps = collect_backend_endpoints()
     calls = collect_frontend_calls()
     ep_res = [(e, to_regex(e['path'])) for e in eps]
+    # 断链判定用「全后端端点」——交易页会调跨模块接口（如 erp-stock 的 /erp/mall-tag/*）
+    eps_all = collect_backend_endpoints([BACKEND_ALL])
+    ep_res_all = [(e, to_regex(e['path'])) for e in eps_all]
 
     # 交易域前端调用：只看模块内的页面与 api 文件，不做全局前缀猜测
     domain = re.compile(r'^/(?:api/)?(?:erp/mall|v1/mall|mall|trade|payment|refund|reconciliation)')
@@ -189,7 +215,7 @@ def main():
     out = []
     if mode in ('--all', '--links'):
         broken = [c for c in scalls
-                  if not any(r.match(norm(c['path'])) for _e, r in ep_res)]
+                  if not any(r.match(norm(c['path'])) for _e, r in ep_res_all)]
         out.append(('① 前端调用后端不存在的路径（断链）', broken,
                     lambda c: f"  {c['verb']:5s} {c['path']:58s} {c['file']}:{c['line']}"))
 

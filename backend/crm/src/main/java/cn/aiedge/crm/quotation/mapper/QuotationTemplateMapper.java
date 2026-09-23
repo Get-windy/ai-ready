@@ -11,12 +11,14 @@ import java.util.List;
 @Mapper
 public interface QuotationTemplateMapper extends BaseMapper<QuotationTemplate> {
 
-    @Select("SELECT * FROM crm_quotation_template WHERE active = 1 AND deleted = 0 ORDER BY usage_count DESC")
+    // ⚠️ `crm_quotation_template.active` 是 boolean 列，写成 `= 1` 会报
+    //    「操作符不存在: boolean = integer」→ 三个端点全部 500（2026-09-23 真机实测）
+    @Select("SELECT * FROM crm_quotation_template WHERE active = TRUE AND deleted = 0 ORDER BY usage_count DESC")
     List<QuotationTemplate> selectActiveTemplates();
 
-    @Select("SELECT * FROM crm_quotation_template WHERE customer_id = #{customerId} AND active = 1 AND deleted = 0")
+    @Select("SELECT * FROM crm_quotation_template WHERE customer_id = #{customerId} AND active = TRUE AND deleted = 0")
     List<QuotationTemplate> selectByCustomerId(@Param("customerId") Long customerId);
 
-    @Select("SELECT * FROM crm_quotation_template WHERE product_category_id = #{categoryId} AND active = 1 AND deleted = 0")
+    @Select("SELECT * FROM crm_quotation_template WHERE product_category_id = #{categoryId} AND active = TRUE AND deleted = 0")
     List<QuotationTemplate> selectByCategoryId(@Param("categoryId") Long categoryId);
 }

@@ -606,7 +606,7 @@ public class HrController {
 
     @Operation(summary = "删除薪资结构")
     @DeleteMapping("/salary/structure/{id}")
-    @RequiresPermission("hr:salary:update")
+    @RequiresPermission("hr:salary:delete")
     public Result<Void> deleteSalaryStructure(@PathVariable Long id) {
         salaryStructureService.deleteStructure(id);
         return Result.success();
@@ -661,7 +661,7 @@ public class HrController {
 
     @Operation(summary = "删除薪资记录")
     @DeleteMapping("/salary/payment/{id}")
-    @RequiresPermission("hr:salary:update")
+    @RequiresPermission("hr:salary:delete")
     public Result<Void> deleteSalaryPayment(@PathVariable Long id) {
         salaryPaymentService.deletePayment(id);
         return Result.success();
@@ -735,7 +735,7 @@ public class HrController {
 
     @Operation(summary = "删除绩效考核")
     @DeleteMapping("/performance/{id}")
-    @RequiresPermission("hr:performance:update")
+    @RequiresPermission("hr:performance:delete")
     public Result<Void> deletePerformance(@PathVariable Long id) {
         performanceService.deleteReview(id);
         return Result.success();

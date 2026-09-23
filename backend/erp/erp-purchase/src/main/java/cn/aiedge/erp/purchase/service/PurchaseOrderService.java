@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -111,7 +112,13 @@ public interface PurchaseOrderService extends IService<PurchaseOrder> {
     /**
      * 批量导入采购订单
      */
-    int importOrders(MultipartFile file);
+    /**
+     * Excel 批量导入采购订单。
+     *
+     * @return {@code {count: 成功行数, failed: 失败行数, errors: [失败原因…]}}——
+     *         失败行不再静默吞掉，调用方需要能告诉用户「哪几行没进来、为什么」
+     */
+    Map<String, Object> importOrders(MultipartFile file);
 
     /**
      * 批量打印

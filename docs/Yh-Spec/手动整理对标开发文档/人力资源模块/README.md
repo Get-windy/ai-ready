@@ -107,6 +107,18 @@
 > **用户在 HR 菜单下看到的，恰是功能最弱的那一套（简化版）**；完整版躺在 `views/system/` 下没有入口。
 > **建议**：裁定 `md:staff-*` 三页与 `views/system/*` 四页的收敛关系（保留一套、另一套下线或做重定向），并统一 `menu_code` 前缀。
 
+> 📌 **2026-09-23 第三轮审计后的实际状态**（本表上半部分已过期，保留作历史对照）：
+> - `V11.422.0` 已把 80532 → `views/system/user/index.vue`、`V11.429.0` 把 80531 → `views/system/role/index.vue`
+>   ⇒ **user / role 两页已有菜单**，不再是"不可达"；
+> - `views/system/department/index.vue` **已被删除**（只剩空目录 `views/system/department/`）；
+> - `views/system/position/index.vue` 现为 **1601 行且失去入口**（V11.429.0 把它从 80531 换下来之后）——
+>   它的去留**仍需裁定**：本文档 §5.5 的裁定是「改指该页、废弃 md/staff-role」，与 V11.429.0 的
+>   「该页配不了权限、名实不符」相反，两条结论至今未合并；
+> - 三页行数实测为 user **1661** / position **1601** / role **2563**（本表写的是 918/1301/931）。
+> - `md:staff-*` 三条 `menu_code` **保持原样未动**：它们没有对应的权限码 ⇒ 菜单派生 fail-open 恒可见。
+>   要对齐前缀得先裁定"这三页算系统管理域还是 HR 域"，否则对齐后**只会对超管可见**
+>   （实测 `tenant-admin:department` / `tenant-admin:role` 两组权限码只有 SUPER_ADMIN 持有）。
+
 ---
 
 ## 3. 本模块当前实现现状（2026-09-18 源码 + devdb 实测）
@@ -241,6 +253,9 @@
 | 部门 → HR | `hr_employee.dept_id` / `hr_position.dept_id` / `hr_recruitment.dept_id` | ⚠️ 仅逻辑引用，**无外键**；部门种子仅 2 条且禁用 |
 | 请假审批 → 工作流引擎 | `hr_leave_request.workflow_instance_id` | ❌ 字段存在但**全代码库无任何赋值/读取** |
 
+> ⚠️ **本表是 2026-09-18 实施前的基线**。其中 5 处「❌ 完全断开」已于第二轮打通，
+> 2026-09-23 第三轮审计又逐条复核 —— **当前口径以 §9.5 为准**（本表保留作历史对照）。
+
 ---
 
 ## 5. 业界对标口径（本模块无对标页）
@@ -337,6 +352,8 @@ ql361（来肯企汇）是**快消品进销存 + 商城**系统，**没有人资
 ## 7. 全局缺口汇总（P0 → P2）
 
 > ⚠️ **本节是「实施前」的缺口清单（历史对照用）**。逐条的处理结果见 §8.1；仍在的缺口见 §8.5。
+> 2026-09-23 第三轮审计新增的两个 P0（**前端菜单可见性口径**、**HR 权限只授超管**）不在本表内
+> —— 它们是「实施后」才暴露的，见 §9.1 / §9.2。
 
 | 级别 | 缺口 | 影响 | 处理建议 |
 |:----:|------|------|---------|
@@ -437,6 +454,11 @@ ql361（来肯企汇）是**快消品进销存 + 商城**系统，**没有人资
 
 ### 8.5 仍未闭环（如实登记，勿当成已实现）
 
+> ⚠️ 本清单为 2026-09-18 快照。2026-09-23 第三轮审计复核后的订正：**第 13 条（无业务索引）已过期**
+> （实测 39 个索引）；**第 5 条第 9 条仍然成立**（`hr_employee.user_id` 列已建但全仓 0 读 0 写；
+> `MetaObjectHandler` 依旧只填 `createTime/updateTime/version/tenantId`，**审计人仍恒 NULL**）。
+> 逐条订正见 **§9.4**。
+
 1. **无异动审批流**：`hr_employee_change` 由业务动作自动写入，**没有**「申请 → 审批 → 生效」单据形态；`workflow_instance_id` 字段仍未接线。
 2. **假期额度只有 Allocation**：**无 Accrual（按月/按工龄累积）**、**无 Rollover（结转规则）**、**无有效期与扣减期分离**（SAP IT2006）。
 3. **无薪资规则引擎**：社保 10.5% / 公积金 12% / 起征点 5000 / 加班 1.5 倍**写死在 Java 常量**；`/salary/setting`、`payroll-run`、`period-control` 未实现。
@@ -501,3 +523,109 @@ SKIP_UI=1 node tools/e2e-hr.cjs  # 只跑接口 + 真库
 > 角色/权限有两级缓存（L1 Caffeine 30s + **L2 Redis**），新建角色会被「空角色列表」缓存住，
 > 表现为 `/auth/userinfo` 返回 `"roles":[]`、受控端点 403。实测只清 L1 或调
 > `/api/user-permission/cache/refresh/{id}` 都不够，**重启后端才干净**。
+
+---
+
+## 9. 第三轮收口：全栈审计与修复（2026-09-23）
+
+> 审计报告：`I:/AI-Ready/HR_MODULE_AUDIT_20260923.md`（含 8 个只读脚本与全部证据）。
+> 本节只记**与模块文档口径有关**的结论；§7 / §8.5 里已过期的条目在此一并订正。
+
+### 9.1 🔴 本节要记的第一个坑：菜单可见性**只能有一处实现**
+
+审计发现（运行时实测）：**非超管用户看不到任何 HR 菜单** —— 后端 `/menu/user/mega/...` 已下发，
+前端 `MegaMenuPanel` 里还有一份 `userStore.hasPermission(item.menuCode)` 的**全等匹配**副本，
+而后端 `MenuPermissionDeriver` 是**前缀派生**（权限码 `hr:employee:list` 会展开出 `hr:employee`）。
+两套口径不同源 ⇒ **全库 306 条叶子菜单里只有 4 条的 menu_code 恰好等于某条权限码**，
+其余 302 条（含 HR 的 10 条）对非超管**后端已下发、前端又隐藏**，悬停一级菜单只剩列标题。
+
+- **修法**：删掉前端那份副本，**可见性由后端单点决定**；连带删除另两处零调用的同款失效实现
+  （`utils/permission.ts#canAccessMenu`、`composables/usePermission#useMenuPermission`，它们查的是
+  `menu:${menuCode}` 这种库里根本不存在的码）。
+- **教训**：**「权限码 → 菜单码」的口径只允许存在于 `MenuPermissionDeriver` 一处**。
+  前端若要再判一次，必须复用同一套前缀规则，否则必然漂移。
+- 回归脚本：`node tools/verify-menu-visibility.cjs`（真机，非超管 4 条 / 超管 10 条）。
+
+### 9.2 🔴 第二个坑：HR 权限码此前**只授给了超管**
+
+实测 `hr:*` 40 条**只有 SUPER_ADMIN 持有**（SYSTEM_ADMIN / DEPT_ADMIN / E2E_T2_ADMIN 全 0）
+⇒ 非超管即使菜单可见，调任何 HR 接口都是 403。
+**历次 E2E 全绿是因为验收账号 `e2e_hr` 挂在 SUPER_ADMIN 上、走 `*` 通配** —— 这是「假绿」的典型形态。
+
+- **修法**：`tools/grant-hr-permissions.py`（幂等、带授权前备份）：
+  系统管理员 **37** 条（**排除 `hr:salary:*`**，依据 V11.380.0 权限种子自己的注释
+  「薪资保密：与其余 HR 权限分开授予」）；部门管理员 **8** 条只读（同样排除薪资）。
+- ⚠️ **改完必须等权限缓存过期（L1 30s + L2 Redis 5min）或重启后端**，否则验证会看到旧结果（§8.7 尾注同理）。
+
+### 9.3 第三个坑：多租户下**建档链路整体不可用**
+
+1. `biz_number_sequence` **全表只有 `tenant_id = 1` 的行**（72 行 / 45 个 biz_type），
+   而 `nextNumber` 查不到就抛「未配置编号序列」⇒ 非 1 号租户**员工/合同/岗位都建不出来**。
+   **修法**：查不到时按同 `bizType` 的既有行**补种一行**（`seedMissingSequence`，`@InterceptorIgnore` +
+   `ON CONFLICT DO NOTHING`，幂等）；`nextNumber(bizType)` 由写死租户 1 改为**会话租户**
+   （此前非 1 号租户的销售订单/发票/批次号同样生成不出来）。
+2. `hr_employee` 的工号唯一约束是 `UNIQUE (employee_no)`，**不含 tenant_id**，
+   而号段是 per-tenant、按天重置、前缀相同 ⇒ 两个租户同一天各建第一个员工都会得到
+   `EMP-YYYYMMDD-0001` 撞约束。
+   **修法**（迁移 `V11.502.0`）：改 `UNIQUE (tenant_id, employee_no) WHERE deleted = 0`
+   —— 顺带与逻辑删除口径对齐（旧索引不含 `deleted`，软删后同工号会被数据库拒、被应用层放行）。
+
+### 9.4 §7 / §8.5 的过期条目（按审计实测订正）
+
+| 原记录 | 实测 | 现结论 |
+|---|---|---|
+| §8.3「统计 / 导出端点」已交付 | `/stat` 8 个后端已建但**前端 10 个页面 0 处调用**；导出**没有后端端点**（全在前端拼 CSV，见 `employee/list.vue` 等） | 改为「后端能力就绪，前端未展示」 |
+| §8.5#13「`hr_*` 各表基本无索引」 | 实测 **39 个索引**，含 `dept_id`/`tenant_id`/业务日期，`hr_leave_quota` 有 `(tenant_id, leave_type, year) WHERE deleted = 0` 部分唯一索引 | 已补齐，删掉该条 |
+| §4 接线表 5 处「❌ 完全断开」 | 招聘→入职→档案、请假↔考勤、绩效→薪资、考勤→薪资**均已打通** | 见下方 9.5 |
+| §4「`hr_employee.user_id` 字段不存在」 | 字段已建（V11.380.0），但**全仓 0 读 0 写** | 改为「列已建，无维护入口」 |
+| §2.4「`views/system/{department,position,user,role}` 四页全部无菜单」 | role/user 已被 80531/80532 指向；`department` 页**已删除**（只剩空目录）；`position` 页 1601 行**失去入口**（V11.429.0 改指角色页后） | 重写该表；`position` 页去留**待裁定** |
+| §2.4 行数（user 918 / position 1301 / role 931） | 实际 **1661 / 1601 / 2563** | 更新 |
+| `views/md/staff-dept/index.vue` 注释称「后端删除不校验部门引用（P0）」 | `DepartmentServiceImpl.delete` **已实现** `sys_user.dept_id` / `sys_position.dept_id` / `hr_employee.dept_id` 三类引用校验 | 该注释已删除 |
+
+### 9.5 接线状态（审计复核后的真实口径）
+
+| 方向 | 状态 |
+|---|---|
+| 招聘 → 入职 → 员工档案 | ✅ `POST /api/hr/candidate/{id}/hire` 一个事务内建档 + 置状态 7 + 维护 `applicant_count`/`hired_count` |
+| 请假 ↔ 考勤 | ✅ 批准写 `LEAVE` 标记、撤销/拒绝还原（`markLeave`/`unmarkLeave`） |
+| 绩效 → 薪资 | ✅ `绩效工资 = 绩效基数 × performance_coefficient`（未填按 1.0） |
+| 考勤 → 薪资 | ✅ 缺勤扣款**只统计 `ABSENT`**，`LEAVE` 不扣 |
+| 编制管控 | ✅ 建档/转正/调岗/离职自动重算 `hr_position.current_count` |
+| 部门 → HR | ✅ HR 侧只读引用 `sys_department`（`HrDepartmentRef`）；反向有删除引用校验 |
+| `hr_employee.user_id` → 系统账号 | ❌ 列已建，**无读写入口**（ESS / 离职封号仍无从谈起） |
+| 请假审批 → 工作流引擎 | ❌ `workflow_instance_id` 无赋值/读取 |
+| 薪资 → 财务 | ❌ 确认发放不生成凭证/应付 |
+| 行级数据权限 | ❌ 全站未生效（`sys_data_scope` 0 行、`@DataPermission` 全仓 0 引用）—— 非 HR 单模块问题 |
+
+### 9.6 本轮其它清理
+
+- 删死页面 `views/hr/attendance/index.vue` + 僵尸组件键 `hr/attendance/index`
+  （该页签到写死 `clockIn(0)`，会给 employeeId=0 建考勤记录）。
+- 删 5 个无调用方的 `listForExport`（考勤/员工/请假/绩效/薪资；招聘那条由 `GET /recruitment/list` 在用，保留）、
+  `HrLookupHelper#fillEmployeeInfo`、`HrEmployeeService#getByEmployeeNo`。
+- 迁 `V11.502.0`：`907.menu_code` `hr-recruitment` → `hr:recruitment`（与接口鉴权码同源）；
+  软删 9071/9072/9073（指向 V11.435.0 已删除的历史权限码）；
+  80530/80531/80532/907 的 `menu_level` 由 3 → 0（非系统租户的租户管理员此前看不到这 4 页）。
+- 新增权限码 `hr:salary:delete` / `hr:performance:delete`，`HrController` 3 个删除端点改用删除码
+  （此前挂 `:update`，导致角色页权限矩阵的**「删除」列永远为空**）。
+- `views/system/user/index.vue` 刷新按钮的 `v-permission` 由 `system:user:query`（**库中不存在**，
+  fail-closed 导致除超管外所有人看不到该按钮）改为 `tenant-admin:user:list`。
+
+### 9.7 落地后的回归（2026-09-23 真机）
+
+| 回归项 | 结果 |
+|---|---|
+| 前端单测 `npx vitest run` | **244 passed / 8 skipped** |
+| 后端 `mvn -o -pl core/base/core-base install` + `-pl hr/hr-base install` + `-pl core/api/core-api package` | BUILD SUCCESS，fat jar 无 ECJ 残缺类 |
+| 模块 E2E `node tools/e2e-hr.cjs` | **174/174 通过，0 失败** |
+| 菜单真机 `node tools/verify-menu-visibility.cjs` | **5 PASS / 0 FAIL**（非超管 9 条 / 超管 10 条） |
+| 权限真机 `node tools/verify-hr-permissions.cjs` | **6 PASS / 0 FAIL** |
+
+> ⚠️ E2E 顺带订正：`e2e-hr.cjs` 原先对 10 个页面统一断言「`CategoryListLayout` + `.ss-grid` 齿轮」，
+> 但 80531/80532 自 V11.422.0/V11.429.0 起指向的是**系统域页面**（那两个 `.vue` 里
+> `CategoryListLayout` 出现 0 次）⇒ 这 4 条断言**从 2026-09-19 起就是恒失败的假失败**。
+> 现已按页面形态区分 `category` / `system` 两种期望。
+
+> ⚠️ 运行时环境坑（本轮实踩）：我启动的后端实例在运行中被**并行会话重写了同一个 fat jar**
+> ⇒ 之后 `/api/auth/login` 全部 500，堆栈 `NoClassDefFoundError: ...logback...ThrowableProxy`。
+> **重启即愈，别去查依赖冲突**（见 `fatjar-swap-while-running`）。

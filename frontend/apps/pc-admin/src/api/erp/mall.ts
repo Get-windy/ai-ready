@@ -1289,49 +1289,18 @@ export const mallCartApi = {
   /** 批量删除购物车项（后端 DELETE /batch） */
   batchRemove(ids: number[]): Promise<void> {
     return request.delete('/v1/mall/cart/batch', { data: ids })
-  },
-  /** 清空当前用户购物车（后端 DELETE /v1/mall/cart） */
-  clearCart(): Promise<void> {
-    return request.delete('/v1/mall/cart')
   }
+  // 2026-09-23 移除 clearCart()：它调 `DELETE /v1/mall/cart`，该端点按**调用者本人**清空
+  // （后端用 StpUtil.getLoginIdAsLong() 当 customerId），而管理端列表展示的是全体会员的购物车
+  // ⇒ 点了对列表无任何影响，是"看似能用实则无效"的假接口（审计报告 P1-8）。
+  // 管理端要按会员清空，需后端新增按 customerId 的管理端端点。
 }
 
 // ── 商城退货/售后 ──
-export interface MallReturn {
-  id: number
-  returnNo: string
-  orderId: number
-  orderNo: string
-  customerName: string
-  productName: string
-  quantity: number
-  amount: number
-  reason: string
-  status: number
-  remark?: string
-  createTime: string
-}
-
-export const mallReturnApi = {
-  page(params: PageQuery & { keyword?: string; status?: number }): Promise<PageResult<MallReturn>> {
-    return request.get('/erp/mall/admin/return/page', params)
-  },
-  stats(): Promise<any> {
-    return request.get('/erp/mall/admin/return/stats')
-  },
-  getById(id: number): Promise<ApiResponse<MallReturn>> {
-    return request.get(`/erp/mall/admin/return/${id}`)
-  },
-  approve(id: number): Promise<void> {
-    return request.put(`/erp/mall/admin/return/${id}/approve`)
-  },
-  reject(id: number): Promise<void> {
-    return request.put(`/erp/mall/admin/return/${id}/reject`)
-  },
-  batchApprove(ids: number[]): Promise<void> {
-    return request.put('/erp/mall/admin/return/batch-approve', ids)
-  },
-  batchReject(ids: number[]): Promise<void> {
-    return request.put('/erp/mall/admin/return/batch-reject', ids)
-  }
-}
+//
+// 2026-09-23 删除原 `mallReturnApi`（page/stats/getById/approve/reject/batchApprove/batchReject）
+// 与配套的 `MallReturn` 接口类型，理由（见 TRADE_MODULE_AUDIT_20260923.md P2-1）：
+//   · 全仓零引用（`grep -rn "mallReturnApi"` 只命中定义处这一行）；
+//   · 后端**不存在** `/erp/mall/admin/return/*` 的任何端点，原实现一旦被调用必然 404；
+//   · 真正的退货处理页 `views/mall/return-process/index.vue` 用的是 `saleReturnApi`
+//     （`/erp/sale/return/*` —— 退货申请挂在销售域，不在商城域）。

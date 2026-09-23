@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.CustomerOpportunity;
 import cn.aiedge.crm.customer.service.CustomerOpportunityService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -40,7 +41,12 @@ public class CustomerOpportunityController {
     @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/{id}")
     public CustomerOpportunity getDetail(@PathVariable Long id) {
-        return customerOpportunityService.getById(id);
+        // 空值语义与同模块其它控制器统一：不存在报 404，不再返回 200 + 空响应体
+        CustomerOpportunity opportunity = customerOpportunityService.getById(id);
+        if (opportunity == null) {
+            throw BusinessException.notFound("商机不存在");
+        }
+        return opportunity;
     }
     
     @Operation(summary = "根据编码查询商机")

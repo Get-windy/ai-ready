@@ -34,8 +34,8 @@ def main():
     out = {}
 
     # ---------- 1. hr_* 表 ----------
-    cur.execute("""SELECT table_name FROM information_schema.tables
-                   WHERE table_schema='public' AND table_name LIKE 'hr\_%' ESCAPE '\\'
+    cur.execute(r"""SELECT table_name FROM information_schema.tables
+                   WHERE table_schema='public' AND table_name LIKE 'hr\_%'
                    ORDER BY table_name""")
     tables = [r[0] for r in cur.fetchall()]
     tinfo = []

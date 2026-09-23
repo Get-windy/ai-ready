@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     private final PurchaseOrderDepositMapper depositMapper;
     private final PurchaseOrderAuditTrailMapper auditTrailMapper;
     private final PurchaseOrderExtInfoMapper extInfoMapper;
+
+    /** Excel 导入：名称 → 主数据主键 的回查 */
+    private final PurchaseImportLookupMapper importLookupMapper;
 
     /** 审批门面（影子模式）：core-api 有引擎实现时可选注入，无实现时保持原行为 */
     private final ObjectProvider<ApprovalFacade> approvalFacadeProvider;
@@ -648,51 +652,37 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int importOrders(MultipartFile file) {
+    public Map<String, Object> importOrders(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("导入文件不能为空");
         }
-        // XLSX 解析：通过 Apache POI 读取并批量创建订单
+        // XLSX 解析：通过 Apache POI 读取并批量创建订单。
+        // 列序：0=供应商名 1=仓库名 2=商品名 3=数量 4=单价
         int count = 0;
+        List<String> errors = new ArrayList<>();
         try (var inputStream = file.getInputStream()) {
             var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(inputStream);
             var sheet = workbook.getSheetAt(0);
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 var row = sheet.getRow(i);
-                if (row == null) continue;
-                PurchaseOrderDTO dto = new PurchaseOrderDTO();
-                PurchaseOrder order = new PurchaseOrder();
-                order.setOrderDate(LocalDateTime.now());
-                order.setStatus(0);
-                order.setPurchaseType(0);
-                // 读取 Excel 列: 0=供应商名, 1=仓库名, 2=商品名, 3=数量, 4=单价
-                var supplierCell = row.getCell(0);
-                var warehouseCell = row.getCell(1);
-                var productCell = row.getCell(2);
-                var qtyCell = row.getCell(3);
-                var priceCell = row.getCell(4);
-                if (productCell == null) continue;
-
-                if (dto.getPartnerSnapshot() == null) {
-                    dto.setPartnerSnapshot(new cn.aiedge.erp.purchase.entity.PurchaseOrderPartnerSnapshot());
+                if (row == null) {
+                    continue;
                 }
-                if (supplierCell != null) dto.getPartnerSnapshot().setSupplierName(supplierCell.getStringCellValue());
-                if (warehouseCell != null) order.setWarehouseId(0L);
-
-                PurchaseOrderItem item = new PurchaseOrderItem();
-                item.setProductName(productCell.getStringCellValue());
-                item.setQuantity(qtyCell != null ? BigDecimal.valueOf(qtyCell.getNumericCellValue()) : BigDecimal.ZERO);
-                item.setUnitPrice(priceCell != null ? BigDecimal.valueOf(priceCell.getNumericCellValue()) : BigDecimal.ZERO);
-                item.setAmount(item.getQuantity().multiply(item.getUnitPrice()));
-                item.setLineNo(1);
-
-                dto.setOrder(order);
-                dto.setItems(List.of(item));
+                String supplierName = cellText(row.getCell(0));
+                String warehouseName = cellText(row.getCell(1));
+                String productName = cellText(row.getCell(2));
+                if (productName == null || productName.isBlank()) {
+                    continue; // 空行跳过（不算失败）
+                }
                 try {
+                    PurchaseOrderDTO dto = buildImportOrder(row, i + 1, supplierName, warehouseName, productName);
                     createOrder(dto);
                     count++;
                 } catch (Exception e) {
-                    logger.warn("导入第{}行失败: {}", i, e.getMessage());
+                    // 逐行失败不再静默吞掉：行号 + 原因回传给调用方，让用户知道哪几行没进来
+                    String msg = "第" + (i + 1) + "行: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                    errors.add(msg);
+                    logger.warn("导入采购订单失败 {}", msg);
                 }
             }
             workbook.close();
@@ -701,7 +691,106 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         } catch (Exception e) {
             throw new BusinessException("导入文件解析失败: " + e.getMessage());
         }
-        return count;
+        Map<String, Object> result = new HashMap<>();
+        result.put("count", count);
+        result.put("failed", errors.size());
+        result.put("errors", errors);
+        return result;
+    }
+
+    /**
+     * 把 Excel 一行转成可落库的采购订单 DTO。
+     *
+     * <p>原实现只把「名称」写进单据、仓库恒写 0、明细没有商品主键 —— 单据虽有行，
+     * 但关联不到任何主数据，后续收货/库存/统计全链路拿不到有效数据（2026-09-22 审计 P1）。
+     * 这里按名称回查主数据拿**真实主键**，解析不到就整行失败并回报行号，不再写入半成品单据。</p>
+     */
+    private PurchaseOrderDTO buildImportOrder(org.apache.poi.ss.usermodel.Row row, int rowNo,
+                                              String supplierName, String warehouseName, String productName) {
+        Long productId = importLookupMapper.selectProductIdByName(productName.trim());
+        if (productId == null) {
+            throw new BusinessException("商品[" + productName + "]在商品档案中不存在");
+        }
+        Long supplierId = null;
+        String supplierCode = null;
+        if (supplierName != null && !supplierName.isBlank()) {
+            supplierId = importLookupMapper.selectPartyIdByName(supplierName.trim());
+            if (supplierId == null) {
+                throw new BusinessException("供应商[" + supplierName + "]在往来单位中不存在");
+            }
+            supplierCode = importLookupMapper.selectPartyCode(supplierId);
+        }
+        Long warehouseId = null;
+        if (warehouseName != null && !warehouseName.isBlank()) {
+            warehouseId = importLookupMapper.selectWarehouseIdByName(warehouseName.trim());
+            if (warehouseId == null) {
+                throw new BusinessException("仓库[" + warehouseName + "]不存在");
+            }
+        }
+
+        PurchaseOrder order = new PurchaseOrder();
+        order.setOrderDate(LocalDateTime.now());
+        order.setStatus(0);
+        order.setPurchaseType(0);
+        order.setSupplierId(supplierId);
+        order.setWarehouseId(warehouseId);
+        order.setRemark("Excel 导入");
+
+        PurchaseOrderPartnerSnapshot snapshot = new PurchaseOrderPartnerSnapshot();
+        snapshot.setSupplierName(supplierName);
+        snapshot.setSupplierCode(supplierCode);
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setProductId(productId);
+        item.setProductName(productName.trim());
+        item.setProductCode(importLookupMapper.selectProductCode(productId));
+        item.setSpecification(importLookupMapper.selectProductSpec(productId));
+        item.setUnit(importLookupMapper.selectProductUnit(productId));
+        BigDecimal qty = numeric(row.getCell(3));
+        BigDecimal price = numeric(row.getCell(4));
+        item.setQuantity(qty == null ? BigDecimal.ZERO : qty);
+        item.setUnitPrice(price == null ? BigDecimal.ZERO : price);
+        item.setAmount(item.getQuantity().multiply(item.getUnitPrice()));
+        item.setWarehouseId(warehouseId);
+        item.setLineNo(1);
+
+        PurchaseOrderDTO dto = new PurchaseOrderDTO();
+        dto.setOrder(order);
+        dto.setPartnerSnapshot(snapshot);
+        dto.setItems(new ArrayList<>(List.of(item)));
+        return dto;
+    }
+
+    /** 单元格取文本；数字单元格也按整数/小数文本返回，避免 getStringCellValue 抛异常。 */
+    private static String cellText(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        try {
+            return switch (cell.getCellType()) {
+                case STRING -> cell.getStringCellValue();
+                case NUMERIC -> new BigDecimal(String.valueOf(cell.getNumericCellValue())).stripTrailingZeros().toPlainString();
+                default -> null;
+            };
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 单元格取数值；空/非数字返回 null。 */
+    private static BigDecimal numeric(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        try {
+            return switch (cell.getCellType()) {
+                case NUMERIC -> BigDecimal.valueOf(cell.getNumericCellValue());
+                case STRING -> new BigDecimal(cell.getStringCellValue().trim());
+                default -> null;
+            };
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

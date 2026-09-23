@@ -17,7 +17,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -101,27 +100,6 @@ public class HrLookupHelper {
                                         .or().like(HrEmployee::getEmployeeName, kw)
                                         .or().like(HrEmployee::getPhone, kw)))
                 .stream().map(HrEmployee::getId).collect(Collectors.toList());
-    }
-
-    /** 回填员工姓名/工号/部门名（通用，适用于带这三个展示字段的实体） */
-    public <T> void fillEmployeeInfo(List<T> rows,
-                                     Function<T, Long> employeeIdGetter,
-                                     Map<Long, String> deptByEmployeeId,
-                                     java.util.function.BiConsumer<T, HrEmployee> employeeSetter,
-                                     java.util.function.BiConsumer<T, String> deptNameSetter) {
-        if (rows == null || rows.isEmpty()) {
-            return;
-        }
-        Map<Long, HrEmployee> empMap = employees(rows.stream()
-                .map(employeeIdGetter).filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
-        for (T row : rows) {
-            HrEmployee emp = empMap.get(employeeIdGetter.apply(row));
-            employeeSetter.accept(row, emp);
-            if (deptNameSetter != null) {
-                Long empId = employeeIdGetter.apply(row);
-                deptNameSetter.accept(row, empId == null ? null : deptByEmployeeId.get(empId));
-            }
-        }
     }
 
     /** 建立「员工 id → 部门名」映射 */

@@ -79,20 +79,6 @@ public class HrLeaveRequestServiceImpl extends ServiceImpl<HrLeaveRequestMapper,
     }
 
     @Override
-    public List<HrLeaveRequest> listForExport(Integer status, String leaveType, Long deptId,
-                                              LocalDate startDateFrom, LocalDate startDateTo) {
-        LambdaQueryWrapper<HrLeaveRequest> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(status != null, HrLeaveRequest::getStatus, status)
-                .eq(StringUtils.hasText(leaveType), HrLeaveRequest::getLeaveType, leaveType)
-                .ge(startDateFrom != null, HrLeaveRequest::getStartDate, startDateFrom)
-                .le(startDateTo != null, HrLeaveRequest::getStartDate, startDateTo);
-        applyDeptScope(wrapper, deptId);
-        List<HrLeaveRequest> rows = list(wrapper.orderByDesc(HrLeaveRequest::getCreateTime));
-        enrich(rows);
-        return rows;
-    }
-
-    @Override
     public List<HrLeaveRequest> listByEmployee(Long employeeId) {
         if (employeeId == null) {
             return List.of();

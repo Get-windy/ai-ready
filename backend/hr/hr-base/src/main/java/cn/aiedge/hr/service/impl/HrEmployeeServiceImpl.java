@@ -62,13 +62,6 @@ public class HrEmployeeServiceImpl extends ServiceImpl<HrEmployeeMapper, HrEmplo
         return result;
     }
 
-    @Override
-    public List<HrEmployee> listForExport(HrEmployeeQuery query) {
-        List<HrEmployee> rows = list(buildWrapper(query));
-        enrich(rows);
-        return rows;
-    }
-
     private LambdaQueryWrapper<HrEmployee> buildWrapper(HrEmployeeQuery query) {
         HrEmployeeQuery q = query == null ? new HrEmployeeQuery() : query;
         LambdaQueryWrapper<HrEmployee> wrapper = new LambdaQueryWrapper<>();
@@ -125,14 +118,6 @@ public class HrEmployeeServiceImpl extends ServiceImpl<HrEmployeeMapper, HrEmplo
                 .orderByDesc(HrEmployeeChange::getEffectiveDate)
                 .orderByDesc(HrEmployeeChange::getId);
         return changeMapper.selectPage(page, wrapper);
-    }
-
-    @Override
-    public HrEmployee getByEmployeeNo(String employeeNo) {
-        if (!StringUtils.hasText(employeeNo)) {
-            return null;
-        }
-        return getOne(new LambdaQueryWrapper<HrEmployee>().eq(HrEmployee::getEmployeeNo, employeeNo).last("limit 1"));
     }
 
     @Override

@@ -1,5 +1,6 @@
 package cn.aiedge.common.serial;
 
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.common.serial.mapper.BizNumberSequenceMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -30,18 +31,32 @@ public class BizNumberGeneratorService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     /**
-     * 生成下一个递增编号（默认使用租户ID 1和中文环境）
+     * 生成下一个递增编号（使用**当前会话租户** + 中文环境）
+     *
+     * <p>⚠️ 2026-09-23 订正：此前这里写死 `tenantId = 1L`。号段表的唯一键是
+     * `(tenant_id, biz_type, locale)`，而查询 SQL 里也带 `tenant_id = #{tenantId}`，
+     * 于是非 1 号租户的会话调用本方法时，SQL 里的 `tenant_id = 1` 与多租户拦截器注入的
+     * 会话租户条件互相矛盾 ⇒ **恒查不到行** ⇒ 抛「未配置编号序列」，即销售订单/发票/批次号等
+     * 所有单据号在 1 号租户之外的会话里都生成不出来。</p>
+     *
+     * <p>无会话（定时任务、启动期种子等）时回退租户 1，保持改造前的行为。</p>
      *
      * @param bizType 业务类型（如 SN, BN, INV, SO, PO 等）
      * @return 完整的递增编号字符串
      */
     @Transactional(rollbackFor = Exception.class)
     public String nextNumber(String bizType) {
-        return nextNumber(bizType, 1L, "zh_CN"); // 默认使用中文环境
+        Long sessionTenantId = SecurityUtils.getCurrentTenantId();
+        return nextNumber(bizType, sessionTenantId != null ? sessionTenantId : 1L, "zh_CN");
     }
 
     /**
      * 生成下一个递增编号（指定租户和语言环境）
+     *
+     * <p>本租户还没有号段行时**按模板自愈**（见 {@link BizNumberSequenceMapper#seedMissingSequence}）：
+     * 迁移只给租户 1 种过号段，新租户第一次建单据时旧实现直接抛异常，
+     * 等于「非 1 号租户什么都建不出来」。现在改为复制同 `bizType` 的既有行（前缀/长度/上限）。
+     * 全库都没有该 bizType 的模板（prompt 里写错类型）时，仍然抛异常 —— 不能凭空编前缀。</p>
      *
      * @param bizType 业务类型（如 SN, BN, INV, SO, PO 等）
      * @param tenantId 租户ID
@@ -56,9 +71,22 @@ public class BizNumberGeneratorService {
         if (seq == null) {
             // 尝试使用默认语言环境
             seq = sequenceMapper.selectForUpdate(bizType, tenantId);
-            if (seq == null) {
-                throw new IllegalArgumentException("未配置编号序列: bizType=" + bizType + ", locale=" + locale + ", tenantId=" + tenantId + "，请先在 biz_number_sequence 表中初始化");
+        }
+        if (seq == null) {
+            // 本租户未配置号段 → 按同 bizType 的既有行补种一行（幂等），再取一次
+            int seeded = sequenceMapper.seedMissingSequence(bizType, locale, tenantId);
+            if (seeded > 0) {
+                log.info("号段未配置，已按既有模板补种: bizType={}, locale={}, tenantId={}", bizType, locale, tenantId);
+                seq = sequenceMapper.selectForUpdateWithLocale(bizType, locale, tenantId);
+                if (seq == null) {
+                    seq = sequenceMapper.selectForUpdate(bizType, tenantId);
+                }
             }
+        }
+        if (seq == null) {
+            throw new IllegalArgumentException("未配置编号序列: bizType=" + bizType + ", locale=" + locale
+                    + ", tenantId=" + tenantId + "，请先在 biz_number_sequence 表中初始化"
+                    + "（或确认该 bizType 在任一租户/语言下有模板行可供补种）");
         }
 
         // 日期变化时重置序列

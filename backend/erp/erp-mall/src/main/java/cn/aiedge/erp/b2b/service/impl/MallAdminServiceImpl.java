@@ -222,7 +222,16 @@ public class MallAdminServiceImpl implements MallAdminService {
         //   否则 A 店停用的顾客在 B 店的列表里也会显示成停用（而他在 B 店其实能买）。
         //   显示停用（买家账号页勾选框）：false = 只看启用账号（强制 enabled=1，忽略 status 参数）；
         //   true / null = 不过滤停用，此时仍可用 status 参数显式指定
-        Integer enabledFilter = Boolean.FALSE.equals(showDisabled) ? ShopUserTenant.ENABLED_YES : status;
+        //
+        // ⚠️ 2026-09-23 修拆箱 NPE：原写法
+        //   `Boolean.FALSE.equals(showDisabled) ? ShopUserTenant.ENABLED_YES : status`
+        //   因 ENABLED_YES 是 **int 基本类型**，条件表达式的类型经二元数值提升后为 int，
+        //   于是**两个分支都会把 Integer status 拆箱** —— status 为 null（前端默认不传）时
+        //   直接 NPE，/erp/mall/admin/user/page 恒 500（买家账号、买家申请管理两页打不开）。
+        //   现改为三目只在分支处装箱，null 时保持"不过滤"的原语义。
+        Integer enabledFilter = Boolean.FALSE.equals(showDisabled)
+                ? Integer.valueOf(ShopUserTenant.ENABLED_YES)
+                : status;
         List<ShopUserTenant> links = shopUserTenantMapper.selectByTenant(tenantId, auditStatus, enabledFilter);
         if (links.isEmpty()) {
             return new Page<>(pageNum, pageSize, 0);

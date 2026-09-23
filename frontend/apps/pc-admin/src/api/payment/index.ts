@@ -46,7 +46,17 @@ export interface PaymentChannelParam {
   //   · 支付宝异步通知是 RSA2 签名，验签要**支付宝公钥**（不是应用私钥）；
   //   · 微信支付 APIv3 是「平台证书签名 + APIv3 密钥 AES-GCM 加密 resource」，
   //     验签要**平台证书公钥**，解 resource 还要 **APIv3 密钥**。
-  // 不配这些，回调端点会 fail-closed 拒绝（不会「不验签当成功」）。
+  //
+  // ⚠️⚠️ 2026-09-23 更正：此处原写「不配这些，回调端点会 fail-closed 拒绝
+  // （不会「不验签当成功」）」—— **与实现相反，会误导排障**。实测口径（见
+  // TRADE_MODULE_AUDIT_20260923.md P0-2）：
+  //   · 三个验签器类（AlipayCallbackVerifier / WechatCallbackVerifier /
+  //     UnionPayCallbackVerifier）**只有单元测试引用，生产代码零调用**；
+  //   · POST /api/payment/callback/{channel} 直接调渠道实现的 handleCallback，
+  //     而 Alipay/Wechat/UnionPay/Cash 四个渠道实现都是 `record.setStatus(2)`
+  //     的无条件成功桩 ⇒ **当前行为恰恰是「不验签当成功」**。
+  // 因此这些字段目前**配了也不生效**。修法（接线验签器）涉及「回调失败如何回滚状态」
+  // 的口径，需先拍板，故未在本次改动中接线。
 
   /** 【验签·支付宝】支付宝公钥（Base64，可带 PEM 头尾） */
   alipayPublicKey?: string

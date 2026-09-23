@@ -238,9 +238,8 @@ public class PurchaseInboundController {
     @SaCheckPermission("purchase:inbound:import")
     @PostMapping("/import")
     @Operation(summary = "批量导入入库单")
-    public ApiResponse<Map<String, Integer>> importOrders(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        int count = purchaseInboundService.importOrders(file);
-        return ApiResponse.ok(Map.of("count", count));
+    public ApiResponse<Map<String, Object>> importOrders(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ApiResponse.ok(purchaseInboundService.importOrders(file));
     }
 
     @SaCheckPermission("purchase:inbound:print")

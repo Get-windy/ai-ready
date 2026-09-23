@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface PurchaseInboundService extends IService<PurchaseInbound> {
 
@@ -25,7 +26,12 @@ public interface PurchaseInboundService extends IService<PurchaseInbound> {
 
     String generateInboundNo();
 
-    int importOrders(org.springframework.web.multipart.MultipartFile file);
+    /**
+     * Excel 批量导入采购入库单。
+     *
+     * @return {@code {count: 成功行数, failed: 失败行数, errors: [失败原因…]}}
+     */
+    Map<String, Object> importOrders(org.springframework.web.multipart.MultipartFile file);
 
     void batchPrint(List<Long> ids, String template);
 

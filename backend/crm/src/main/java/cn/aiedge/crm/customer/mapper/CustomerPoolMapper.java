@@ -28,6 +28,10 @@ public interface CustomerPoolMapper extends BaseMapper<CustomerPool> {
     @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE status = 1 AND deleted = 0")
     Integer countAvailable();
 
+    /** 该客户当前是否已挂在公海池（status=1 可领取）—— 自动回收的幂等判据，避免重复入池 */
+    @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE customer_id = #{customerId} AND status = 1 AND deleted = 0")
+    Integer countAvailableByCustomer(@Param("customerId") Long customerId);
+
     @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE claim_sales_person_id = #{salesPersonId} AND deleted = 0")
     Integer countByClaimSalesPerson(@Param("salesPersonId") Long salesPersonId);
 }

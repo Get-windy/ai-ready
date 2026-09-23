@@ -483,7 +483,10 @@ const componentMap: Record<string, () => Promise<any>> = {
   // ── HR 人力资源模块 ──
   'hr/employee/list': () => import('@/views/hr/employee/list.vue'),
   'hr/attendance/list': () => import('@/views/hr/attendance/list.vue'),
-  'hr/attendance/index': () => import('@/views/hr/attendance/index.vue'),
+  // `hr/attendance/index` 键与 views/hr/attendance/index.vue 已于 2026-09-23 删除：
+  //   全库没有任何菜单的 component/list_path 会解析到它（菜单 90002 指向 list.vue），
+  //   属「有键无入口」的僵尸路由；且该页的签到/签退写死 `clockIn(0)`（会给 employeeId=0
+  //   建考勤记录），一旦被走到就是脏数据。详见 HR_MODULE_AUDIT_20260923.md §P1-3。
   'hr/leave/list': () => import('@/views/hr/leave/list.vue'),
   'hr/salary/list': () => import('@/views/hr/salary/list.vue'),
   'hr/performance/list': () => import('@/views/hr/performance/list.vue'),
@@ -1197,6 +1200,9 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
       ]
     }
 
+    // 注册前做一次重名路由体检（只告警、不阻塞）。详见 assertNoDuplicateRouteName 的注释。
+    assertNoDuplicateRouteName(layoutRoute.children as RouteRecordRaw[])
+
     routes = [layoutRoute]
   } else {
     routes = getFallbackRoutes()
@@ -1231,6 +1237,43 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
  * 必须始终存在的隐藏路由（详情页、编辑页等，不依赖后端菜单树）
  * 无论后端菜单 API 返回什么数据，这些路由都会注入到 Layout.children 中
  */
+/**
+ * 注册前检查路由树中的**重名路由**并告警（2026-09-23 分析模块审计后新增）。
+ *
+ * 背景：本文件 `transformMenuToRoutes` 的路由名规则是 `route_name || menu_code`（见该函数内
+ * `name: menu.routeName || menu.menuCode`）。两条菜单若 `route_name` 为空且 `menu_code` 相同，
+ * 就会生成**同名路由**；Vue Router 对同名路由是「后者覆盖前者」⇒ path 不同的那一条**永远没有路由**，
+ * 访问时落到 catch-all 404 页，且 **URL 不变、无 4xx、控制台无报错**，极难排查。
+ *
+ * 实测（2026-09-23）：该写法曾让「采购分析」(80421)、「库存预警补货」(70051)、「缺货补货」(70052)
+ * 三个页面 100% 打不开（已由迁移 V11.499.0 补 unique route_name 修复）。
+ *
+ * 这里**只告警不抛错**：生产环境宁可保留可用路由，也不应因一条脏菜单让整站路由注册失败。
+ */
+function assertNoDuplicateRouteName(routes: RouteRecordRaw[]) {
+  const seen = new Map<string, string>()
+  const dup: string[] = []
+  const walk = (list: RouteRecordRaw[]) => {
+    for (const r of list) {
+      const name = r.name as string | undefined
+      if (name) {
+        const path = String(r.path)
+        if (seen.has(name)) dup.push(`「${name}」被 ${seen.get(name)} 与 ${path} 共用`)
+        else seen.set(name, path)
+      }
+      if (r.children?.length) walk(r.children as RouteRecordRaw[])
+    }
+  }
+  walk(routes)
+  if (dup.length) {
+    console.error(
+      `[动态路由] 检测到 ${dup.length} 组重名路由，后者会覆盖前者、被覆盖的地址将渲染 404：\n  - ` +
+        dup.join('\n  - ') +
+        '\n  修法：给这些菜单补唯一的 sys_menu.route_name（或让 menu_code 不重复）。'
+    )
+  }
+}
+
 function getRequiredRoutes(): RouteRecordRaw[] {
   return [
     // ── 协议模块：详情页与平台侧条款字典不挂菜单，但必须常驻 ──
@@ -1305,6 +1348,13 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'PurchaseOrderDetail',
       component: () => import('@/views/erp/purchase/form.vue'),
       meta: { title: '采购订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
+    },
+    {
+      // 询价建单入口（此前只有只读详情，功能齐备却无法新建）
+      path: 'purchase/inquiry/form',
+      name: 'PurchaseInquiryForm',
+      component: () => import('@/views/purchase/inquiry/form.vue'),
+      meta: { title: '采购询价', icon: 'ProfileOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
     },
     {
       path: 'purchase/inquiry/:id',

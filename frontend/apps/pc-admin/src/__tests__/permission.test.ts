@@ -133,19 +133,6 @@ describe('权限工具函数测试', () => {
     })
   })
 
-  describe('canAccessMenu', () => {
-    it('应该检查菜单权限', () => {
-      mockStore.permissions = ['menu:user', 'menu:order']
-      expect(PermissionUtils.canAccessMenu('user')).toBe(true)
-      expect(PermissionUtils.canAccessMenu('product')).toBe(false)
-    })
-
-    it('应该处理通配符权限', () => {
-      mockStore.permissions = ['*']
-      expect(PermissionUtils.canAccessMenu('user')).toBe(true)
-    })
-  })
-
   describe('canOperate', () => {
     it('应该检查按钮操作权限', () => {
       mockStore.permissions = ['button:add', 'button:edit']
@@ -289,38 +276,6 @@ describe('usePermission 组合式函数测试', () => {
     executed = false
     withRole('super_admin', () => { executed = true })
     expect(executed).toBe(false)
-  })
-})
-
-describe('useMenuPermission 测试', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockStore.permissions = ['menu:user', 'menu:order', '*']
-    mockStore.roles = ['admin']
-    mockStore.isLoggedIn = true
-    mockStore.userType = 0
-    mockStore.hasPermission = vi.fn((p: string) => mockStore.permissions.includes(p))
-    mockStore.hasAnyPermission = vi.fn((ps: string[]) => ps.some((p: string) => mockStore.permissions.includes(p)))
-  })
-
-  it('应该检查菜单访问权限', () => {
-    const { canAccessMenu } = PermissionComposable.useMenuPermission()
-    
-    expect(canAccessMenu('user')).toBe(true)
-    expect(canAccessMenu('product')).toBe(true) // super admin
-  })
-
-  it('应该过滤菜单列表', () => {
-    const { filterMenus } = PermissionComposable.useMenuPermission()
-    
-    const menus = [
-      { name: '用户管理', permissions: ['menu:user'] },
-      { name: '订单管理', permissions: ['menu:order'] },
-      { name: '产品管理', permissions: ['menu:product'] }
-    ]
-    
-    const filtered = filterMenus(menus)
-    expect(filtered.length).toBe(3) // all allowed for super admin
   })
 })
 

@@ -119,7 +119,7 @@ public class PurchaseContractController {
      */
     @Operation(summary = "提交审批")
     @PostMapping("/{id}/submit")
-    @SaCheckPermission("purchase:contract:update")
+    @SaCheckPermission("purchase:contract:submit")
     public ApiResponse<PurchaseContract> submitForApproval(@PathVariable Long id,
                                                            @RequestParam String reason) {
         return ApiResponse.ok("提交成功", contractService.submitForApproval(id, reason));
@@ -176,7 +176,7 @@ public class PurchaseContractController {
      */
     @Operation(summary = "采购合同统计")
     @GetMapping("/statistics")
-    @SaCheckPermission("purchase:contract:list")
+    @SaCheckPermission("purchase:contract:view")
     public ApiResponse<ContractStatisticsDTO> generateContractStatistics() {
         return ApiResponse.ok(contractService.generateContractStatistics());
     }

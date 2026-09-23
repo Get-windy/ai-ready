@@ -137,8 +137,6 @@ public interface PurchaseContractMapper {
     @Update("UPDATE purchase_contract SET executed_amount=#{executedAmount}, executed_percent=#{executedPercent}, " +
             "updated_at=NOW() WHERE id=#{id}")
     int updateExecutionProgress(Long id, BigDecimal executedAmount, BigDecimal executedPercent);
-    
-    int updateExecutionProgress(Long id, PurchaseContract contract);
 
     @Insert("INSERT INTO purchase_contract_modification (contract_id, modification_no, modification_reason, created_at) " +
             "VALUES (#{contractId}, #{modificationNo}, #{modificationReason}, #{createdAt})")

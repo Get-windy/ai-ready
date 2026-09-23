@@ -1713,12 +1713,9 @@ export const purchaseOrderApi = {
   create(data: any) { return request.post('/erp/purchase/order', data) },
   update(id: number, data: any) { return request.put(`/erp/purchase/order/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/purchase/order/${id}`) },
-  batchDelete(ids: number[]) { return request.delete('/erp/purchase/order/batch', { data: ids }) },
   submit(id: number) { return request.post(`/erp/purchase/order/${id}/submit`) },
   approve(id: number) { return request.post(`/erp/purchase/order/${id}/approve`) },
   batchApprove(ids: number[]) { return request.post('/erp/purchase/order/batch-approve', ids) },
-  close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
-  print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
   /** 打印回写：累加订单「打印次数」（雪花 ID 以字符串透传，避免精度丢失） */
   batchPrint(ids: Array<number | string>, template = 'default') {
     return request.post('/erp/purchase/order/batch-print', { ids, template })
@@ -1726,22 +1723,6 @@ export const purchaseOrderApi = {
   export(params: any) { return request.get('/erp/purchase/order/export', params) },
 }
 
-/** 采购首页统计 */
-export interface PurchaseStats {
-  totalOrders?: number
-  totalAmount?: number
-  monthOrderCount?: number
-  pendingInquiryCount?: number
-  pendingInboundCount?: number
-  pendingPaymentCount?: number
-  [key: string]: any
-}
-
-export const purchaseStatsApi = {
-  get(tenantId?: number): Promise<ApiResponse<PurchaseStats>> {
-    return request.get('/erp/purchase/order/stats', { tenantId: tenantId || 1 })
-  }
-}
 
 // ── 零售单 ────────────────────────────────────────────────
 export interface RetailOrder {

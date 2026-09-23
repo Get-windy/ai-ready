@@ -71,7 +71,7 @@
             <div class="search-container" :data-expanded="showMoreConditions || null">
             <div class="search-grid" ref="gridRef">
               <!-- 固定：日期范围 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('dateRange')" class="search-field-item">
                 <a-range-picker
                   v-model:value="documentDateRange"
                   size="small"
@@ -80,7 +80,7 @@
                 />
               </div>
               <!-- 单据编号 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('documentNo')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.documentNo"
                   placeholder="单据编号"
@@ -89,7 +89,7 @@
                 />
               </div>
               <!-- 供应商 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('supplierName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.supplierName"
                   placeholder="供应商"
@@ -99,7 +99,7 @@
                 />
               </div>
               <!-- 经手人 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('handlerName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.handlerName"
                   placeholder="经手人"
@@ -109,7 +109,7 @@
                 />
               </div>
               <!-- 部门 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('departmentName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.departmentName"
                   placeholder="部门"
@@ -118,7 +118,7 @@
                 />
               </div>
               <!-- 制单人 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('creatorName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.creatorName"
                   placeholder="制单人"
@@ -127,7 +127,7 @@
                 />
               </div>
               <!-- 记账人 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('bookkeeperName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.bookkeeperName"
                   placeholder="记账人"
@@ -136,7 +136,7 @@
                 />
               </div>
               <!-- 仓库 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('warehouseName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.warehouseName"
                   placeholder="仓库"
@@ -146,7 +146,7 @@
                 />
               </div>
               <!-- 结算状态 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('settlementStatus')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">结算状态</span>
                   <a-select
@@ -162,7 +162,7 @@
                 </div>
               </div>
               <!-- 来源订单 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('sourceOrder')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.sourceOrder"
                   placeholder="来源订单"
@@ -171,7 +171,7 @@
                 />
               </div>
               <!-- 单据类型 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('documentType')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">单据类型</span>
                   <a-select
@@ -188,7 +188,7 @@
                 </div>
               </div>
               <!-- 单据备注 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('remark')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.remark"
                   placeholder="单据备注"
@@ -199,7 +199,7 @@
               <!-- 更多条件（展开后显示） -->
               <template v-if="showMoreConditions">
                 <!-- 自定义字段1(数字) 范围 -->
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('extNum1')" class="search-field-item">
                   <a-input-number
                     v-model:value="searchParams.extNum1Min"
                     placeholder="自定义1最小值"
@@ -215,7 +215,7 @@
                   />
                 </div>
                 <!-- 自定义字段2(数字) 范围 -->
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('extNum2')" class="search-field-item">
                   <a-input-number
                     v-model:value="searchParams.extNum2Min"
                     placeholder="自定义2最小值"
@@ -231,7 +231,7 @@
                   />
                 </div>
                 <!-- 自定义字段3(文本) -->
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('extText1')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.extText1"
                     placeholder="自定义字段3"
@@ -240,7 +240,7 @@
                   />
                 </div>
                 <!-- 自定义字段4(文本) -->
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('extText2')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.extText2"
                     placeholder="自定义字段4"
@@ -249,7 +249,7 @@
                   />
                 </div>
                 <!-- 自定义字段5(文本) -->
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('extText3')" class="search-field-item">
                   <a-input
                     v-model:value="searchParams.extText3"
                     placeholder="自定义字段5"
@@ -265,7 +265,7 @@
                     <SearchOutlined /> 查询
                   </a-button>
                 </div>
-                <div class="search-field-item">
+                <div v-show="queryFieldVisible('showRed')" class="search-field-item">
                   <a-checkbox v-model:checked="searchParams.showRed">显示红冲单据</a-checkbox>
                 </div>
               </div>
@@ -332,7 +332,7 @@
       :open="showPageConfig"
       :query-fields-config="queryFieldsConfig"
       :function-buttons-config="functionButtonConfig"
-      storage-key="purchase-doc-query-page-config"
+      :storage-key="PAGE_CONFIG_STORAGE_KEY"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -544,12 +544,15 @@ const queryFieldsConfig = ref([
   { key: 'sourceOrder', label: '来源订单', visible: true },
   { key: 'documentType', label: '单据类型', visible: true },
   { key: 'remark', label: '单据备注', visible: true },
-  { key: 'extNum1', label: '自定义字段1(数字)', visible: false },
-  { key: 'extNum2', label: '自定义字段2(数字)', visible: false },
-  { key: 'extText1', label: '自定义字段3(文本)', visible: false },
-  { key: 'extText2', label: '自定义字段4(文本)', visible: false },
-  { key: 'extText3', label: '自定义字段5(文本)', visible: false },
-  { key: 'showRed', label: '显示红冲', visible: false },
+  // ⚠️ 语义统一为「该查询条件是否启用」，**不是**「是否已折叠进更多条件」。
+  // 这几个默认 true：它们本来就在「更多条件」折叠区里，展开/收起由 showMoreConditions 控制；
+  // 若这里再给 false，用户展开「更多条件」后仍看不到它们（页面配置与折叠区互相打架）。
+  { key: 'extNum1', label: '自定义字段1(数字)', visible: true },
+  { key: 'extNum2', label: '自定义字段2(数字)', visible: true },
+  { key: 'extText1', label: '自定义字段3(文本)', visible: true },
+  { key: 'extText2', label: '自定义字段4(文本)', visible: true },
+  { key: 'extText3', label: '自定义字段5(文本)', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
 ])
 
 const functionButtonConfig = ref([
@@ -560,8 +563,37 @@ const functionButtonConfig = ref([
   { key: 'more', label: '更多条件', enabled: true },
 ])
 
-const handlePageConfigChange = () => {
-  // 页面配置变更后由 PageConfigPanel 自行持久化
+/** 页面配置在 localStorage 的键，与 PageConfigPanel 的 storage-key 同源 */
+const PAGE_CONFIG_STORAGE_KEY = 'purchase-doc-query-page-config'
+
+/** 查询条件是否启用（由页面配置弹窗的「查询条件」页签控制） */
+function queryFieldVisible(key: string): boolean {
+  const field = queryFieldsConfig.value.find(f => f.key === key)
+  return field ? field.visible : true
+}
+
+/** 应用一份页面配置（弹窗 change 时传入；挂载时从 localStorage 还原） */
+function applyPageConfig(config: { queryFields?: any[] }) {
+  if (Array.isArray(config?.queryFields)) {
+    queryFieldsConfig.value = queryFieldsConfig.value.map(df => {
+      const saved = config.queryFields!.find((f: any) => f.key === df.key)
+      return saved ? { ...df, visible: saved.visible !== false } : df
+    })
+  }
+}
+
+function handlePageConfigChange(config: any) {
+  applyPageConfig(config || {})
+}
+
+/** 挂载时还原已保存配置：PageConfigPanel 只在被打开时才读存档，不会主动同步给页面 */
+function restoreSavedPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) {
+      applyPageConfig(JSON.parse(raw))
+    }
+  } catch { /* 配置损坏时按默认展示 */ }
 }
 
 // ═══ 日期处理 ═══
@@ -737,6 +769,7 @@ const handleError = (e: Error) => {
 }
 
 onMounted(() => {
+  restoreSavedPageConfig()
   // 初始化默认快捷日期（近一周）
   setQuickDate('thisWeek')
 })
