@@ -24,19 +24,19 @@ erp_balance_log,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_customer_product_price,customer_id,bigint,29,27,0,0,部分命中（需人工判定）,,
 erp_delivery_rating,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_group_buy_participant,customer_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_pre_receipt,customer_id,bigint,2,2,0,0,指向 biz_party,,
+erp_pre_receipt,customer_id,bigint,2,2,0,0,指向 biz_party,实体 PreReceipt.customerId 无注释；同域写入方如 PaymentBusinessIntegrationService:249 直写 ⇒ 来源未追清 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
 erp_price_approval,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_price_calculation_request,customer_id,character varying,0,0,0,0,全空（无从判定）,,
 erp_price_memory,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_receipt,customer_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_retail_order,customer_id,bigint,8,8,0,0,指向 biz_party,,
-erp_sale_exchange,customer_id,bigint,6,6,0,0,指向 biz_party,,
+erp_retail_order,customer_id,bigint,8,8,0,0,指向 biz_party,铁证：实体字段行内注释「private Long customerId; // 客户ID → biz_party.id」（RetailOrder.java:41）,（本列留空：留待业务/文档侧确认）
+erp_sale_exchange,customer_id,bigint,6,6,0,0,指向 biz_party,铁证：SaleExchange.java:55 注释「客户快照（来源: erp_customer）」,（本列留空：留待业务/文档侧确认）
 erp_sale_order,customer_id,bigint,27,27,27,0,同时命中 biz_party/sys_user（数据侧不可区分，必须看代码证据）,,
-erp_sale_outbound,customer_id,bigint,32,32,3,0,指向 biz_party,,
+erp_sale_outbound,customer_id,bigint,32,32,3,0,指向 biz_party,铁证：SaleOutbound.java:37 注释「客户快照」；且数据 32/32 命中,（本列留空：留待业务/文档侧确认）
 erp_sale_pre_order,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_sale_return,customer_id,bigint,25,22,0,0,部分命中（需人工判定）,,
 erp_sale_return_doc,customer_id,bigint,0,0,0,0,全空（无从判定）,,
-finance_receivable,customer_id,character varying,6,6,0,0,指向 biz_party,,
+finance_receivable,customer_id,character varying,6,6,0,0,指向 biz_party,"铁证：Receivable.java:41-45「/** 客户ID */」+ @TableField(""customer_id"")；注意实体类型是 String、列是 varchar",（本列留空：留待业务/文档侧确认）
 invoice,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 invoice_application,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 invoice_payment_record,customer_id,bigint,0,0,0,0,全空（无从判定）,,
@@ -48,17 +48,17 @@ wms_ship_task,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_ar_ap_adjust,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_commission_record,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_cost_sharing_expense_item,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_expense_doc,partner_id,bigint,28,28,25,0,指向 biz_party,,
+erp_expense_doc,partner_id,bigint,28,28,25,0,指向 biz_party,铁证：ExpenseDoc.java:36「/** 往来单位ID（往来单位费用） */」,（本列留空：留待业务/文档侧确认）
 erp_initial_finance_partner,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_loyalty_card,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_loyalty_coupon,partner_id,bigint,44,44,12,0,指向 biz_party,,
-erp_partner_attachment,partner_id,bigint,11,11,0,6,指向 biz_party,,
+erp_loyalty_coupon,partner_id,bigint,44,44,12,0,指向 biz_party,⚠️ 注释与数据冲突：LoyaltyCoupon.java:25 写「使用人（关联往来单位联系人）」但数据 44/44 命中 biz_party、命中 contact=0 ⇒ 待人工确认（注释疑似过时）,（本列留空：留待业务/文档侧确认）
+erp_partner_attachment,partner_id,bigint,11,11,0,6,指向 biz_party,无注释；表名=挂在往来单位上的附件，数据 11/11 命中 biz_party（contact 也命中 6）⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
 erp_partner_contact,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_partner_logistics_ext,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_partner_role,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_product_shield,partner_id,bigint,33,33,0,0,指向 biz_party,,
+erp_product_shield,partner_id,bigint,33,33,0,0,指向 biz_party,铁证：ProductShield.java:33「/** 屏蔽客户ID */」,（本列留空：留待业务/文档侧确认）
 erp_purchase_price_track,partner_id,bigint,8,0,0,8,指向 biz_party_contact,,
-erp_sale_price_track,partner_id,bigint,15,15,4,0,指向 biz_party,,
+erp_sale_price_track,partner_id,bigint,15,15,4,0,指向 biz_party,铁证：SalePriceTrack.java:50-52「往来单位（客户）信息快照 / /** 往来单位ID */」,（本列留空：留待业务/文档侧确认）
 erp_stock_in,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_stock_out,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 fin_other_income_doc,partner_id,bigint,0,0,0,0,全空（无从判定）,,
@@ -66,9 +66,9 @@ mkt_auto_campaign_log,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_coupon_customer,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_points_batch,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_points_journal,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-mkt_sms_consent,partner_id,bigint,8,8,0,0,指向 biz_party,,
-mkt_stored_card,partner_id,bigint,1,1,0,0,指向 biz_party,,
-mkt_stored_card_flow,partner_id,bigint,1,1,0,0,指向 biz_party,,
+mkt_sms_consent,partner_id,bigint,8,8,0,0,指向 biz_party,无注释；同域 AutoCampaignServiceImpl:107 由某 info 的 id 赋值 ⇒ 来源未追清 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
+mkt_stored_card,partner_id,bigint,1,1,0,0,指向 biz_party,无注释；且数据仅 1 行 ⇒ 样本太少 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
+mkt_stored_card_flow,partner_id,bigint,1,1,0,0,指向 biz_party,无注释；数据仅 2 行 ⇒ 样本太少 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
 wms_borrow_order,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 agreement_signature,party_id,bigint,0,0,0,0,全空（无从判定）,,
 biz_party_address,party_id,bigint,0,0,0,0,全空（无从判定）,,
@@ -76,7 +76,7 @@ biz_party_contact,party_id,bigint,72,63,0,45,部分命中（需人工判定）,,
 biz_party_follow,party_id,bigint,0,0,0,0,全空（无从判定）,,
 biz_party_grade_relation,party_id,bigint,0,0,0,0,全空（无从判定）,,
 biz_party_transaction,party_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_capital_flow,party_id,bigint,2,2,0,0,指向 biz_party,,
+erp_capital_flow,party_id,bigint,2,2,0,0,指向 biz_party,⚠️ 多态引用：紧邻 partyType（CapitalFlowController 里叫「对方类型」）⇒ 按类型决定指向哪张表 ⇒ 不能当 biz_party.id 唯一处理,（本列留空：留待业务/文档侧确认）
 erp_linked_account,party_id,bigint,0,0,0,0,全空（无从判定）,,
 shop_user,party_id,bigint,0,0,0,0,全空（无从判定）,,
 shop_user_party_link,party_id,bigint,0,0,0,0,全空（无从判定）,,

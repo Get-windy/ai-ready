@@ -2180,3 +2180,8 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 自检里显式断言"在 party 里但不在 party_tenant 里"以证明是"不猜"而非漏搬。
 同批 `party` 进 `IGNORE_TENANT_TABLES`（**否则租户会话一件都读不到**，与 `shop_user` 同形态）、`party_tenant` 不进。
 迁移在事务内跑通后回滚验证（DDL + 回填 + 5 条自检全过、**无残留**），**待下次重启由 Flyway 正式应用**。
+
+**代码证据已填（2026-09-23）**：`tools/refsurface.csv` 的 14 处"数据侧指向 biz_party"里**只有 7 处有铁证**；
+另 7 处：**1 处注释与数据打架**（`erp_loyalty_coupon.partner_id` 注释写"联系人"、数据 44/44 命中 biz_party）·
+**1 处多态引用**（`erp_capital_flow.party_id` 紧邻 `partyType`）· **5 处无注释/样本太少/来源未追清**。
+⇒ **读路径切换前必须人工确认这 7 处**（"数据侧成立" ≠ "引用关系成立"）。

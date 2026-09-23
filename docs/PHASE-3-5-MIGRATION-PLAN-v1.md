@@ -73,6 +73,19 @@
 | 指向 `biz_party_contact`（**联系人**，不是往来单位） | 2 | ⚠️ `erp_purchase_price_track.partner_id` 8/8、`finance_payable.supplier_id` 3/3 |
 | 全空 / 不命中任何候选主档 | 其余 | 全空无从判定；不命中的多为**测试造数**（小整数 id） |
 
+**代码证据已填（2026-09-23）—— 结果比预想的更值得警惕**：那 14 处里**只有 7 处有铁证**
+（实体字段注释直接写明"客户ID → biz_party.id"一类），其余 7 处分别是：
+
+| 处 | 问题 | 处置 |
+|---|---|---|
+| `erp_loyalty_coupon.partner_id` | ⚠️ **注释与数据打架**：注释写"关联往来单位**联系人**"，而数据 44/44 命中 `biz_party`、命中 `biz_party_contact` = 0（注释疑似过时） | 待人工确认 |
+| `erp_capital_flow.party_id` | ⚠️ **多态引用**：紧邻 `partyType`（接口里叫「对方类型」）⇒ 按类型决定指向哪张表 | **不能当 `biz_party.id` 唯一处理** |
+| `mkt_sms_consent` / `mkt_stored_card` / `mkt_stored_card_flow` `.partner_id` | 无注释；后两者数据只 1~2 行（**样本太少**）；前者的赋值来自某 `info` 的 id，来源未追清 | 待人工确认 |
+| `erp_pre_receipt.customer_id` / `erp_partner_attachment.partner_id` | 无注释，写入来源未追清 | 待人工确认 |
+
+⇒ **印证了方案 §3.2 的判断**：**"数据侧成立" ≠ "引用关系成立"**；正因为如此，
+**读路径切换前必须先把上表这 7 处人工确认掉**，不能拿"14 处"当既成事实去改代码。
+
 **三条必须记住的实测警告**：
 
 1. ✅ **`erp_purchase_inbound.supplier_id` 命中 `biz_party` = 0 —— 已查清：不是代码缺陷，是数据不可测。**
@@ -246,3 +259,4 @@
 | 2026-09-23 | v1.2 | **订正 v1.1 的警告 1**：`erp_purchase_inbound.supplier_id` 命中 `biz_party`=0 **已查清为"数据不可测"而非代码缺陷** —— 代码 `setSupplierId(order.getSupplierId())` 语义正确，实测值是 E2E 造数 id（`2099000000000000901`/`100`）且无名称快照 ⇒ dev 库的采购单据**用假 id 造**，不对应真实 `biz_party` 行。**通用教训：数据侧 0 命中 ≠ 代码错，先看值形态（造数假 id / 小整数）再下结论**；连带记下"应付侧档案口径那条链路用现有数据验不了，需先造真实供应商主体" |
 | 2026-09-23 | v1.3 | **用户裁定选 I + 授权模拟信用代码**：执行 `tools/seed-mock-unified-code.cjs`，给 19 行未删 `biz_party` 补**格式合法且一眼可辨**的模拟统一社会信用代码（前缀 `91999999FAKE`，GB 32100 校验位算对），幂等且可 `--revert` 还原；**只动 `unified_code` 一列**。因每行代码不同 ⇒ **本步不产生归并**（选项 I 的形态：一照一档），真出现重复主体时走 `merge_request` 流程 |
 | 2026-09-23 | v1.4 | **序 2 第一批执行**：`V11.497.0` 建 `party`/`party_tenant` + 两个唯一索引 + 一照一档回填（19 行 → 19 档 + 18 条边：16 SALE / 2 PURCHASE）；**方向不猜**（承运商 1 行不建边，自检显式断言其存在性以证明"不猜"）；`party` 进 `IGNORE_TENANT_TABLES`、`party_tenant` 不进（层级不同）。迁移事务内跑通后回滚验证，待重启应用 |
+| 2026-09-23 | v1.5 | **`refsurface.csv` 的代码证据已填**：14 处"数据侧确认指向 biz_party"里**只有 7 处有铁证**；另 7 处 = **1 处注释与数据打架**（`erp_loyalty_coupon.partner_id`）+ **1 处多态引用**（`erp_capital_flow.party_id` 紧邻 `partyType`）+ **5 处无注释/样本太少/来源未追清** ⇒ 读路径切换前必须人工确认这 7 处 |
