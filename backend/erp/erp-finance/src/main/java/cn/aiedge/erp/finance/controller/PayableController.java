@@ -35,7 +35,7 @@ public class PayableController {
     private final PayableService payableService;
 
     @Operation(summary = "创建应付款")
-    @PostMapping("/")
+    @PostMapping
     @SaCheckPermission("finance:payable:create")
     @OperationLog(module = "应付管理", type = "CREATE", desc = "创建应付款")
     public Result<PayableDTO> create(@Valid @RequestBody PayableDTO dto) {

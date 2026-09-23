@@ -22,7 +22,7 @@
 |---|---|---|
 | **P0 致命** | 5 类 | 总账≠凭证分录（差 44,130，利润表/资产负债表数字失真）· 记账失败静默吞异常 · 关账红线在非 1 租户失效 · 账户余额/税负/审批人硬编码假数据 · 预算台账可被直接改写 |
 | **P1 严重** | 11 类 | 17 条菜单被普通租户整批过滤 · ~~工作台 4/6 入口 404~~ · ~~辅助核算开关 404~~ · ~~收款单批量打印 405~~ · 9 个空目录 + 7 个死页面 · 60 个死 API · 201/217 权限码仅超管持有 · 已取消单据应收仍挂账 · **经营看板的 5 个财务指标是随机数** · DMS→财务事件通道悬空 |
-| **本轮已修复** | 3 条断链 + 36 处租户硬编码 | 见下方「本轮修复记录」（一、二） |
+| **本轮已修复** | 3 条断链 + 36 处租户硬编码 + 凭证红冲 4 项 + 5 处尾斜杠端点 | 见下方「本轮修复记录」（一、二、三） |
 | **P2 一般** | 40+ 条 | 路径命名分裂 · 金额用 double · 全表内存聚合 · 字段全空 · 死表 |
 | **确认无问题的项** | 9 项 | 48/48 入口可打开 · 457 端点 100% 有鉴权注解 · 菜单组件 0 缺失 · 权限码 100% 在库且已关联角色 · 编译通过 |
 
@@ -38,6 +38,42 @@
 **构建**：`./mvnw -o -pl erp/erp-finance install` + `core-api package` → BUILD SUCCESS。
 
 > ⚠️ 说明：第 3 条只消除了"前后端契约不一致"（405），**并未让批量打印真正输出纸张** —— 付款单同样如此。真正的打印能力缺失已单列为待办（见 §4.5），不在"修断链"范围内。
+
+### 本轮修复记录之三：凭证红冲 P0 红线 + 尾斜杠端点（2026-09-23）
+
+**（一）`VoucherServiceImpl.reverse()` —— 报告 §2.3 那条 P0 红线**
+
+修复前 4 个问题（前 2 个是原报告已记的，后 2 个是本次复核新查出的）：
+
+| # | 问题 | 后果 | 修法 |
+|---|---|---|---|
+| 1 | 不调 `assertPeriodOpen` | 可向**已关账期间**生成红冲凭证并直接入账 | 补期间校验（用原凭证的 `fiscalYear/fiscalPeriod`） |
+| 2 | 红冲凭证直接 `setStatus("posted")` + 手工 `postToLedger` | 绕过审核环节与凭证状态机 | 改为以 `draft` 入库，走 `audit() → post()` 标准流程 |
+| 3 | **无原凭证状态前置校验** | 可红冲**草稿**凭证 ⇒ 原凭证未入账、冲销却入账，总账凭空多出反向分录；已冲销的也能重复红冲 | 仅允许 `posted` 状态可红冲 |
+| 4 | 借用原凭证 `postBy` 当制单人 | 制单责任错位 | 取真实登录会话（`StpUtil`），不沿用 Controller 的 `userId` 请求头（那条路径缺失时会兜底成 `mock_*`） |
+
+**（二）5 处 `@PostMapping("/")` 导致前端建单恒 404【本次新发现，属实测阻塞】**
+
+调 `VoucherController` 时发现 `@PostMapping("/")` 在 **Spring Boot 3** 下要求请求带尾斜杠才匹配，
+而前端一律用**无尾斜杠**（`voucherApi.create` / `receivableApi.create` / `payableApi.create`…）⇒ **新增凭证/应收/应付点了必 404**。
+
+实测对照：
+
+```
+404  POST /erp/finance/voucher     {"code":404,"message":"接口不存在: api/erp/finance/voucher"}
+200  POST /erp/finance/voucher/    {"code":200,"message":"创建成功","data":{"id":194,...}}
+```
+
+修复：财务域 5 处 `@PostMapping("/")` → `@PostMapping`（`VoucherController`、`ReceivableController`、`PayableController`、
+`AccountingPeriodController`、`FinanceTransactionController`）。
+> 另在 `core-api` 还有 3 处同类写法（`CleanupRuleController`/`DataSourceController`/`SyncTaskController`），
+> 非本次范围、且需先确认调用方，**未擅自改动**，已登记。
+
+**验证**：`node tools/verify-voucher-reverse.cjs` → **18/18 通过**（A 正常红冲 9 项 · B 草稿被拒 · C 重复红冲被拒 · D 已关账被拒 + 期间还原 · 清理 + 总账快照恢复）。
+
+> ⚠️ **脚本自身的一个坑（已内建处理）**：红冲会 `postToLedger`，而 `finance_ledger` 是**纯累加式**
+> （§2.1 的根因：删凭证**不会**回退总账）⇒ 只删测试凭证会把 1001/6001 的发生额永久抬高、污染报表。
+> 脚本因此加入「测试前采集总账快照 → 跑完按快照精确恢复」并断言恢复结果，实测 `恢复后=[3,17] 测试前=[3,17]`。
 
 ### 本轮修复记录之二：P0 租户硬编码清理（2026-09-23）
 
@@ -150,7 +186,8 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 
 **同源问题**：`MonthClosingServiceImpl`（`:57,:181,:195,:203,:393,:419` 六处）、`ReconciliationServiceImpl.java:342-345`（`return 1L; // 临时实现`）、`FinanceAuxiliaryItem/TypeServiceImpl`、`ExpenseDocServiceImpl:192,386`、`CashTransferServiceImpl:172,298`、`ArApAdjustServiceImpl:171,287` 全部硬编码租户 1。
 
-**附带**：`VoucherServiceImpl.reverse()`（`:257-319`）**既不走 `assertPeriodOpen` 也不走审核**，直接 `setStatus("posted")` + `postToLedger` ⇒ 可向已关账期间生成红冲凭证并直接入账。
+**附带（本轮已修 ✅）**：`VoucherServiceImpl.reverse()` 曾**既不走 `assertPeriodOpen` 也不走审核**，直接 `setStatus("posted")` + `postToLedger` ⇒ 可向已关账期间生成红冲凭证并直接入账。
+本轮复核还查出**另外两个未记录的问题**：① 无原凭证状态前置校验 ⇒ 可红冲**草稿**凭证（原凭证根本没入账，冲销却入了账，总账凭空多出反向分录）；② 借用原凭证的 `postBy` 当制单人。详见「本轮修复记录之三」。
 
 ### 2.4 硬编码假数据直接返回给前端【读码】
 

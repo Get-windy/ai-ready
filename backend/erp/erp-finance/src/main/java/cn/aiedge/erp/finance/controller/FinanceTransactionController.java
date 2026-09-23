@@ -33,7 +33,7 @@ public class FinanceTransactionController {
      */
     @OperationLog(module = "财务交易管理", type = "CREATE", desc = "创建交易记录")
     @SaCheckPermission("finance:transaction:create")
-    @PostMapping("/")
+    @PostMapping
     public Result<FinanceTransaction> createTransaction(@RequestBody FinanceTransaction transaction) {
         boolean success = financeTransactionService.createTransaction(transaction);
         return success ? Result.success(transaction) : Result.error("创建失败");

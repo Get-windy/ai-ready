@@ -11,6 +11,7 @@ import cn.aiedge.erp.finance.model.entity.Voucher;
 import cn.aiedge.erp.finance.model.entity.VoucherItem;
 import cn.aiedge.erp.finance.service.LedgerService;
 import cn.aiedge.erp.finance.service.VoucherService;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -276,9 +277,29 @@ public class VoucherServiceImpl implements VoucherService {
             throw BusinessException.notFound("凭证不存在: " + id);
         }
 
-        List<VoucherItem> originalItems = voucherItemMapper.findByVoucherId(id);
+        // P0 红线：只有「已过账」的凭证才需要红冲。
+        // 草稿 / 已审核（未过账）的凭证尚未进入总账，红冲它会让总账凭空多出一笔反向分录；
+        // 已冲销的凭证也不得重复红冲（同一笔业务被冲两次，账目反向失真）。
+        if (!"posted".equals(original.getStatus())) {
+            throw BusinessException.badRequest("只有已过账的凭证才能红冲，当前状态: " + original.getStatus()
+                    + "；草稿/已审核的凭证尚未入账，请直接修改或删除");
+        }
 
-        // 创建冲销凭证
+        // P0 红线：已关闭期间禁止记账。冲销凭证记在**原凭证所属期间**，
+        // 该期间若已关账则既不能补记也不能冲销。
+        // （此前此处没有任何期间校验，导致可向已关账期间生成红冲凭证并直接入账。）
+        assertPeriodOpen(original.getFiscalYear(), original.getFiscalPeriod());
+
+        // 操作人取真实登录会话，不沿用 Controller 的 userId 请求头 —— 那条路径缺失时会兜底成 mock_*
+        String operator = StpUtil.isLogin() ? StpUtil.getLoginIdAsString() : null;
+
+        List<VoucherItem> originalItems = voucherItemMapper.findByVoucherId(id);
+        if (originalItems.isEmpty()) {
+            throw BusinessException.badRequest("原凭证没有分录，无法红冲: " + original.getVoucherNo());
+        }
+
+        // 创建冲销凭证：以「草稿」入库，随后走与手工凭证一致的「审核 → 过账」流程。
+        // 此前直接 setStatus("posted") 并手工调 postToLedger，绕过了审核环节与凭证状态机。
         Voucher reverseVoucher = new Voucher();
         reverseVoucher.setVoucherNo(generateVoucherNo());
         reverseVoucher.setVoucherDate(LocalDate.now());
@@ -289,9 +310,9 @@ public class VoucherServiceImpl implements VoucherService {
         reverseVoucher.setSourceNo(original.getVoucherNo());
         reverseVoucher.setAttachments(0);
         reverseVoucher.setPrintCount(0);
-        reverseVoucher.setPrepBy(original.getPostBy());
+        reverseVoucher.setPrepBy(operator);
         reverseVoucher.setPrepAt(LocalDateTime.now());
-        reverseVoucher.setStatus("posted");
+        reverseVoucher.setStatus("draft");
         reverseVoucher.setTotalDebit(original.getTotalCredit());
         reverseVoucher.setTotalCredit(original.getTotalDebit());
         reverseVoucher.setRemark("冲销凭证: " + reason);
@@ -316,20 +337,20 @@ public class VoucherServiceImpl implements VoucherService {
             voucherItemMapper.insert(reverseItem);
         }
 
-        // 冲销凭证立即过账到分类账
-        List<VoucherItem> reverseItems = voucherItemMapper.findByVoucherId(reverseVoucher.getId());
-        reverseVoucher.setItems(reverseItems);
-        ledgerService.postToLedger(reverseVoucher);
+        // 走标准流程：审核 → 过账（post 内部调 ledgerService.postToLedger，勿再单独调用以免重复入账）。
+        // 自调用不经过代理，但外层 reverse() 已带 @Transactional，整体仍是同一事务。
+        audit(reverseVoucher.getId(), operator);
+        post(reverseVoucher.getId(), operator);
 
         // 更新原始凭证状态
         original.setStatus("reversed");
         original.setRemark(reason);
         voucherMapper.updateById(original);
 
-        log.info("冲销凭证: originalId={}, originalNo={}, reverseId={}, reason={}",
-                id, original.getVoucherNo(), reverseVoucher.getId(), reason);
+        log.info("冲销凭证: originalId={}, originalNo={}, reverseId={}, operator={}, reason={}",
+                id, original.getVoucherNo(), reverseVoucher.getId(), operator, reason);
 
-        return toDTO(reverseVoucher);
+        return getById(reverseVoucher.getId());
     }
 
     @Override

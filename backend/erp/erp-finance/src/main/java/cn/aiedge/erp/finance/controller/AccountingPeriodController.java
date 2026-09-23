@@ -53,7 +53,7 @@ public class AccountingPeriodController {
     }
 
     @Operation(summary = "新增会计期间")
-    @PostMapping("/")
+    @PostMapping
     @SaCheckPermission("finance:period:create")
     @OperationLog(module = "会计期间管理", type = "CREATE", desc = "新增会计期间")
     public Result<AccountingPeriodDTO> create(@Valid @RequestBody AccountingPeriodDTO dto) {

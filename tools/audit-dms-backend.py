@@ -1,0 +1,155 @@
+# -*- coding: utf-8 -*-
+"""
+配送（DMS）模块后端盘点（只读）：
+  1. 扫描 dms / erp-delivery-route / core-base(trade 监控) 的 @RestController
+  2. 逐端点提取鉴权注解（@SaCheckPermission / @RequirePermission / @SaCheckRole / @SaIgnore ...）
+  3. 汇总：端点总数 / 无任何鉴权端点 / 使用的权限码集合
+输出: tool-results/dms-backend-audit.json
+用法: python tools/audit-dms-backend.py
+"""
+import os
+import re
+import io
+import json
+import sys
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODULES = [
+    ('dms', os.path.join(ROOT, 'backend', 'dms', 'src', 'main', 'java')),
+    ('erp-delivery-route', os.path.join(ROOT, 'backend', 'erp', 'erp-delivery-route', 'src', 'main', 'java')),
+    ('core-base/trade', os.path.join(ROOT, 'backend', 'core', 'base', 'core-base', 'src', 'main', 'java', 'cn', 'aiedge', 'trade')),
+    # erp-sales 只取配送直达型菜单消费的物流控制器
+    ('erp-sales/logistics', os.path.join(ROOT, 'backend', 'erp', 'erp-sales', 'src', 'main', 'java', 'cn', 'aiedge', 'erp', 'sale', 'controller'),
+     ['SaleLogisticsController.java']),
+]
+
+MAPPING = re.compile(r'@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*(?:value\s*=\s*)?["\']([^"\']*)["\']')
+MAPPING_BARE = re.compile(r'@(Get|Post|Put|Delete|Patch)Mapping\s*(?!\()')
+AUTH = re.compile(r'@(SaCheckPermission|RequirePermission|SaCheckRole|SaCheckLogin|SaIgnore|PreAuthorize)\s*(\([^)\n]*\))?')
+
+
+def scan_file(path):
+    src = open(path, encoding='utf-8', errors='replace').read()
+    if '@RestController' not in src and '@Controller' not in src:
+        return None
+    cls = os.path.basename(path)[:-5]
+    m = re.search(r'@RequestMapping\s*\(\s*(?:value\s*=\s*)?["\']([^"\']*)["\']', src)
+    prefix = m.group(1) if m else ''
+    first_method = re.search(r'\n\s*(?:public|protected)\s+[\w<>\[\],\s\.]+\s+\w+\s*\(', src)
+    head = src[:first_method.start()] if first_method else src[:2000]
+    cls_auth = AUTH.findall(head)
+
+    endpoints = []
+    lines = src.split('\n')
+    for i, ln in enumerate(lines):
+        if not re.match(r'\s*@(Get|Post|Put|Delete|Patch)Mapping', ln):
+            continue
+        mm = MAPPING.search(ln)
+        if mm:
+            verb, sub = mm.group(1).upper(), mm.group(2)
+        elif MAPPING_BARE.search(ln):
+            verb, sub = MAPPING_BARE.search(ln).group(1).upper(), ''
+        else:
+            continue
+        # 定位方法签名行（mapping 之下），注解可能写在 @XxxMapping 的【下方】
+        sig = i
+        for j in range(i, min(len(lines), i + 9)):
+            if re.search(r'(?:public|protected)\s+[\w<>\[\],\s\.]+\s+\w+\s*\(', lines[j]):
+                sig = j
+                break
+        auths = []
+        for j in range(i - 1, max(-1, i - 12), -1):
+            up = lines[j]
+            if re.match(r'\s*@(Get|Post|Put|Delete|Patch)Mapping', up):
+                break
+            found = AUTH.findall(up)
+            if found:
+                auths.extend(found)
+            if re.match(r'\s*\}\s*$', up):
+                break
+        for j in range(i + 1, sig + 1):
+            found = AUTH.findall(lines[j])
+            if found:
+                auths.extend(found)
+        mname = ''
+        for j in range(i, min(len(lines), i + 6)):
+            fm = re.search(r'(?:public|protected)\s+[\w<>\[\],\s\.]+\s+(\w+)\s*\(', lines[j])
+            if fm:
+                mname = fm.group(1)
+                break
+        endpoints.append({
+            'verb': verb,
+            'sub': sub,
+            'full': (prefix.rstrip('/') + '/' + sub.lstrip('/')).rstrip('/') or prefix,
+            'method': mname,
+            'auth': [a[0] + ('(' + a[1].strip() + ')' if a[1].strip() else '') for a in auths],
+            'line': i + 1,
+        })
+    return {'class': cls, 'file': path, 'prefix': prefix,
+            'class_auth': [a[0] + ('(' + a[1].strip() + ')' if a[1].strip() else '') for a in cls_auth],
+            'endpoints': endpoints}
+
+
+def main():
+    out = []
+    for entry in MODULES:
+        mod, base = entry[0], entry[1]
+        only = entry[2] if len(entry) > 2 else None
+        if not os.path.isdir(base):
+            print('!! 目录不存在: %s' % base)
+            continue
+        for r, _, files in os.walk(base):
+            for f in files:
+                if not f.endswith('.java'):
+                    continue
+                if only and f not in only:
+                    continue
+                info = scan_file(os.path.join(r, f))
+                if info:
+                    info['module'] = mod
+                    info['file'] = os.path.relpath(info['file'], ROOT).replace('\\', '/')
+                    out.append(info)
+
+    total = sum(len(c['endpoints']) for c in out)
+    bare = []
+    codes = {}
+    for c in out:
+        cauth = ' '.join(c['class_auth'])
+        for e in c['endpoints']:
+            eff = e['auth'] or ([cauth] if 'SaIgnore' not in cauth and any(
+                k in cauth for k in ('SaCheckPermission', 'RequirePermission', 'SaCheckRole', 'SaCheckLogin', 'PreAuthorize')) else [])
+            if not eff:
+                bare.append(e)
+            for a in e['auth']:
+                for code in re.findall(r'["\']([^"\']+)["\']', a):
+                    codes.setdefault(code, []).append('%s#%s' % (c['class'], e['method']))
+
+    os.makedirs(os.path.join(ROOT, 'tool-results'), exist_ok=True)
+    dest = os.path.join(ROOT, 'tool-results', 'dms-backend-audit.json')
+    with open(dest, 'w', encoding='utf-8') as f:
+        json.dump({'controllers': out, 'bare_endpoints': bare, 'permission_codes': codes}, f,
+                  ensure_ascii=False, indent=1)
+
+    print('控制器: %d 个，端点: %d 个' % (len(out), total))
+    print('无任何鉴权注解的端点: %d (%.0f%%)' % (len(bare), 100.0 * len(bare) / max(1, total)))
+    print('端点级权限码: %d 个' % len(codes))
+    print()
+    print('--- 按控制器 ---')
+    for c in sorted(out, key=lambda x: (x['module'], x['class'])):
+        n = len(c['endpoints'])
+        nb = sum(1 for e in c['endpoints'] if not e['auth'] and not c['class_auth'])
+        print('  [%-18s] %-42s 端点=%-4d 类注解=%-40s 端点无注解=%d' % (
+            c['module'], c['class'], n, ','.join(c['class_auth']) or '-', nb))
+    print()
+    print('--- 无鉴权端点明细 ---')
+    for c in out:
+        for e in c['endpoints']:
+            if not e['auth'] and not c['class_auth']:
+                print('  %-6s %-56s %s#%s:%d' % (e['verb'], e['full'], c['class'], e['method'], e['line']))
+    print('输出: %s' % dest)
+
+
+if __name__ == '__main__':
+    main()

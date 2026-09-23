@@ -35,7 +35,7 @@ public class ReceivableController {
     private final ReceivableService receivableService;
 
     @Operation(summary = "创建应收款")
-    @PostMapping("/")
+    @PostMapping
     @SaCheckPermission("finance:receivable:create")
     @OperationLog(module = "应收管理", type = "CREATE", desc = "创建应收款")
     public Result<ReceivableDTO> create(@Valid @RequestBody ReceivableDTO dto) {

@@ -1079,7 +1079,11 @@
   "purchase:order:submit",
   "purchase:order:update",
   "purchase:order:view",
-  "purchase:price:edit",
+  "purchase:price-track:create",
+  "purchase:price-track:delete",
+  "purchase:price-track:list",
+  "purchase:price-track:update",
+  "purchase:price-track:view",
   "purchase:quote:approve",
   "purchase:quote:create",
   "purchase:quote:detail",
@@ -1267,15 +1271,6 @@
   "stock:bom:detail",
   "stock:bom:list",
   "stock:bom:update",
-  "stock:check:approve",
-  "stock:check:check",
-  "stock:check:create",
-  "stock:check:delete",
-  "stock:check:detail",
-  "stock:check:export",
-  "stock:check:list",
-  "stock:check:submit",
-  "stock:check:view",
   "stock:cost-adjust:approve",
   "stock:cost-adjust:create",
   "stock:cost-adjust:delete",
@@ -1631,7 +1626,6 @@
   "wms:create",
   "wms:delete",
   "wms:detail",
-  "wms:event:execute",
   "wms:event:list",
   "wms:event:retry",
   "wms:export",
@@ -1683,6 +1677,7 @@
   "wms:receipt:list",
   "wms:receipt:update",
   "wms:receipt:view",
+  "wms:ship:cancel",
   "wms:ship:confirm",
   "wms:ship:create",
   "wms:ship:delete",
@@ -3520,6 +3515,7 @@
   "wms:receipt:list",
   "wms:receipt:update",
   "wms:receipt:view",
+  "wms:ship:cancel",
   "wms:ship:confirm",
   "wms:ship:create",
   "wms:ship:delete",
@@ -3646,11 +3642,7 @@
   "purchase:order:export",
   "purchase:order:import",
   "purchase:order:print",
-  "purchase:price-track:create",
-  "purchase:price-track:delete",
-  "purchase:price-track:list",
-  "purchase:price-track:update",
-  "purchase:price-track:view",
+  "purchase:price:edit",
   "receipt:account:select",
   "role:manage",
   "sale:discount:edit",
@@ -3658,6 +3650,15 @@
   "sale:settle:force",
   "set:system-task:download",
   "set:system-task:view",
+  "stock:check:approve",
+  "stock:check:check",
+  "stock:check:create",
+  "stock:check:delete",
+  "stock:check:detail",
+  "stock:check:export",
+  "stock:check:list",
+  "stock:check:submit",
+  "stock:check:view",
   "stock:manage",
   "system:config:create",
   "system:config:query",
@@ -3679,7 +3680,8 @@
   "tenant-admin:role:clear",
   "tenant-admin:role:export",
   "tenant-admin:role:view",
-  "user:manage"
+  "user:manage",
+  "wms:event:execute"
  ],
  "refs": {
   "agreement:platform:compliance:read": [
@@ -6649,24 +6651,26 @@
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:42",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:55",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:64",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:103",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:117",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:127"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:113",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:127",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:137"
   ],
   "finance:auxiliary:create": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:73",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:136"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:146"
   ],
   "finance:auxiliary:update": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:81",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:144"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:91",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:154",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:164"
   ],
   "finance:auxiliary:delete": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:91",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:154"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:101",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:174"
   ],
   "finance:report:view": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:166",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceAuxiliaryController.java:186",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceReportController.java:46",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinanceReportController.java:60",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/FinancialReportController.java:43",
@@ -7053,8 +7057,8 @@
   ],
   "finance:offset:create": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/OffsetController.java:63",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/OffsetController.java:84",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/OffsetController.java:92"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/OffsetController.java:83",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/OffsetController.java:91"
   ],
   "finance:payment:list": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:36",
@@ -7063,7 +7067,7 @@
   ],
   "finance:payment:view": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:69",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:308"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:307"
   ],
   "finance:payment:detail": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:95",
@@ -7072,33 +7076,33 @@
   ],
   "finance:payment:create": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:131",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:151",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:159",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:210",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:218",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:227",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:235",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:244",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:252",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:260",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:283"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:150",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:158",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:209",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:217",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:226",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:234",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:243",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:251",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:259",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:282"
   ],
   "finance:payment:update": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:167"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:166"
   ],
   "finance:payment:submit": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:185"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:184"
   ],
   "finance:payment:approve": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:193",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:202"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:192",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:201"
   ],
   "finance:payment:delete": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:269",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:276"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:268",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:275"
   ],
   "finance:payment:export": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:297"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java:296"
   ],
   "finance:pre-payment:list": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:37",
@@ -7106,7 +7110,7 @@
   ],
   "finance:pre-payment:view": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:57",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:133"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:132"
   ],
   "finance:pre-payment:detail": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:64"
@@ -7115,9 +7119,9 @@
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:71",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:79",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:91",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:103",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:113",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:123"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:102",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:112",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PrePaymentController.java:122"
   ],
   "finance:pre-receipt:list": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:37",
@@ -7125,7 +7129,7 @@
   ],
   "finance:pre-receipt:view": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:57",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:149"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:148"
   ],
   "finance:pre-receipt:detail": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:64"
@@ -7134,50 +7138,51 @@
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:71",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:79",
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:91",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:103",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:119",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:129",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:139"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:102",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:118",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:128",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PreReceiptController.java:138"
   ],
   "finance:receipt:list": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:35",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:105",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:125"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:127",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:147"
   ],
   "finance:receipt:create": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:70",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:148",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:168",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:176",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:227",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:235",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:244",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:252",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:261",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:269",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:277"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:94",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:170",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:189",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:197",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:248",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:256",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:265",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:273",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:282",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:290",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:298"
   ],
   "finance:receipt:view": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:86",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:293"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:108",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:314"
   ],
   "finance:receipt:detail": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:112",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:132",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:140"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:134",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:154",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:162"
   ],
   "finance:receipt:update": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:184"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:205"
   ],
   "finance:receipt:submit": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:202"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:223"
   ],
   "finance:receipt:approve": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:210",
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:219"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:231",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:240"
   ],
   "finance:receipt:delete": [
-   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:286"
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java:307"
   ],
   "finance:write-off:list": [
    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/WriteOffController.java:25"
@@ -8529,13 +8534,21 @@
   "purchase:order:view": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:299"
   ],
-  "purchase:price:edit": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:50",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:57",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:64",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:72",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:80",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:88"
+  "purchase:price-track:list": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:51"
+  ],
+  "purchase:price-track:create": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:58"
+  ],
+  "purchase:price-track:update": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:65"
+  ],
+  "purchase:price-track:delete": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:73",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:81"
+  ],
+  "purchase:price-track:view": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:89"
   ],
   "purchase:quote:create": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseQuoteController.java:29"
@@ -9618,40 +9631,6 @@
   "stock:bom:delete": [
    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockBomController.java:117"
   ],
-  "stock:check:list": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:30",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:54"
-  ],
-  "stock:check:detail": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:43"
-  ],
-  "stock:check:view": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:61"
-  ],
-  "stock:check:create": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:68",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:77",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:106",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:123",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:130",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:137"
-  ],
-  "stock:check:submit": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:84"
-  ],
-  "stock:check:approve": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:91",
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:99"
-  ],
-  "stock:check:check": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:113"
-  ],
-  "stock:check:delete": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:144"
-  ],
-  "stock:check:export": [
-   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java:151"
-  ],
   "stock:view": [
    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockController.java:41",
    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockController.java:147",
@@ -10153,9 +10132,6 @@
   "wms:event:retry": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/EventController.java:34"
   ],
-  "wms:event:execute": [
-   "backend/wms/src/main/java/cn/aiedge/wms/controller/EventController.java:43"
-  ],
   "wms:inventory:view": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/InventoryController.java:34",
    "backend/wms/src/main/java/cn/aiedge/wms/controller/InventoryController.java:51",
@@ -10300,7 +10276,7 @@
   "wms:ship:detail": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/PdaShipController.java:41",
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:57",
-   "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:134"
+   "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:144"
   ],
   "wms:ship:update": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/PdaShipController.java:51"
@@ -10386,7 +10362,7 @@
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:39",
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:48",
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:115",
-   "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:141"
+   "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:151"
   ],
   "wms:ship:list": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:66"
@@ -10396,6 +10372,9 @@
   ],
   "wms:ship:execute": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:104"
+  ],
+  "wms:ship:cancel": [
+   "backend/wms/src/main/java/cn/aiedge/wms/controller/ShipController.java:134"
   ],
   "wms:warehouse:create": [
    "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java:30",

@@ -34,7 +34,7 @@ public class VoucherController {
     private final VoucherService voucherService;
 
     @Operation(summary = "创建凭证")
-    @PostMapping("/")
+    @PostMapping
     @SaCheckPermission("finance:voucher:create")
     @OperationLog(module = "凭证管理", type = "CREATE", desc = "创建凭证")
     public Result<VoucherDTO> create(@Valid @RequestBody VoucherDTO dto) {
