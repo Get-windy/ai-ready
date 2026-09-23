@@ -2146,3 +2146,20 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 | 三条口径小项 | ✅ 已定 | 货到付款取业务日 · 固定账期日不接 · 档案缺天数不拒单（见 §4.1） |
 | **装配门禁补 mapper 包校验** | ✅ **已完成** | `ComponentScanCoverageTest` 新增 `allMapperInterfacesAreMapperScanned`：**从 `@MapperScan` 注解本身读**包模式（不写死副本，否则门禁会变装饰），并修掉扫描器"跳过接口"的缺陷（父类默认要求 `isConcrete`，控制器都是具体类所以过去没暴露）。**首次运行即查出真违规**：`cn.aiedge.storage.permission.FilePermissionMapper`（同模块的 `storage.mapper.FileInfoMapper` 能注册、它不能 ⇒ 将来谁把 storage 接进 `scanBasePackages`，`FilePermissionService` 立刻起不来）。**已按门禁给的首选修法移包**到 `cn.aiedge.storage.mapper`。门禁 4/4 绿 |
 | 无明细销售单 / 悬空 order_id / DMS 悬空 source_bill_no | ✅ 已核实（见 §4「另需确认」） | 24→**1**（取消态零额，不补）· 22→**0** · DMS 24 条 = `XSCKD-E2E-*` **E2E 造数** |
+
+---
+
+## 7. 阶段 3+5 施工方案（2026-09-23，D1(c) 产出）
+
+**方案文档**：`docs/PHASE-3-5-MIGRATION-PLAN-v1.md`（⬜ 待评审，通过后才开工）
+
+三条必须先知道的实测结论：
+1. **`biz_party` 未删只有 19 行**（总 152 含 133 行软删残留）—— "存量 152 行"是含软删的计数；
+2. 🔴 **`unified_code` 152 行全为空** ⇒ **唯一合法识别键（统一社会信用代码）在存量里根本没被填过**，
+   而按名称归并是裁定④**明令禁止**的 ⇒ **"自动归并即可"（裁定②的前提）当前不可执行**；
+   方案给三条出路，推荐 **I：先一照一档地搬（19→19），归并留给 `merge_request` 流程** —— 请拍板；
+3. **引用面 100 张表**（含 `customer_id`/`supplier_id` 的 64 张），且 `partner_id`（25 张）**未必指向 `biz_party.id`**
+   ⇒ **阶段 3 的第一步是"引用面判定"（出 `refsurface.csv`），不是建表**；按列名猜引用关系会改错数据且不可逆。
+
+其它要点：并存期取 **B（新增表 + 双写 + 读走视图）**；**不可逆操作（删列/删表/删归并行）一律单独一次发布、排在观察期之后**；
+阶段 5 加主体列时**必须同批加快照列**（64 张表，拆两次就是二次回填）。
