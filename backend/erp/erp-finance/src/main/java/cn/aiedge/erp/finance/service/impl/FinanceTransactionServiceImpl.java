@@ -1,6 +1,8 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.erp.finance.mapper.FinanceAccountMapper;
 import cn.aiedge.erp.finance.mapper.FinanceTransactionMapper;
+import cn.aiedge.erp.finance.model.entity.FinanceAccount;
 import cn.aiedge.erp.finance.model.entity.FinanceTransaction;
 import cn.aiedge.erp.finance.service.FinanceTransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,9 @@ public class FinanceTransactionServiceImpl implements FinanceTransactionService 
 
     @Autowired
     private FinanceTransactionMapper financeTransactionMapper;
+
+    @Autowired
+    private FinanceAccountMapper financeAccountMapper;
 
     @Override
     public boolean createTransaction(FinanceTransaction transaction) {
@@ -90,8 +95,20 @@ public class FinanceTransactionServiceImpl implements FinanceTransactionService 
         return true;
     }
 
+    /**
+     * 查询账户余额。
+     *
+     * <p><b>2026-09-23 修复</b>：原实现方法体只有 {@code return BigDecimal.ZERO;}，
+     * 不查任何表 ⇒ 账户余额恒为 0（见 FINANCE_MODULE_AUDIT §2.4）。
+     * 现取 {@code finance_account.balance}（由 {@code FinanceAccountService#updateAccountBalance}
+     * 在收付款/提存等资金动作中维护）。</p>
+     */
     @Override
     public BigDecimal getAccountBalance(Long accountId) {
-        return BigDecimal.ZERO;
+        if (accountId == null) {
+            return BigDecimal.ZERO;
+        }
+        FinanceAccount account = financeAccountMapper.selectById(accountId);
+        return account != null && account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
     }
 }

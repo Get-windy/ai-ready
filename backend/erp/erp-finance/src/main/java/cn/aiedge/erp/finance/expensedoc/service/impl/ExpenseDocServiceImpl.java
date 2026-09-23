@@ -14,6 +14,8 @@ import cn.aiedge.erp.budget.dto.BudgetWritebackResult;
 import cn.aiedge.erp.budget.service.BudgetWritebackService;
 import cn.aiedge.erp.finance.expensedoc.service.ExpenseDocService;
 import cn.aiedge.erp.finance.dto.BusinessAccountingRequest;
+import cn.aiedge.erp.finance.mapper.FinanceAccountMapper;
+import cn.aiedge.erp.finance.model.entity.FinanceAccount;
 import cn.aiedge.erp.finance.service.BusinessAccountingService;
 import cn.aiedge.erp.finance.service.FinanceAccountService;
 import cn.aiedge.erp.payment.entity.CapitalFlow;
@@ -60,6 +62,7 @@ public class ExpenseDocServiceImpl extends ServiceImpl<ExpenseDocMapper, Expense
     private static final String SUBJECT_BANK = "1002";
 
     private final ExpenseItemMapper expenseItemMapper;
+    private final FinanceAccountMapper financeAccountMapper;
     private final FinanceAccountService financeAccountService;
     private final CapitalFlowService capitalFlowService;
     private final BusinessAccountingService businessAccountingService;
@@ -354,23 +357,42 @@ public class ExpenseDocServiceImpl extends ServiceImpl<ExpenseDocMapper, Expense
         doc.setDeptName(dto.getDeptName());
         doc.setPayAccountId(dto.getPayAccountId());
         doc.setPayAccountName(dto.getPayAccountName());
-        doc.setPaySubjectCode(dto.getPayAccountId() != null ? SUBJECT_BANK : null);
+        doc.setPaySubjectCode(resolveAccountSubject(dto.getPayAccountId()));
         doc.setPayAmount(nvl(dto.getPayAmount()));
         doc.setPayAccount2Id(dto.getPayAccount2Id());
         doc.setPayAccount2Name(dto.getPayAccount2Name());
-        doc.setPaySubjectCode2(dto.getPayAccount2Id() != null ? SUBJECT_BANK : null);
+        doc.setPaySubjectCode2(resolveAccountSubject(dto.getPayAccount2Id()));
         doc.setPayAmount2(nvl(dto.getPayAmount2()));
         doc.setPayAccount3Id(dto.getPayAccount3Id());
         doc.setPayAccount3Name(dto.getPayAccount3Name());
-        doc.setPaySubjectCode3(dto.getPayAccount3Id() != null ? SUBJECT_BANK : null);
+        doc.setPaySubjectCode3(resolveAccountSubject(dto.getPayAccount3Id()));
         doc.setPayAmount3(nvl(dto.getPayAmount3()));
         doc.setPayAccount4Id(dto.getPayAccount4Id());
         doc.setPayAccount4Name(dto.getPayAccount4Name());
-        doc.setPaySubjectCode4(dto.getPayAccount4Id() != null ? SUBJECT_BANK : null);
+        doc.setPaySubjectCode4(resolveAccountSubject(dto.getPayAccount4Id()));
         doc.setPayAmount4(nvl(dto.getPayAmount4()));
         doc.setCreatorName(dto.getCreatorName());
         doc.setSummary(dto.getSummary());
         doc.setRemark(dto.getRemark());
+    }
+
+    /**
+     * 解析付款账户对应的会计科目。
+     *
+     * <p><b>2026-09-23 修复</b>：此前 4 个付款账户的 paySubjectCode 一律写死 {@code 1002}（银行存款），
+     * 不取账户真实科目 ⇒ 现金/其他资金账户付款也被记入「银行存款」，科目分类错误
+     * （见 FINANCE_MODULE_AUDIT §2.4）。现取 {@code finance_account.subject_code}
+     * （账户档案上已维护：库存现金=1001、基本户/一般户=1002），查不到才兜底 1002。</p>
+     */
+    private String resolveAccountSubject(Long accountId) {
+        if (accountId == null) {
+            return null;
+        }
+        FinanceAccount account = financeAccountMapper.selectById(accountId);
+        if (account == null || account.getSubjectCode() == null || account.getSubjectCode().isBlank()) {
+            return SUBJECT_BANK;
+        }
+        return account.getSubjectCode();
     }
 
     private void replaceItems(Long expenseDocId, List<ExpenseItem> items) {

@@ -22,7 +22,7 @@
 |---|---|---|
 | **P0 致命** | 5 类 | 总账≠凭证分录（差 44,130，利润表/资产负债表数字失真）· 记账失败静默吞异常 · 关账红线在非 1 租户失效 · 账户余额/税负/审批人硬编码假数据 · 预算台账可被直接改写 |
 | **P1 严重** | 11 类 | 17 条菜单被普通租户整批过滤 · ~~工作台 4/6 入口 404~~ · ~~辅助核算开关 404~~ · ~~收款单批量打印 405~~ · 9 个空目录 + 7 个死页面 · 60 个死 API · 201/217 权限码仅超管持有 · 已取消单据应收仍挂账 · **经营看板的 5 个财务指标是随机数** · DMS→财务事件通道悬空 |
-| **本轮已修复** | 3 条断链 + 36 处租户硬编码 + 凭证红冲 4 项 + 5 处尾斜杠端点 | 见下方「本轮修复记录」（一、二、三） |
+| **本轮已修复** | 3 条断链 + 36 处租户硬编码 + 凭证红冲 4 项 + 5 处尾斜杠端点 + 3 处硬编码假数据 | 见下方「本轮修复记录」（一~四） |
 | **P2 一般** | 40+ 条 | 路径命名分裂 · 金额用 double · 全表内存聚合 · 字段全空 · 死表 |
 | **确认无问题的项** | 9 项 | 48/48 入口可打开 · 457 端点 100% 有鉴权注解 · 菜单组件 0 缺失 · 权限码 100% 在库且已关联角色 · 编译通过 |
 
@@ -38,6 +38,27 @@
 **构建**：`./mvnw -o -pl erp/erp-finance install` + `core-api package` → BUILD SUCCESS。
 
 > ⚠️ 说明：第 3 条只消除了"前后端契约不一致"（405），**并未让批量打印真正输出纸张** —— 付款单同样如此。真正的打印能力缺失已单列为待办（见 §4.5），不在"修断链"范围内。
+
+### 本轮修复记录之四：§2.4 硬编码假数据（2026-09-23）
+
+§2.4 共列 11 项，本轮按「**影响财务数字 + 改动明确、不需拍板**」选了 3 项修复：
+
+| # | 位置 | 修复前 | 修复后 | 验证 |
+|---|---|---|---|---|
+| ① | `FinanceTransactionServiceImpl.getAccountBalance()` | 方法体只有 `return BigDecimal.ZERO;`，账户余额恒 0 | 读 `finance_account.balance`（由 `updateAccountBalance` 维护） | **代码级**——该方法**全仓无任何调用方**（无 HTTP 入口），已登记 |
+| ② | `FinancialReportServiceImpl.generateIncomeStatement()` | `totalTax` 声明后从未累加 ⇒ 所得税恒 0、净利润虚高 | 补累加所得税类科目（6801） | 利润表接口**不回归**（200）。⚠️ 库中**无 6801 科目数据**，故修复后该项仍为 0——那是「数据未录」，不再是「代码写死」 |
+| ③ | `ExpenseDocServiceImpl` 4 个付款账户 | `paySubjectCode` 一律写死 `1002`（银行存款）⇒ 现金账户付款也记成银行存款 | 新增 `resolveAccountSubject()` 取 `finance_account.subject_code`，查不到才兜底 1002 | **端到端实测 ✅**：账户 2（库存现金，档案科目 1001）建费用单 → `pay_subject_code = 1001`（修复前恒为 1002） |
+
+**验证**：`node tools/verify-finance-hardcode-fix.cjs` → **6/6 通过**。
+
+**§2.4 其余项的处置判断（未做，附理由）**：
+
+| 项 | 为何未做 |
+|---|---|
+| `Payment/ReceiptServiceImpl` 的 `setPrintCount(0)` | **不是假数据**——`erp_payment`/`erp_receipt` **表与实体都没有 print 列**（已实测确认），属「该列未建模」，修它要加迁移+实体，是**新增功能**不是修缺陷 |
+| `ExpenseServiceImpl` 审批人写死 `"finance_manager"` | 位于**旧 `erp/expense` 包**（FIN-DUP-01 登记的待废弃实现，新实现在 `expense-approval` 模块且已走 `sys_project_config`）⇒ 修废弃代码不划算 |
+| 发票生成返回申请 ID / 批量开票·下载·导出返回空 / `FinanceReportServiceImpl` 只 new 对象 | 属「功能未实现」而非「假数据」，需要设计（发票实体、模板服务、报表取数），**超出本次范围** |
+| `AccountSubjectServiceImpl:326` 恒 `setEnabled(true)` | 影响面小（辅助核算类型选项），可并入后续批次 |
 
 ### 本轮修复记录之三：凭证红冲 P0 红线 + 尾斜杠端点（2026-09-23）
 
@@ -193,8 +214,8 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 
 | 位置 | 假数据 |
 |---|---|
-| `finance/service/impl/FinanceTransactionServiceImpl.java:94-95` | `getAccountBalance()` 方法体 **只有 `return BigDecimal.ZERO;`**，不查任何表 ⇒ 账户余额恒 0 |
-| `finance/service/impl/FinancialReportServiceImpl.java:816,853` | `totalTax` 声明后**从未累加**，`netProfit = grossProfit - totalExpense - totalTax` ⇒ **利润表所得税恒按 0 计算**；`:819-830` 收入/成本/费用科目编码全部写死 `{"6001","6051",...}` |
+| `finance/service/impl/FinanceTransactionServiceImpl.java:94-95` | ~~`getAccountBalance()` 方法体 **只有 `return BigDecimal.ZERO;`**，不查任何表 ⇒ 账户余额恒 0~~ **已修 ✅**（改查 `finance_account.balance`；⚠️ 该方法**当前无任何调用方**，属死方法，本次保留了能力并修正行为） |
+| `finance/service/impl/FinancialReportServiceImpl.java:816,853` | ~~`totalTax` 声明后**从未累加**~~ **已修 ✅**（补累加所得税类科目 6801；注：**库中当前无 6801 数据**，故修复后该项仍为 0 —— 属「数据未录」而非「代码写死」）。**未修**：`:819-830` 收入/成本/费用科目编码仍写死 `{"6001","6051",...}` |
 | `expense/service/impl/ExpenseServiceImpl.java:535-559` | 审批人返回写死字符串 `"finance_manager"` / `"dept_manager_"+departmentId` / `"approver_default"` ⇒ **审批任务指派给不存在的登录主体，审批流形同虚设** |
 | `invoice/service/impl/InvoiceApplicationServiceImpl.java:214-222` | 注释自认"为了简化"，`setInvoiceId` 被注释掉，`return application.getId()`（**返回申请 ID 当发票 ID**），发票实体从未创建 |
 | `invoice/service/impl/InvoiceServiceImpl.java:489-490,380-383,482-484` | 批量开票 `return List.of()`；下载 `return new byte[0]`；导出 `return new byte[0]` ⇒ **接口恒 200 + 空** |
@@ -202,7 +223,7 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 | `payment/controller/PaymentController.java:286-295` | `batchPrint` 只 `put("success", true); put("count", ids.size())`，**未生成任何打印内容** |
 | `payment/service/impl/PaymentServiceImpl.java:206` / `ReceiptServiceImpl.java:264` | 无条件 `setPrintCount(0)` ⇒ 打印次数报表恒 0 |
 | `finance/service/impl/AccountSubjectServiceImpl.java:326` | `getAuxTypeOptions` 不看库中实际值，恒 `setEnabled(true)` |
-| `finance/cashtransfer` + `finance/expensedoc` | 4 个付款账户的 `paySubjectCode` 一律置 `1002`（银行存款），**不取账户真实科目** ⇒ 现金/其他账户付款也记入银行存款 |
+| `finance/cashtransfer` + `finance/expensedoc` | ~~4 个付款账户的 `paySubjectCode` 一律置 `1002`~~ **expensedoc 已修 ✅**（新增 `resolveAccountSubject()` 取 `finance_account.subject_code`，查不到才兜底 1002）；**cashtransfer 未修** |
 | `expense/service/integration/ExpenseAccountingService.java:50-58` | 借/贷科目写死 `6602`/`2241` ⇒ 所有费用类型（差旅/销售/研发）一律计入管理费用 |
 
 ### 2.5 预算台账可被绕过改写【读码】

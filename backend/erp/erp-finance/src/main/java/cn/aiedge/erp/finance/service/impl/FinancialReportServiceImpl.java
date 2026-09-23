@@ -848,6 +848,23 @@ public class FinancialReportServiceImpl implements FinancialReportService {
             }
         }
 
+        // 所得税费用（6801）
+        //
+        // ⚠️ 2026-09-23 修复：此前 `totalTax` 声明后**从未累加**，而净利润按
+        //   `grossProfit - totalExpense - totalTax` 计算 ⇒ 所得税恒为 0、净利润虚高
+        //   （见 FINANCE_MODULE_AUDIT §2.4）。此处补上所得税类科目的累加。
+        //   当前库中尚无 6801 数据，故修复后该项仍可能为 0 —— 那是「数据未录入」，
+        //   而非此前的「代码写死」；财务启用该科目后报表即自动反映。
+        String[] taxCodes = {"6801"};
+        for (String code : taxCodes) {
+            IncomeStatementDTO item = buildIncomeItem(yearEntries, allSubjects, code,
+                    startMonth, endMonth, "expense");
+            if (item != null) {
+                result.add(item);
+                totalTax = totalTax.add(item.getCurrentAmount() != null ? item.getCurrentAmount() : BigDecimal.ZERO);
+            }
+        }
+
         // 合计行
         BigDecimal grossProfit = totalRevenue.subtract(totalCost);
         BigDecimal netProfit = grossProfit.subtract(totalExpense).subtract(totalTax);
