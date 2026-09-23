@@ -2168,3 +2168,8 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 结果：数据侧确认指向 `biz_party` **14 处**；**3 处同时命中 `biz_party`/`sys_user`（不可区分）**；
 **2 处实际指向 `biz_party_contact`**（`erp_purchase_price_track.partner_id`、`finance_payable.supplier_id`）；
 ✅ **`erp_purchase_inbound.supplier_id` 命中 `biz_party` = 0 已查清：不是代码缺陷，是 dev 库采购单据"用假 id 造"（实测 `2099000000000000901`/`100`，且无名称快照）** ⇒ **数据侧 0 命中 ≠ 代码错**；连带记下：应付侧"三层结算口径按 `biz_party.id` 取档案"那条链路**用现有数据验不了**，要验必须先造"供应商指向真实 `biz_party` 行"的入库单（验收夹具问题）。
+
+**序 1 裁定与执行（2026-09-23）**：用户选 **I（先不归并，一照一档）**，并授权「当前是平台测试的模拟数据，
+直接把信用代码模拟上」⇒ 已执行 `tools/seed-mock-unified-code.cjs`，给 **19 行**未删 `biz_party` 补
+**模拟**统一社会信用代码（GB 32100 格式合法 + 前缀 `91999999FAKE` 一眼可辨 + 幂等可 `--revert`），
+回查 **19/19 有值、19 个不同值、全表无重复**。⚠️ 每行代码不同 ⇒ **本步不产生归并**（这就是 I 的形态）。
