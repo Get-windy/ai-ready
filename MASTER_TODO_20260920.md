@@ -2185,3 +2185,12 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 另 7 处：**1 处注释与数据打架**（`erp_loyalty_coupon.partner_id` 注释写"联系人"、数据 44/44 命中 biz_party）·
 **1 处多态引用**（`erp_capital_flow.party_id` 紧邻 `partyType`）· **5 处无注释/样本太少/来源未追清**。
 ⇒ **读路径切换前必须人工确认这 7 处**（"数据侧成立" ≠ "引用关系成立"）。
+
+**过渡工具：`party`/`party_tenant` ⇄ `biz_party` 对账补齐（2026-09-26）**
+`tools/sync-party-from-biz-party.cjs`（幂等；`--dry-run`/`--refresh`）。
+**定位：过渡工具，不是终态** —— 双写还没做，新表不会自动跟上业务表；
+① 它随时把差额补平（实测 21 vs 19 → 已补到 21=21）；② **它输出的差额本身就是漂移监控**，
+差额持续增长即在提醒"双写还没落地"。
+⚠️ **双写的前置是先把写入口收敛**：往来单位的写路径**分散在 controller 里**
+（`MdCustomerController:438,691`、`PartyController:130`，另有各自的 create），**不在 service 层**
+⇒ 干净落地需要一次小重构（收敛到一个写入口），应单独评审后再做。
