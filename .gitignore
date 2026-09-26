@@ -58,6 +58,9 @@ data/
 # 变成对 git 完全不可见（连 `git status` 的 `??` 都不显示），导致静默漏提交、
 # 干净检出后 Flyway 找不到文件、库结构与应用不一致。故此处按路径取反。
 !backend/core/api/core-api/src/main/resources/db/migration/*.sql
+# ⚠️ 例外：tools/ 下的运维 SQL 同样是**源码**（如总账重算 tools/recalc-finance-ledger.sql），
+# 靠它才能在任何环境复现同一套数据订正；被 `*.sql` 吞掉会导致别人拿不到脚本、只能口头传递。
+!tools/*.sql
 
 # Test
 coverage/
