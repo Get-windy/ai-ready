@@ -75,6 +75,11 @@ public class BudgetControlServiceImpl implements BudgetControlService {
     public Map<String, Object> freezeAmount(Long budgetId, Long budgetItemId, BigDecimal amount,
                                             String sourceType, String sourceNo, Long sourceId) {
         BigDecimal freeze = nvl(amount);
+        // 金额必须为正：传负数会把「冻结」变成「解冻」、反向篡改预算台账
+        // （FINANCE_MODULE_AUDIT §2.5：三个入口原先均无 amount > 0 校验）。
+        if (freeze.compareTo(BigDecimal.ZERO) <= 0) {
+            throw BusinessException.badRequest("冻结金额必须大于 0，实际: " + freeze);
+        }
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
@@ -106,6 +111,10 @@ public class BudgetControlServiceImpl implements BudgetControlService {
     public Map<String, Object> releaseFrozenAmount(Long budgetId, Long budgetItemId, BigDecimal amount,
                                                    String sourceType, String sourceNo, Long sourceId) {
         BigDecimal release = nvl(amount);
+        // 同 freezeAmount：负数会把「释放冻结」变成「追加冻结」。
+        if (release.compareTo(BigDecimal.ZERO) <= 0) {
+            throw BusinessException.badRequest("释放金额必须大于 0，实际: " + release);
+        }
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
@@ -145,6 +154,10 @@ public class BudgetControlServiceImpl implements BudgetControlService {
                                              String sourceType, String sourceNo, Long sourceId, String description,
                                              boolean allowOverBudget) {
         BigDecimal consume = nvl(amount);
+        // 同 freezeAmount：负数会把「消耗预算」变成「回冲预算」。
+        if (consume.compareTo(BigDecimal.ZERO) <= 0) {
+            throw BusinessException.badRequest("消耗金额必须大于 0，实际: " + consume);
+        }
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
