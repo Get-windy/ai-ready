@@ -4,17 +4,21 @@ import cn.aiedge.erp.party.dto.PartyContactRow;
 import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.mapper.PartyMapper;
 import cn.aiedge.erp.party.mapper.PartyQueryParam;
+import cn.aiedge.erp.party.service.PartyMirrorWriter;
 import cn.aiedge.erp.party.service.PartyService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -23,6 +27,116 @@ import java.util.regex.Pattern;
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class PartyServiceImpl extends ServiceImpl<PartyMapper, Party> implements PartyService {
+
+    /** 双写：把 `biz_party` 的写入同步到 `party` / `party_tenant`（阶段 3 并存期，失败不阻断建档） */
+    @Autowired
+    private PartyMirrorWriter partyMirrorWriter;
+
+    // ══════════════════════ 双写覆盖（阶段 3 · 方案 §3.3 方案 B 第 2 步） ══════════════════════
+    //
+    // 为什么**覆盖在这里**而不是改 N 个 controller：本类的写入天然是"所有走 service 的写"的汇聚点
+    // （实测调用点：save / updateById / updateBatchById / saveBatch / removeById / removeByIds），
+    // 覆盖一处即可全覆盖，改动面最小。⚠️ 直接调 `PartyMapper` 的写**绕不过**这里
+    // （现存 4 处，都是积分/会员字段，属 C 组、不进 party ⇒ 当前无影响）。
+
+    /**
+     * 写后**回读整行**再镜像。
+     *
+     * <p>⚠️ 绝不能拿入参实体去镜像：`updateById` 在本仓大量用于**部分更新**
+     * （例如 `updatePartyStatus` 只 set id + status），而镜像语句是"整行覆盖"，
+     * 拿部分实体去写会把 `party.party_name` 之类**擦成 NULL**。
+     * 回读一次库拿到的才是"这一行现在长什么样"。</p>
+     */
+    private void mirrorAfterWrite(Long id) {
+        if (id == null) {
+            return;
+        }
+        Party fresh = getById(id);
+        if (fresh != null) {
+            partyMirrorWriter.onWrite(fresh);
+        }
+    }
+
+    /** id 可能是 String（本仓雪花 id 一律字符串）也可能是 Long，统一转一下；转不了返回 null（不镜像）。 */
+    private static Long parseIdSafe(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number n) {
+            return n.longValue();
+        }
+        try {
+            return Long.valueOf(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public boolean save(Party entity) {
+        boolean ok = super.save(entity);
+        if (ok) {
+            mirrorAfterWrite(entity.getId());
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean updateById(Party entity) {
+        boolean ok = super.updateById(entity);
+        if (ok) {
+            mirrorAfterWrite(entity.getId());
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean updateBatchById(Collection<Party> entityList) {
+        boolean ok = super.updateBatchById(entityList);
+        if (ok && entityList != null) {
+            entityList.stream().map(Party::getId).forEach(this::mirrorAfterWrite);
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean saveBatch(Collection<Party> entityList) {
+        boolean ok = super.saveBatch(entityList);
+        if (ok && entityList != null) {
+            entityList.stream().map(Party::getId).forEach(this::mirrorAfterWrite);
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean saveBatch(Collection<Party> entityList, int batchSize) {
+        boolean ok = super.saveBatch(entityList, batchSize);
+        if (ok && entityList != null) {
+            entityList.stream().map(Party::getId).forEach(this::mirrorAfterWrite);
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean removeById(Serializable id) {
+        boolean ok = super.removeById(id);
+        if (ok) {
+            partyMirrorWriter.onDelete(parseIdSafe(id));
+        }
+        return ok;
+    }
+
+    @Override
+    public boolean removeByIds(Collection<?> list) {
+        boolean ok = super.removeByIds(list);
+        if (ok && list != null) {
+            list.stream().map(PartyServiceImpl::parseIdSafe).forEach(partyMirrorWriter::onDelete);
+        }
+        return ok;
+    }
+
+    // ⚠️ 已知盲区：`update(Wrapper)`（无实体、只有条件）无法从入参知道"动了哪些行" ⇒ 不镜像。
+    //    现存调用点 1 处；对账脚本（tools/sync-party-from-biz-party.cjs）能兜住这类漂移。
 
     @Override
     public Party getByPartyCode(String partyCode) {

@@ -83,5 +83,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- 测试：本模块此前**没有**测试依赖（JUnit 不在 test classpath 上）；
+             阶段 3 双写的"贸易边方向判定"需要单测 ⇒ 与 erp-mall 等同构模块保持一致 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>
