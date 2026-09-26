@@ -110,6 +110,34 @@
 3. ⚠️ **dev 库大量主键是小整数**，同一个值会同时落在多个主档里 ⇒
    **数据证据单独不足以定性**，三证并立里"代码证据"是决定性的那一证。
 
+### 3.2b 逐列归位：`biz_party` 76 列各去哪（**这一步不做，第 3 步"切读"根本开不了工**）
+
+实测（2026-09-23）：`biz_party` **76 列**，而新建的 `party`(14) + `party_tenant`(20) 合计只承接 **34 列**
+⇒ **读方需要的列大半还只在旧表里**，"读路径逐表切换"因此**不能开始**。
+先把每一列的去向定下来（这一步纯设计、不动代码），再谈双写与切读。
+
+| 去向 | 列数 | 列 |
+|---|---|---|
+| **A → `party`**（主体主档，与租户无关的属性） | 27 | `party_code` `party_name` `short_name` `company_full_name` `mnemonic_code` `party_type` `legal_person` `unified_code` `business_license` `business_license_expiry` `tax_number` `bank_name` `bank_account` `bank_address` `fax` `legal_person_phone` `website` `email` `phone` `address` `region` `province` `city` `district` `latitude` `longitude` `status` |
+| **B → `party_tenant`**（关系 / 商务条件，**逐方向**） | 24（+2 新增列） | `tenant_id` `credit_limit` `party_level` `current_debt` `settlement_type` `settlement_days` `credit_days` `payment_days` `payment_term_type` `fixed_payment_day` `fixed_credit_day` `settlement_day` `statement_day` `price_track_enabled` `default_handler_id` `default_handler_name` `promoter_id` `promoter_name` `buyer_account` `customer_source` `roles` `category_id` `warehouse_name` `last_trade_time`（另加 `effective_from`/`effective_to`，已在建表时留位） |
+| **C → 会员子表（**归属待裁定**，见下）** | 12 | `member_card_no` `member_name` `member_level` `member_card_status` `member_valid_start` `member_valid_end` `member_total_consume` `member_issue_time` `member_initial_points` `points` `birthday` `customer_one_pass` |
+| **D → 期初余额（随关系，或财务子表）** | 4 | `opening_payable` `opening_prepaid` `opening_receivable` `opening_pre_received` |
+| **E → 技术列，不动** | 7 | `id`（**已复用为 `party.id`**）· `remark` · `deleted` · `create_by` · `create_time` · `update_by` · `update_time` |
+
+**⚠️ 两处必须由你拍板（本节卡在这里，不给默认答案）**：
+
+1. **C 组（会员属性）去哪**？§3.2a 已裁定「自然人用 `shop_user`、**不**物理合并 `sys_user`」，
+   而 §3.2 又判过「`biz_party.party_level='MEMBER'` + `member_*` 列 = **个人会员被当成一条往来单位**」。
+   两种落法：**(甲) 会员卡 = 挂单位的数据**（则 `member_*`/`points` 进"关系"或独立会员子表 `party_member`）；
+   **(乙) 会员 = 自然人属性**（则并入 `shop_user`，`biz_party` 不再有会员概念）。
+   ⚠️ 现行数据里散客（`party_level=MEMBER`）是**单位**（`party_type=1`）而不是自然人，选乙要改数据含义。
+2. **D 组（期初余额）** 属"这家店与这个主体的账"⇒ 我倾向**随关系**（`party_tenant.opening_*`），
+   但它与财务期初模块（`InitialFinancePartner`）有耦合，需与财务口径对齐后再定。
+
+**另外**：A 组落地后，`party` 会有 ~41 列 ⇒ **超过本仓"主表 ≤25 列"的规范**
+（`docs` 里的开发技术规范）⇒ 应按需拆：证件/银行/地址三类**各自成子表**（`party_cert` / `party_bank` / `party_address`）。
+**这一条必须在扩列之前定**，否则就是把 `biz_party` 的"上帝表"原样搬到 `party` 上。
+
 ### 3.3 并存期策略（三选一，**推荐 B**）
 
 | 方案 | 做法 | 可逆性 | 评价 |
@@ -268,3 +296,4 @@
 | 2026-09-23 | v1.3 | **用户裁定选 I + 授权模拟信用代码**：执行 `tools/seed-mock-unified-code.cjs`，给 19 行未删 `biz_party` 补**格式合法且一眼可辨**的模拟统一社会信用代码（前缀 `91999999FAKE`，GB 32100 校验位算对），幂等且可 `--revert` 还原；**只动 `unified_code` 一列**。因每行代码不同 ⇒ **本步不产生归并**（选项 I 的形态：一照一档），真出现重复主体时走 `merge_request` 流程 |
 | 2026-09-23 | v1.4 | **序 2 第一批执行**：`V11.497.0` 建 `party`/`party_tenant` + 两个唯一索引 + 一照一档回填（19 行 → 19 档 + 18 条边：16 SALE / 2 PURCHASE）；**方向不猜**（承运商 1 行不建边，自检显式断言其存在性以证明"不猜"）；`party` 进 `IGNORE_TENANT_TABLES`、`party_tenant` 不进（层级不同）。迁移事务内跑通后回滚验证，待重启应用 |
 | 2026-09-23 | v1.5 | **`refsurface.csv` 的代码证据已填**：14 处"数据侧确认指向 biz_party"里**只有 7 处有铁证**；另 7 处 = **1 处注释与数据打架**（`erp_loyalty_coupon.partner_id`）+ **1 处多态引用**（`erp_capital_flow.party_id` 紧邻 `partyType`）+ **5 处无注释/样本太少/来源未追清** ⇒ 读路径切换前必须人工确认这 7 处 |
+| 2026-09-23 | v1.6 | **补 §3.2b 逐列归位**：实测 `biz_party` **76 列** vs 新表只承接 34 列 ⇒ 读路径切换**不能开始**；给出 A/B/C/D/E 五组去向（A 主体主档 27 · B 关系商务条件 24+2 · C 会员属性 12 · D 期初余额 4 · E 技术列 7），并点出**两处待拍板**（会员属性归属、期初余额归属）与**一条硬约束**（A 组落地后 `party` ~41 列超"主表 ≤25"规范 ⇒ 扩列前必须先拆证件/银行/地址子表，否则等于把上帝表原样搬家）|
