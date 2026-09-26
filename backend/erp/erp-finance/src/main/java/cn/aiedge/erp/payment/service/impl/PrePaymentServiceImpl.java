@@ -128,7 +128,9 @@ public class PrePaymentServiceImpl extends ServiceImpl<PrePaymentMapper, PrePaym
                     nvl(payment.getAmount())
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建预付款凭证失败: prePaymentNo={}, error={}", payment.getPrePaymentNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建预付款凭证失败，回滚本次操作: prePaymentNo={}", payment.getPrePaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return payment;
@@ -203,7 +205,9 @@ public class PrePaymentServiceImpl extends ServiceImpl<PrePaymentMapper, PrePaym
                     nvl(payment.getAmount())
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建预付款凭证失败: prePaymentNo={}, error={}", payment.getPrePaymentNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建预付款凭证失败，回滚本次操作: prePaymentNo={}", payment.getPrePaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
         return payment;
     }

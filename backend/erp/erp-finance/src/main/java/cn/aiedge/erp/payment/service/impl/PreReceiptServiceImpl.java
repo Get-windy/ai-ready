@@ -129,7 +129,10 @@ public class PreReceiptServiceImpl extends ServiceImpl<PreReceiptMapper, PreRece
                     null
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建预收款凭证失败: preReceiptNo={}, error={}", receipt.getPreReceiptNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建预收款凭证失败，回滚本次操作: preReceiptNo={}", receipt.getPreReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
+
         }
 
         return receipt;
@@ -207,7 +210,10 @@ public class PreReceiptServiceImpl extends ServiceImpl<PreReceiptMapper, PreRece
                     null
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建预收款凭证失败: preReceiptNo={}, error={}", receipt.getPreReceiptNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建预收款凭证失败，回滚本次操作: preReceiptNo={}", receipt.getPreReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
+
         }
         return receipt;
     }

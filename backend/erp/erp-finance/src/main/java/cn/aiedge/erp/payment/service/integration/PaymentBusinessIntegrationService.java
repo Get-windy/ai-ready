@@ -68,7 +68,10 @@ public class PaymentBusinessIntegrationService {
                     receipt.getId(), receipt.getReceiptNo(),
                     String.valueOf(customerId), customerName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应收创建失败(不影响主流程): receiptNo={}", receipt.getReceiptNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应收创建失败，回滚本次集成: receiptNo={}", receipt.getReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return receipt;
@@ -91,7 +94,10 @@ public class PaymentBusinessIntegrationService {
                     receipt.getId(), receipt.getReceiptNo(),
                     String.valueOf(supplierId), supplierName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应收创建失败: receiptNo={}", receipt.getReceiptNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应收创建失败，回滚本次集成: receiptNo={}", receipt.getReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return receipt;
@@ -113,7 +119,10 @@ public class PaymentBusinessIntegrationService {
                     receipt.getId(), receipt.getReceiptNo(),
                     String.valueOf(customerId), customerName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应收创建失败: receiptNo={}", receipt.getReceiptNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应收创建失败，回滚本次集成: receiptNo={}", receipt.getReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return receipt;
@@ -135,7 +144,10 @@ public class PaymentBusinessIntegrationService {
                     receipt.getId(), receipt.getReceiptNo(),
                     String.valueOf(employeeId), employeeName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应收创建失败: receiptNo={}", receipt.getReceiptNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应收创建失败，回滚本次集成: receiptNo={}", receipt.getReceiptNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return receipt;
@@ -159,7 +171,10 @@ public class PaymentBusinessIntegrationService {
                     payment.getId(), payment.getPaymentNo(),
                     String.valueOf(supplierId), supplierName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应付创建失败: paymentNo={}", payment.getPaymentNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应付创建失败，回滚本次集成: paymentNo={}", payment.getPaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return payment;
@@ -181,7 +196,10 @@ public class PaymentBusinessIntegrationService {
                     payment.getId(), payment.getPaymentNo(),
                     String.valueOf(customerId), customerName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应付创建失败: paymentNo={}", payment.getPaymentNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应付创建失败，回滚本次集成: paymentNo={}", payment.getPaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return payment;
@@ -203,7 +221,10 @@ public class PaymentBusinessIntegrationService {
                     payment.getId(), payment.getPaymentNo(),
                     String.valueOf(employeeId), employeeName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应付创建失败: paymentNo={}", payment.getPaymentNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应付创建失败，回滚本次集成: paymentNo={}", payment.getPaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return payment;
@@ -225,7 +246,10 @@ public class PaymentBusinessIntegrationService {
                     payment.getId(), payment.getPaymentNo(),
                     String.valueOf(supplierId), supplierName, amount, null);
         } catch (Exception e) {
-            log.warn("财务模块应付创建失败: paymentNo={}", payment.getPaymentNo(), e);
+            // 记账失败必须让单据整体回滚，不允许「单据已建、应收/应付与凭证缺失」的中间态
+            // （对齐 SAP FI/MM 的同一 LUW 语义）。原实现仅 log.warn，调用方看到的仍是成功。
+            log.error("财务模块应付创建失败，回滚本次集成: paymentNo={}", payment.getPaymentNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
 
         return payment;

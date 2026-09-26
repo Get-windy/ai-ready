@@ -364,8 +364,10 @@ public class OtherIncomeDocServiceImpl extends ServiceImpl<OtherIncomeDocMapper,
         try {
             return businessAccountingService.createVoucherFromBusiness(request);
         } catch (Exception e) {
-            log.warn("[其他收入] 记账凭证生成失败: {}", e.getMessage(), e);
-            return null;
+            // 记账失败必须回滚，原实现 log.warn 后 return null ⇒ 单据被标记「已记账/已结算」
+            // 而凭证根本不存在（FINANCE_MODULE_AUDIT §2.2 记录的典型 P0）。
+            log.error("[其他收入] 记账凭证生成失败，回滚本次操作: {}", e.getMessage(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
         }
     }
 

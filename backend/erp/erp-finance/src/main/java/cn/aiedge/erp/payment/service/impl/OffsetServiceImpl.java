@@ -126,7 +126,10 @@ public class OffsetServiceImpl extends ServiceImpl<OffsetMapper, Offset> impleme
                     null
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建对冲应收凭证失败: offsetNo={}, error={}", offset.getOffsetNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建对冲应收凭证失败，回滚本次操作: offsetNo={}", offset.getOffsetNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
+
         }
 
         try {
@@ -140,7 +143,10 @@ public class OffsetServiceImpl extends ServiceImpl<OffsetMapper, Offset> impleme
                     null
             );
         } catch (Exception e) {
-            log.error("调用财务模块创建对冲应付凭证失败: offsetNo={}, error={}", offset.getOffsetNo(), e.getMessage(), e);
+            // 记账失败必须回滚，不允许「单据已提交、凭证缺失」的中间态（对齐 SAP 同一 LUW 语义）。
+            log.error("创建对冲应付凭证失败，回滚本次操作: offsetNo={}", offset.getOffsetNo(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚: " + e.getMessage());
+
         }
 
         return offset;

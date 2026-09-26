@@ -159,9 +159,14 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
                     request.getSourceType(), request.getSourceId(), posted.getVoucherNo());
             return posted;
         } catch (Exception e) {
-            log.warn("业财集成自动过账失败，保留草稿状态: sourceType={}, sourceId={}, voucherId={}, error={}",
-                    request.getSourceType(), request.getSourceId(), created.getId(), e.getMessage());
-            return created;
+            // P0 红线（对齐 SAP FI/MM 的「同一 LUW」语义与 Oracle SLA 的 Final Mode）：
+            // 记账失败必须让**业务单据整体回滚**，不允许留下「单据已提交、凭证缺失」的中间态
+            // —— 那会造成账实不符且无人知晓，是本模块最典型的 P0 缺陷模式。
+            // 原实现 catch 后仅 log.warn 并 return 草稿，调用方无法区分「已过账」与「仅建草稿」。
+            // 销售/采购/费用/固资等调用方均在本调用之外未做 catch，异常会传播并回滚其单据事务。
+            log.error("业财集成自动过账失败，回滚本次业务记账: sourceType={}, sourceId={}, voucherId={}",
+                    request.getSourceType(), request.getSourceId(), created.getId(), e);
+            throw BusinessException.badRequest("记账失败，操作已回滚（凭证未能过账）: " + e.getMessage());
         }
     }
 
