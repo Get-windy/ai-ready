@@ -28,6 +28,8 @@ const BASE = process.env.BASE || `http://localhost:${process.env.PORT || '5655'}
 const ADMIN = { u: 'admin', p: 'admin123', t: '系统租户' }
 const PREFIX = 'E2EDW探针客户'
 const PROBE_NAME = `${PREFIX}${Date.now()}`
+/** 探针编码（唯一，且比名称更适合当回查键：名称可能被清洗/截断） */
+const PROBE_CODE = `E2EDW${Date.now()}`
 
 let pass = 0, fail = 0
 const ok = (n, c, e = '') => {
@@ -81,15 +83,15 @@ async function login(user) {
 
 /** 硬删探针（三张表一起）。 */
 function cleanup() {
-  const ids = `SELECT id FROM biz_party WHERE party_name LIKE '${PREFIX}%'`
+  const ids = `SELECT id FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`
   sql(`DELETE FROM party_tenant WHERE party_id IN (${ids})`, true)
   sql(`DELETE FROM party WHERE id IN (${ids})`, true)
-  sql(`DELETE FROM biz_party WHERE party_name LIKE '${PREFIX}%'`, true)
+  sql(`DELETE FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`, true)
 }
 
 ;(async () => {
   console.log(`验证目标: ${BASE}`)
-  console.log(`清理前探针残留: ${num(`SELECT count(*) FROM biz_party WHERE party_name LIKE '${PREFIX}%'`)}`)
+  console.log(`清理前探针残留: ${num(`SELECT count(*) FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`)}`)
   try { cleanup() } catch { /* 表可能还不存在，交给 ⓪ */ }
 
   try {
@@ -107,15 +109,27 @@ function cleanup() {
 
     section('① 建档：POST /erp/md/customer')
     const created = await req('POST', '/erp/md/customer', {
-      // ⚠️ `biz_party.party_code` / `party_name` 都是 **NOT NULL 且无默认值** ⇒ 建档必须同时给编码，
-      //    否则底层抛 NOT NULL 违反，被兜底成 400「请求数据不完整或存在冲突」（听着像参数问题，
-      //    实际是数据库约束 —— 排查时别被这句文案带偏）。
-      token, body: { partyCode: `E2EDW${Date.now()}`, partyName: PROBE_NAME, partyType: 1, roles: 'CUSTOMER', status: 1 },
+      // ⚠️ 两个坑都实踩过：
+      //   ① `biz_party.party_code` / `party_name` 都是 **NOT NULL 且无默认值** ⇒ 必须给编码，
+      //      否则底层 NOT NULL 违反被兜底成 400「请求数据不完整或存在冲突」
+      //      （文案听着像参数问题，实际是数据库约束 —— 别被带偏）；
+      //   ② 本接口的**入参名是 `partnerName`/`partnerCode` 而不是 `partyName`/`partyCode`**
+      //      （见 `MdCustomerController` 类注释的字段名映射）⇒ 传 `partyName` 会被**静默忽略**，
+      //      建档"成功"（HTTP 200）但库里没有该行。两个变体都传，避免再踩。
+      token, body: {
+        partnerCode: PROBE_CODE, partyCode: PROBE_CODE,
+        partnerName: PROBE_NAME, partyName: PROBE_NAME,
+        partnerType: 'customer', partyType: 1, roles: 'CUSTOMER', status: 1,
+      },
     })
-    ok('建档成功（HTTP 200）', created.status === 200, `status=${created.status} ${created.text.slice(0, 120)}`)
-    const id = created.json?.data?.id
-    ok('返回了 id', id != null, `id=${id}`)
-    if (id == null) throw new ProbeFailure('建档没返回 id，无法继续断言')
+    ok('建档成功（HTTP 200）', created.status === 200, `status=${created.status} ${created.text.slice(0, 200)}`)
+    // ⚠️ 不从响应里取 id 作为**唯一**来源：控制器在 `!success || id == null` 时会返回 `data: null`
+    //    （实测就是这个形态）。**回查库**拿 id 更稳，也顺带证明"行真的落库了"。
+    const dbId = scalar(`SELECT id FROM biz_party WHERE party_code = '${PROBE_CODE}' AND deleted = 0`)
+    const respId = created.json?.data?.id
+    const id = respId != null ? respId : (dbId === '(空)' ? null : dbId)
+    ok('拿得到新建主体的 id（响应或回查库）', id != null, `响应里 id=${respId}，库里 id=${dbId}`)
+    if (id == null) throw new ProbeFailure('建档后库里也查不到该行，无法继续断言')
 
     section('② 双写：party 出现同一 id 的行')
     ok(`party 有 id=${id} 的行`, num(`SELECT count(*) FROM party WHERE id = ${id}`) === 1,
@@ -151,7 +165,7 @@ function cleanup() {
     console.log('\n—— 现场还原（探针一律硬删）——')
     cleanup()
     ok('【自清理】探针已从 biz_party / party / party_tenant 三张表硬删',
-      num(`SELECT count(*) FROM biz_party WHERE party_name LIKE '${PREFIX}%'`) === 0)
+      num(`SELECT count(*) FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`) === 0)
   }
 
   console.log(`\n===== 结果：PASS ${pass} / FAIL ${fail} =====`)
