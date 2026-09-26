@@ -4,9 +4,11 @@ import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
 import cn.aiedge.erp.finance.dto.VoucherItemDTO;
 import cn.aiedge.erp.finance.dto.VoucherQuery;
+import cn.aiedge.erp.finance.mapper.AccountSubjectMapper;
 import cn.aiedge.erp.finance.mapper.AccountingPeriodMapper;
 import cn.aiedge.erp.finance.mapper.VoucherItemMapper;
 import cn.aiedge.erp.finance.mapper.VoucherMapper;
+import cn.aiedge.erp.finance.model.entity.AccountSubject;
 import cn.aiedge.erp.finance.model.entity.Voucher;
 import cn.aiedge.erp.finance.model.entity.VoucherItem;
 import cn.aiedge.erp.finance.service.LedgerService;
@@ -57,6 +59,7 @@ public class VoucherServiceImpl implements VoucherService {
     private final VoucherMapper voucherMapper;
     private final VoucherItemMapper voucherItemMapper;
     private final AccountingPeriodMapper accountingPeriodMapper;
+    private final AccountSubjectMapper accountSubjectMapper;
     private final LedgerService ledgerService;
 
     @Override
@@ -401,7 +404,16 @@ public class VoucherServiceImpl implements VoucherService {
         VoucherItem item = new VoucherItem();
         item.setVoucherId(voucherId);
         item.setSummary(dto.getSummary());
-        item.setSubjectId(dto.getSubjectId());
+        // subject_id 兜底解析：前端手工录单只传 subjectCode（不传 id），若原样落库，
+        // 该分录的 subject_id 为 NULL ⇒ 总账重算按 subject_id 维度汇总时**会漏掉这一笔**
+        // （2026-09-26 实测：145 条分录中 36 条 subject_id 为空，正是总账偏低的原因）。
+        Long subjectId = dto.getSubjectId();
+        if (subjectId == null && StringUtils.hasText(dto.getSubjectCode())) {
+            subjectId = accountSubjectMapper.findBySubjectCode(dto.getSubjectCode())
+                    .map(AccountSubject::getId)
+                    .orElse(null);
+        }
+        item.setSubjectId(subjectId);
         item.setSubjectCode(dto.getSubjectCode());
         item.setSubjectName(dto.getSubjectName());
         item.setSubjectFullName(dto.getSubjectFullName());

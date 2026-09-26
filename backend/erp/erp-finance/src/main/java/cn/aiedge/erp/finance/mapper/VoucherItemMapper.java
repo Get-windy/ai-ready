@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -45,4 +46,46 @@ public interface VoucherItemMapper extends BaseMapper<VoucherItem> {
     List<VoucherItem> findLedgerDetail(@Param("fiscalYear") Integer fiscalYear,
                                        @Param("fiscalPeriod") Integer fiscalPeriod,
                                        @Param("subjectCode") String subjectCode);
+
+    /**
+     * 汇总「某科目在某会计期间」的已过账凭证分录借方合计（用于总账重算）。
+     *
+     * <p>只计 {@code status='posted'}：草稿/已审核未过账的凭证尚未入账，
+     * 已冲销的原凭证（reversed）也不再作为余额来源（其冲销凭证已单独入账）。</p>
+     */
+    @Select("SELECT COALESCE(SUM(i.debit_amount), 0) FROM finance_voucher_item i " +
+            "JOIN finance_voucher v ON v.id = i.voucher_id " +
+            "WHERE i.subject_id = #{subjectId} AND i.deleted_flag = 0 " +
+            "AND v.status = 'posted' AND v.deleted_flag = 0 " +
+            "AND v.fiscal_year = #{fiscalYear} AND v.fiscal_period = #{fiscalPeriod}")
+    BigDecimal sumPostedDebitInPeriod(@Param("subjectId") Long subjectId,
+                                      @Param("fiscalYear") Integer fiscalYear,
+                                      @Param("fiscalPeriod") Integer fiscalPeriod);
+
+    /**
+     * 汇总「某科目在某会计期间」的已过账凭证分录贷方合计（用于总账重算）。
+     */
+    @Select("SELECT COALESCE(SUM(i.credit_amount), 0) FROM finance_voucher_item i " +
+            "JOIN finance_voucher v ON v.id = i.voucher_id " +
+            "WHERE i.subject_id = #{subjectId} AND i.deleted_flag = 0 " +
+            "AND v.status = 'posted' AND v.deleted_flag = 0 " +
+            "AND v.fiscal_year = #{fiscalYear} AND v.fiscal_period = #{fiscalPeriod}")
+    BigDecimal sumPostedCreditInPeriod(@Param("subjectId") Long subjectId,
+                                       @Param("fiscalYear") Integer fiscalYear,
+                                       @Param("fiscalPeriod") Integer fiscalPeriod);
+
+    /**
+     * 汇总「某科目在该会计期间之前所有期间」的已过账凭证净额（借 − 贷），用作重算的期初。
+     *
+     * <p>跨年自然成立：条件按 (年, 期) 的字典序比较，无需额外处理年结。</p>
+     */
+    @Select("SELECT COALESCE(SUM(i.debit_amount - i.credit_amount), 0) FROM finance_voucher_item i " +
+            "JOIN finance_voucher v ON v.id = i.voucher_id " +
+            "WHERE i.subject_id = #{subjectId} AND i.deleted_flag = 0 " +
+            "AND v.status = 'posted' AND v.deleted_flag = 0 " +
+            "AND (v.fiscal_year < #{fiscalYear} " +
+            "     OR (v.fiscal_year = #{fiscalYear} AND v.fiscal_period < #{fiscalPeriod}))")
+    BigDecimal sumPostedNetBeforePeriod(@Param("subjectId") Long subjectId,
+                                        @Param("fiscalYear") Integer fiscalYear,
+                                        @Param("fiscalPeriod") Integer fiscalPeriod);
 }

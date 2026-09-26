@@ -22,9 +22,11 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -407,74 +409,85 @@ public class LedgerServiceImpl implements LedgerService {
         if (items == null || items.isEmpty()) {
             items = voucherItemMapper.findByVoucherId(voucher.getId());
         }
-
-        for (VoucherItem item : items) {
-            Long subjectId = item.getSubjectId();
-            Integer fiscalYear = voucher.getFiscalYear();
-            Integer fiscalPeriod = voucher.getFiscalPeriod();
-
-            // 查找或创建分类账条目
-            LedgerEntry entry = ledgerEntryMapper
-                    .findBySubjectIdAndFiscalYearAndFiscalPeriod(subjectId, fiscalYear, fiscalPeriod)
-                    .orElseGet(() -> {
-                        LedgerEntry newEntry = new LedgerEntry();
-                        newEntry.setSubjectId(subjectId);
-                        newEntry.setSubjectCode(item.getSubjectCode());
-                        newEntry.setSubjectName(item.getSubjectName());
-                        newEntry.setFiscalYear(fiscalYear);
-                        newEntry.setFiscalPeriod(fiscalPeriod);
-                        newEntry.setOpeningDebit(BigDecimal.ZERO);
-                        newEntry.setOpeningCredit(BigDecimal.ZERO);
-                        newEntry.setPeriodDebit(BigDecimal.ZERO);
-                        newEntry.setPeriodCredit(BigDecimal.ZERO);
-
-                        // 从上一期结转期初余额
-                        if (fiscalPeriod > 1) {
-                            ledgerEntryMapper
-                                    .findBySubjectIdAndFiscalYearAndFiscalPeriod(subjectId, fiscalYear, fiscalPeriod - 1)
-                                    .ifPresent(prev -> {
-                                        newEntry.setOpeningDebit(
-                                                prev.getClosingDebit() != null ? prev.getClosingDebit() : BigDecimal.ZERO);
-                                        newEntry.setOpeningCredit(
-                                                prev.getClosingCredit() != null ? prev.getClosingCredit() : BigDecimal.ZERO);
-                                    });
-                        }
-                        return newEntry;
-                    });
-
-            // 累加本期发生额
-            BigDecimal debit = item.getDebitAmount() != null ? item.getDebitAmount() : BigDecimal.ZERO;
-            BigDecimal credit = item.getCreditAmount() != null ? item.getCreditAmount() : BigDecimal.ZERO;
-            entry.setPeriodDebit(
-                    (entry.getPeriodDebit() != null ? entry.getPeriodDebit() : BigDecimal.ZERO).add(debit));
-            entry.setPeriodCredit(
-                    (entry.getPeriodCredit() != null ? entry.getPeriodCredit() : BigDecimal.ZERO).add(credit));
-
-            // 计算期末余额
-            BigDecimal openingBalance = (entry.getOpeningDebit() != null ? entry.getOpeningDebit() : BigDecimal.ZERO)
-                    .subtract(entry.getOpeningCredit() != null ? entry.getOpeningCredit() : BigDecimal.ZERO);
-            BigDecimal netChange = (entry.getPeriodDebit() != null ? entry.getPeriodDebit() : BigDecimal.ZERO)
-                    .subtract(entry.getPeriodCredit() != null ? entry.getPeriodCredit() : BigDecimal.ZERO);
-            BigDecimal closingBalance = openingBalance.add(netChange);
-
-            if (closingBalance.compareTo(BigDecimal.ZERO) >= 0) {
-                entry.setClosingDebit(closingBalance);
-                entry.setClosingCredit(BigDecimal.ZERO);
-            } else {
-                entry.setClosingDebit(BigDecimal.ZERO);
-                entry.setClosingCredit(closingBalance.abs());
-            }
-            entry.setClosingBalance(closingBalance);
-            entry.setBalanceDirection(closingBalance.compareTo(BigDecimal.ZERO) >= 0 ? 1 : 2);
-
-            if (entry.getId() != null) {
-                ledgerEntryMapper.updateById(entry);
-            } else {
-                ledgerEntryMapper.insert(entry);
-            }
+        if (items.isEmpty()) {
+            log.warn("凭证无分录，跳过过账: voucherNo={}", voucher.getVoucherNo());
+            return;
         }
 
-        log.info("过账到分类账: voucherNo={}, itemsCount={}", voucher.getVoucherNo(), items.size());
+        Integer fiscalYear = voucher.getFiscalYear();
+        Integer fiscalPeriod = voucher.getFiscalPeriod();
+
+        // 本次凭证涉及的科目去重后，逐个「按凭证重算」该科目该期的总账行
+        Set<Long> subjectIds = new LinkedHashSet<>();
+        for (VoucherItem item : items) {
+            if (item.getSubjectId() != null) {
+                subjectIds.add(item.getSubjectId());
+            }
+        }
+        for (Long subjectId : subjectIds) {
+            recalcLedgerEntry(subjectId, fiscalYear, fiscalPeriod);
+        }
+
+        log.info("过账到分类账: voucherNo={}, itemsCount={}, subjectCount={}",
+                voucher.getVoucherNo(), items.size(), subjectIds.size());
+    }
+
+    /**
+     * 按「已过账凭证分录」重算某科目某期的总账行（幂等）。
+     *
+     * <p><b>2026-09-26 重写</b>：原实现是**纯累加式**（{@code periodDebit += 本次借额}）——
+     * 一旦凭证被删改或过账被重复触发，总账**只增不减、永久残留**，这正是
+     * FINANCE_MODULE_AUDIT §2.1「总账 ≠ 凭证分录」的代码根因。改为重算后：</p>
+     * <ul>
+     *   <li><b>幂等</b>：对同一 (科目, 期间) 重复过账不会翻倍；</li>
+     *   <li><b>自愈</b>：该科目该期只要再发生一次记账，历史漂移即被自动纠正；</li>
+     *   <li>口径与运维脚本 {@code tools/recalc-finance-ledger.sql} 完全一致
+     *       （期初 = 该期之前所有期的净额累计）。</li>
+     * </ul>
+     * <p>取数只认 {@code status='posted'}：草稿/已审核未过账的不计；
+     * 被冲销的原凭证（reversed）也不再作为余额来源 —— 其冲销凭证已单独入账。</p>
+     */
+    private void recalcLedgerEntry(Long subjectId, Integer fiscalYear, Integer fiscalPeriod) {
+        // 1) 本期发生额 = 该期该科目全部已过账分录合计
+        BigDecimal debit = nz(voucherItemMapper.sumPostedDebitInPeriod(subjectId, fiscalYear, fiscalPeriod));
+        BigDecimal credit = nz(voucherItemMapper.sumPostedCreditInPeriod(subjectId, fiscalYear, fiscalPeriod));
+
+        // 2) 期初 = 该期之前所有期的净额累计（纯凭证口径，跨年按 (年,期) 字典序自然成立）
+        BigDecimal openingNet = nz(voucherItemMapper.sumPostedNetBeforePeriod(subjectId, fiscalYear, fiscalPeriod));
+
+        // 3) 期末 = 期初 + 本期借 − 本期贷（按符号拆到借/贷两列）
+        BigDecimal closingNet = openingNet.add(debit).subtract(credit);
+
+        LedgerEntry entry = ledgerEntryMapper
+                .findBySubjectIdAndFiscalYearAndFiscalPeriod(subjectId, fiscalYear, fiscalPeriod)
+                .orElseGet(() -> {
+                    LedgerEntry created = new LedgerEntry();
+                    created.setSubjectId(subjectId);
+                    created.setFiscalYear(fiscalYear);
+                    created.setFiscalPeriod(fiscalPeriod);
+                    // 新建行时补科目编码/名称快照（取该科目任一条分录）
+                    List<VoucherItem> samples = voucherItemMapper.findBySubjectId(subjectId);
+                    if (!samples.isEmpty()) {
+                        created.setSubjectCode(samples.get(0).getSubjectCode());
+                        created.setSubjectName(samples.get(0).getSubjectName());
+                    }
+                    return created;
+                });
+
+        entry.setOpeningDebit(openingNet.compareTo(BigDecimal.ZERO) >= 0 ? openingNet : BigDecimal.ZERO);
+        entry.setOpeningCredit(openingNet.compareTo(BigDecimal.ZERO) < 0 ? openingNet.negate() : BigDecimal.ZERO);
+        entry.setPeriodDebit(debit);
+        entry.setPeriodCredit(credit);
+        entry.setClosingDebit(closingNet.compareTo(BigDecimal.ZERO) >= 0 ? closingNet : BigDecimal.ZERO);
+        entry.setClosingCredit(closingNet.compareTo(BigDecimal.ZERO) < 0 ? closingNet.negate() : BigDecimal.ZERO);
+        entry.setClosingBalance(closingNet);
+        entry.setBalanceDirection(closingNet.compareTo(BigDecimal.ZERO) >= 0 ? 1 : 2);
+
+        if (entry.getId() != null) {
+            ledgerEntryMapper.updateById(entry);
+        } else {
+            ledgerEntryMapper.insert(entry);
+        }
     }
 
     @Override

@@ -20,7 +20,20 @@
 
 BEGIN;
 
--- 前置：修正 tenant_id 为 NULL 的总账行。
+-- 前置①：回填凭证分录缺失的 subject_id。
+-- 实证：前端手工录单只传 subjectCode（不传 id），而 buildItem 原先原样落库 ⇒
+-- 145 条分录中有 36 条 subject_id 为 NULL。总账重算是按 subject_id 维度汇总的，
+-- 这些分录会被整批漏算。2026-09-26 已在 VoucherServiceImpl.buildItem 补了兜底解析
+-- （新数据不再产生），此处负责订正存量。
+UPDATE finance_voucher_item i
+SET subject_id = s.id
+FROM finance_account_subject s
+WHERE i.subject_id IS NULL
+  AND i.deleted_flag = 0
+  AND i.subject_code = s.subject_code
+  AND s.deleted_flag = 0;
+
+-- 前置②：修正 tenant_id 为 NULL 的总账行。
 -- 实测存在 1 行（科目 2203）：这类行因 tenant_id 为空，重算的 JOIN 匹配不上会被**静默跳过**，
 -- 表现为「重算后仍有一行与凭证口径不符」。归属与同表其它行一致的租户 1。
 UPDATE finance_ledger SET tenant_id = 1 WHERE tenant_id IS NULL;
