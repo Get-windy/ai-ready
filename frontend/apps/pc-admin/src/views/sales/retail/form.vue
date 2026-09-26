@@ -1459,9 +1459,12 @@ function updateChangeAmount() {
   changeAmount.value = change > 0 ? Number(change.toFixed(2)) : 0
 }
 
-// 应收变化时同步找零与产生积分（1 元 = 1 分，与后端结算口径一致）
-watch(payableAmount, (v) => {
-  memberGeneratedPoints.value = Math.floor(v)
+// 应收变化时同步找零与产生积分。
+// ⚠️ 2026-09-26：原先固定按「1 元 = 1 分」硬编码，而配置面板的「每元积分数」
+// （retailSettings.pointPerYuan）存了值却从不参与计算 —— 勾了不生效。现按配置乘算，
+// 默认值 1 时与后端结算口径一致（历史行为不变）。
+watch([payableAmount, () => retailSettings.pointPerYuan], ([v, perYuan]) => {
+  memberGeneratedPoints.value = Math.floor(v * (Number(perYuan) || 0))
   updateChangeAmount()
 }, { immediate: true })
 
@@ -1745,7 +1748,13 @@ async function handleSettle() {
     const id = await persistOrder(0)
     await retailOrderApi.settle(id, buildPayments())
     message.success('结算成功，已完成收款与库存扣减')
-    router.push('/sales/retail')
+    // 「保存后立即打印」：勾选时留在本页出小票，否则回列表。
+    // ⚠️ 原先这个开关只在配置面板里存了个值、没有任何消费点（勾了不生效）。
+    if (printSettings.printAfterSubmit) {
+      setTimeout(() => handlePrint(), 500)
+    } else {
+      router.push('/sales/retail')
+    }
   } catch (e: any) {
     message.error(e?.message || '结算失败')
   } finally {

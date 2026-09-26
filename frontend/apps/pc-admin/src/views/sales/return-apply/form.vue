@@ -215,7 +215,8 @@ const {
     update: saleReturnApi.update,
     getById: saleReturnApi.getById,
   },
-  redirectPath: '/sales/return-apply',
+  // 不写 redirectPath：保存后的去向在 afterSave 里按「提单后立即打印」决定
+  //（useBillForm 顺序为 afterSave() → redirectPath 跳转，配了跳转就来不及打印）
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
   fields: [
     { key: 'customerId', label: '客户', type: 'select', required: true },
@@ -299,7 +300,14 @@ const {
       priceLevel8: p.priceLevel8 || 0,
     })),
   }),
-  afterSave: () => resetDirty(),
+  afterSave: () => {
+    resetDirty()
+    if (printSettings.value.printAfterSubmit) {
+      setTimeout(() => handlePrint(), 500)
+    } else {
+      router.push('/sales/return-apply')
+    }
+  },
 })
 
 // ═══ 表单 Dirty 标记（对标金蝶/用友/管家婆：未保存修改离开时提示） ═══
@@ -473,6 +481,14 @@ const allBasicInfoFields = computed<BasicInfoField[]>(() => [
 
 // 表单字段显隐配置（localStorage key 与 SaleReturnApplyFormConfig 保持一致）
 const FORM_CONFIG_KEY = 'sale-return-apply-form-page-config-v2'
+/** 打印设置存储键（与 views/erp/column-config/SaleReturnApplyFormConfig.vue 的 STORAGE_KEY_PRINT 一致）。
+ *  ⚠️ 2026-09-26：此前本页**只读页配置、从不读打印配置**，于是配置面板上的
+ *  「提单后立即打印」勾了也不生效 —— 这里补上读取与消费。 */
+const PRINT_CONFIG_KEY = 'sale-return-apply-form-print-config'
+const printSettings = ref<{ alwaysLastTemplate: boolean; printAfterSubmit: boolean }>({
+  alwaysLastTemplate: false,
+  printAfterSubmit: false,
+})
 const FORM_DEFAULTS_KEY = 'sale-return-apply-form-default-config'
 const formFieldVisibility = ref<Array<{ key: string; visible: boolean }>>([])
 
@@ -526,6 +542,15 @@ function isFieldVisible(key: string): boolean {
 
 // 从localStorage加载表单字段显隐配置（与 SaleReturnApplyFormConfig 的 pageConfig 格式一致）
 function loadFormConfig() {
+  // 打印配置独立成键，与页配置分开存：这里一并读回，供「提单后立即打印」使用
+  try {
+    const rawPrint = localStorage.getItem(PRINT_CONFIG_KEY)
+    if (rawPrint) {
+      const p = JSON.parse(rawPrint)
+      printSettings.value.alwaysLastTemplate = p?.alwaysLastTemplate === true
+      printSettings.value.printAfterSubmit = p?.printAfterSubmit === true
+    }
+  } catch { /* ignore */ }
   try {
     const raw = localStorage.getItem(FORM_CONFIG_KEY)
     if (raw) {

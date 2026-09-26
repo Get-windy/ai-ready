@@ -216,7 +216,8 @@ const {
     update: saleReturnDocApi.update,
     getById: saleReturnDocApi.getById,
   },
-  redirectPath: '/sales/return-doc',
+  // ⚠️ 不在这里写 redirectPath：保存后的去向要在 afterSave 里按「保存后立即打印」开关决定
+  //（useBillForm 的顺序是 afterSave() → redirectPath 跳转，配了 redirectPath 就来不及打印）。
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
   productDefaults: PRODUCT_SALES_DEFAULTS,
   onFieldChange: (fieldKey, val, fd) => {
@@ -387,7 +388,16 @@ const {
     if (data?.status !== undefined) fd.status = data.status
     if (data?.salesType) fd.salesType = data.salesType
   },
-  afterSave: () => resetDirty(),
+  // 保存成功后的去向：默认回列表；勾了「保存后立即打印」则留在本页打印（打印完用户自行返回）。
+  // 原先这里的 maybePrintAfterSubmit() 定义了却从未被调用 —— 配置面板上的开关是个死勾选框。
+  afterSave: () => {
+    resetDirty()
+    if (printSettings.value.printAfterSubmit) {
+      setTimeout(() => handlePrint(), 500)
+    } else {
+      router.push('/sales/return-doc')
+    }
+  },
 })
 
 // ═══ 表单 Dirty 标记（对标金蝶/用友/管家婆：未保存修改离开时提示） ═══
@@ -1221,12 +1231,7 @@ function loadAndApplyDefaults() {
   }
 }
 
-/** 打印设置「保存后立即打印」 */
-function maybePrintAfterSubmit() {
-  if (printSettings.value.printAfterSubmit) {
-    setTimeout(() => handlePrint(), 500)
-  }
-}
+// 「保存后立即打印」已接到 useBillForm 的 afterSave 回调（见上方配置），此处的独立函数已删除。
 
 // ── 生命周期 ──
 onMounted(() => {
