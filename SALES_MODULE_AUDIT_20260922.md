@@ -258,6 +258,8 @@ salesAccountingService.createReceivableOnShipment(...);
 | P1 权限 | 9 个销售页面接入 `v-permission`（与后端同一套码） | `vite build` SUCCESS | `44e73749` |
 | P1 接口 | 3 处配置弹窗调用不存在的端点（客户/仓库/职员/物流公司） | 实测 404 → 200 有数据 | `6bd2f494` |
 | P2 前端 | 删 3 处死 API + `outboundApi` 重复键 + 5 个未使用符号 + 空目录 | `vite build` SUCCESS | `9b8a3044` |
+| P2 配置接线 | 「保存后立即打印」从死勾选框改为真接线（return-doc / return-apply，后者此前连打印配置的存储键都没读）· 零售单「每元积分数」配置接入计算 | `vite build` SUCCESS | `05acc2f1` |
+| §八 库数据 | A1 删 6 条影子菜单 + 清 4 行租户菜单授权 · A2 删 3 个僵尸权限码 + 3 行角色授权 · A3 92 条权限名改业务白话 · A5 科目 1403 更名「原材料」 | 逐项 SQL 复核 | 数据变更（脚本 `tools/fix-sales-config-data.py`，备份在 `tool-results/fix-sales-config-backup.json`） |
 
 ### 复核后**判定为非缺陷**（不改，附理由）
 
@@ -265,16 +267,16 @@ salesAccountingService.createReceivableOnShipment(...);
 |---|---|---|
 | 退货申请 `applyStockDecrease` 是"死路径 + 潜在误扣" | P1 | **有意保留的兼容分支**：方法注释明确写「仅用于兼容改造前已过账的存量单据」，且 `bookkeepingTime != null` 时取消单据冲回库存是**正确**行为。当前库 25 行 `erp_sale_return` 的 `bookkeeping_time` 全为 null，故不触发 —— 属防御历史数据，非缺陷。 |
 | `SaleApprovalCallback` 零引用 | 死代码候选 | `@Component implements ApprovalCallback`，由框架分发器按**接口**调用，类名 grep 必然为 0。**不可删**。 |
+| 零售单「配置存储 key 三套并存、面板那份页面永不读取」 | P2 | **结论偏重，已修正**：实际是「面板弹窗草稿（`retail-page-config`）+ 页面生效档（`retail-order-page-config` / 后端 `userPageConfigApi`）」两层，两者通过 `@change` 事件同步，且**结构不同**（面板含 `printConfig`、页面含 `detailQueryFields`）—— 强行统一 key 会互相覆盖丢字段。属可接受的实现分层，非缺陷。 |
+| `view`/`detail` 码重复「统一到 detail」 | P2 | **方向必须反转，已撤销该推荐**：全库 `:view` 206 码 / 556 处代码引用，`:detail` 177 码且并存的资源遍布 crm/dms/erp —— `view` 才是主流。正确做法是统一到 `view`，且属**全库级重构**，应单独立项，不在销售收尾内做。 |
 
 ### 仍未处理（连同理由）
 
 | 项 | 级别 | 为什么不在这批做 |
 |---|---|---|
-| 退货单/退货申请列表「真实批量打印」 | P2 | 需给两个列表挂 `PrintDialog` + 后端 `batch-print` 端点（现无），是**功能开发**而非补漏；范本见 `sales/exchange/index.vue` |
-| 「保存后立即打印」死开关（return-doc / retail） | P2 | 该页保存后即 `router.push` 跳列表，接打印需改 `useBillForm` 的 `redirectPath` 契约（影响多个页面），收益仅一个默认关闭的开关 |
-| 零售单「每元积分数」配置无效 | P2 | 需改积分计算口径（现为 `Math.floor(应收)` 硬编码），属业务规则变更 |
-| 零售单 storage-key 三套并存 | P2 | 统一会**迁移已有用户的配置**，需先定哪套是权威 |
-| `order-center`/`retail` 全局列配置未落后端 · 打印配置 Tab 形隐 | P2 | 低风险但纯体验项，可随下批一起 |
+| 出库单表单/列表「打印」是假打印（只回写次数 + 提示"打印成功"，无任何输出） | P2 | `PrintDialog` 的模板来自后端 `sys_print_template`，而该表**当前 0 行** —— 接入前要先弄清模板由谁播种/是否走内置默认模板，否则接上去也是空打印。已确认范本在 `sales/exchange/index.vue` |
+| 退货单/退货申请列表「真实批量打印」 | P2 | 同上（依赖打印模板）；且后端 `batch-print` 端点需补 |
+| `order-center`/`retail` 全局列配置未落后端 · 打印配置 Tab 形隐 | P2 | 低风险但纯体验项，可随打印专项一起 |
 | 打印三套实现 / 查询方案三套持久化 / 模块归属错位 | P2 | **架构收敛**，需先定统一方案（文档裁定 + 影响面评估），不宜审计中顺手改 |
 | 6 条 `pc-admin` 死菜单 · 3 个僵尸权限码 · 92 条权限名中英混杂 · view/detail 码重复 | P2 | 全部是 `sys_menu` / `sys_permission` **系统配置数据**，按既定纪律须先出方案获批再改库（见 §八） |
 | 部门维度断链（`sys_dept` 0 行） | P1 | 已在 `MASTER_TODO` PUR-BREAK-02 拍板「冻结不改、待部门启用后统一迁移」 |
