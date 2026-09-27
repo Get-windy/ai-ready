@@ -62,15 +62,31 @@ public interface PartyMirrorMapper {
      *
      * <p>⚠️ `ON CONFLICT` 的后半段 `WHERE deleted = 0` **不能省**：目标是一个**部分**唯一索引，
      * PostgreSQL 要求冲突目标与索引谓词一致。</p>
+     *
+     * <h3>⚠️ 两处类型/口径在写之前必须掰开（2026-09-27 实机踩过）</h3>
+     * <ol>
+     *   <li><b>`price_track_enabled` 是 `boolean`</b>，而 `biz_party.price_track_enabled` 是
+     *       `integer`（0/1）。直接传整型会被 PG 拒掉：
+     *       「字段 price_track_enabled 的类型为 boolean，但表达式的类型为 integer」——
+     *       而这一拒的后果远不止"边没写上"，见 {@code PartyMirrorWriter} 的保存点说明。
+     *       ⇒ 这里用 `COALESCE(…, 0) <> 0` 显式转成布尔（NULL 按"未开"处理）。</li>
+     *   <li><b>`settlement_type` 暂不写</b>（保持 NULL）。目标是 `varchar(32)`，而
+     *       `biz_party.settlement_type` 是 {@code V9.14.0} 定下的**历史两值整数**
+     *       （`0` = 现结；非 0 = 有账期）—— 与协议侧那套五项枚举
+     *       （{@code cn.aiedge.base.credit.SettlementType}：`CASH_SPOT`/`CREDIT`/…）
+     *       **不是同一个东西**（`PartySettlementProfile` 的类注释里有明确警告）。
+     *       硬塞要么类型错、要么把两套口径混成一套。它的落位口径属于**批 2（B 组商务条件）**，
+     *       在那之前留 NULL 是诚实的"未迁移"，不是漏写。</li>
+     * </ol>
      */
     @Insert("INSERT INTO party_tenant (tenant_id, party_id, direction, party_level, "
-            + "settlement_type, settlement_days, credit_limit, price_track_enabled, status, "
+            + "settlement_days, credit_limit, price_track_enabled, status, "
             + "create_time, update_time, deleted) "
             + "VALUES (#{tenantId}, #{partyId}, #{direction}, #{p.partyLevel}, "
-            + "#{p.settlementType}, #{p.settlementDays}, #{p.creditLimit}, #{p.priceTrackEnabled}, "
+            + "#{p.settlementDays}, #{p.creditLimit}, COALESCE(#{p.priceTrackEnabled}, 0) <> 0, "
             + "COALESCE(#{p.status}, 1), now(), now(), 0) "
             + "ON CONFLICT (tenant_id, party_id, direction) WHERE deleted = 0 DO UPDATE SET "
-            + "party_level = EXCLUDED.party_level, settlement_type = EXCLUDED.settlement_type, "
+            + "party_level = EXCLUDED.party_level, "
             + "settlement_days = EXCLUDED.settlement_days, credit_limit = EXCLUDED.credit_limit, "
             + "price_track_enabled = EXCLUDED.price_track_enabled, update_time = now()")
     int upsertEdge(@Param("tenantId") Long tenantId, @Param("partyId") Long partyId,

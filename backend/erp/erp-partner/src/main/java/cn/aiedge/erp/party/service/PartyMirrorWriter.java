@@ -4,9 +4,15 @@ import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.mapper.PartyMirrorMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.springframework.jdbc.datasource.ConnectionHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.Savepoint;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +33,10 @@ import java.util.List;
  * ⚠️ 代价必须说清：**吞异常 = 会静默漂移**。所以这里的日志必须写成"可定位 + 可行动"，
  * 且切读路径**之前**必须先把差额归零（那是切读的前置检查，见方案 §3.3）。
  *
+ * <p>⚠️ **"吞异常"必须连"回滚到保存点"一起做，否则这句裁定是假的** ——
+ * 只用 try/catch 时，一条失败的镜像语句会把整个 PG 事务打成 aborted，用户那次建档
+ * 照样被静默回滚（接口还返回 200）。详见 {@link #inSavepoint} 的说明与实测复现。</p>
+ *
  * <h3>方向口径（与建表回填、对账脚本三方一致）</h3>
  * ⑬ 裁定「同一对主体在同一家店的角色**可以并存**」⇒ 一个主体**可以同时有两条边**：
  * `roles` 含 `CUSTOMER` ⇒ 建 `SALE` 边；含 `SUPPLIER` 或 `party_type = 2` ⇒ 建 `PURCHASE` 边。
@@ -43,6 +53,13 @@ public class PartyMirrorWriter {
     public static final String DIRECTION_PURCHASE = "PURCHASE";
 
     private final PartyMirrorMapper mirrorMapper;
+
+    /**
+     * 只用来拿"**MyBatis 正在用的那根连接**"（见 {@link #txBoundConnection()}）。
+     * 注入 SqlSessionFactory 而不是 DataSource，是因为 Spring 按 DataSource **实例**做键
+     * 绑定连接，只有 MyBatis 环境里那一个实例才对得上。
+     */
+    private final SqlSessionFactory sqlSessionFactory;
 
     /**
      * 该主体应当有哪些贸易边（**纯函数**，可单测）。
@@ -75,37 +92,29 @@ public class PartyMirrorWriter {
         if (p == null || p.getId() == null) {
             return;
         }
-        try {
-            mirrorMapper.upsertParty(p);
-        } catch (Exception e) {
-            // 唯一约束冲突（unified_code 与别的主体重复）是最可能的一种：它对用户是有意义的信息，
-            // 但并存期不阻断建档 ⇒ 明确记出来，靠对账脚本兜底。
-            log.error("【双写】party 主档写入失败（不阻断建档；请跑 tools/sync-party-from-biz-party.cjs 对账）: "
-                            + "partyId={}, partyName={}, unifiedCode={}, 原因={}",
-                    p.getId(), p.getPartyName(), p.getUnifiedCode(), e.getMessage());
-            return;   // 主档没写成功就不写边：避免出现"边指向一个不存在的主档"
-        }
-
-        Long tenantId = p.getTenantId();
-        if (tenantId == null) {
-            // 主体档案必须有归属租户（"这条档案归哪个租户"）；没有就如实记出来，不编一个
-            log.warn("【双写】主体没有 tenantId，跳过贸易边: partyId={}, partyName={}",
-                    p.getId(), p.getPartyName());
-            return;
-        }
-        for (String direction : directionsOf(p)) {
-            try {
-                mirrorMapper.upsertEdge(tenantId, p.getId(), direction, p);
-            } catch (Exception e) {
-                log.error("【双写】party_tenant 边写入失败（不阻断建档）: partyId={}, tenantId={}, direction={}, 原因={}",
-                        p.getId(), tenantId, direction, e.getMessage());
-            }
-        }
-        if (directionsOf(p).isEmpty()) {
+        List<String> directions = directionsOf(p);
+        if (directions.isEmpty()) {
             // 方向判不出来是**正常结论**（第三方服务主体），但要留痕：否则将来会有人以为漏了
             log.info("【双写】该主体不建贸易边（既非客户也非供应商，方向未定 ⇒ 不猜）: partyId={}, partyType={}, roles={}",
                     p.getId(), p.getPartyType(), StringUtils.hasText(p.getRoles()) ? p.getRoles() : "(空)");
         }
+        Long tenantId = p.getTenantId();
+        boolean canWriteEdges = tenantId != null;
+        if (!canWriteEdges && !directions.isEmpty()) {
+            // 主体档案必须有归属租户（"这条档案归哪个租户"）；没有就如实记出来，不编一个
+            log.warn("【双写】主体没有 tenantId ⇒ 本次只写 party 主档、不写贸易边: partyId={}, partyName={}",
+                    p.getId(), p.getPartyName());
+        }
+        // 主档与边**同生共死**：任一失败即整体回滚，不会留下"边指向不存在的主档"
+        inSavepoint("party 主档 + 贸易边", p.getId(), p.getPartyName(), () -> {
+            mirrorMapper.upsertParty(p);
+            if (!canWriteEdges) {
+                return;
+            }
+            for (String direction : directions) {
+                mirrorMapper.upsertEdge(tenantId, p.getId(), direction, p);
+            }
+        });
     }
 
     /** 主体被删除（逻辑删除）后调用：同步软删主档与全部贸易边。 */
@@ -113,11 +122,94 @@ public class PartyMirrorWriter {
         if (partyId == null) {
             return;
         }
-        try {
+        inSavepoint("软删同步", partyId, null, () -> {
             mirrorMapper.softDeleteEdges(partyId);
             mirrorMapper.softDeleteParty(partyId);
+        });
+    }
+
+    /**
+     * 把一次双写包进 **SAVEPOINT**，失败只回滚双写自己，**绝不连累建档**。
+     *
+     * <p>⚠️ 为什么"在 Java 里 catch 住"远远不够 —— 2026-09-27 实机踩到并已复现：</p>
+     * <p>PostgreSQL 里**任何一条语句报错**都会让整个事务进入 aborted 状态：后续语句全部被拒，
+     * 提交时**静默变成回滚**。当时的现场是 `POST /erp/md/customer` 返回 **HTTP 200**，
+     * 但 `biz_party` 里**根本没有这一行**（起因只是 `party_tenant.price_track_enabled`
+     * 布尔列收到了整型参数）。对照实验：不建贸易边的主体正常落库，建边失败的主体
+     * 连 `biz_party` 一起消失 —— 也就是说"双写失败不阻断建档"这条裁定，
+     * **只靠 try/catch 是拦不住的，必须回滚到保存点**。</p>
+     *
+     * <h3>语义：一次写入 = 一个保存点 = 要么全成、要么只回滚双写</h3>
+     * 一个保存点管住"主档 + 全部边"，避免出现"边指向不存在的主档"这种半截状态；
+     * 缺口统一交给 {@code tools/sync-party-from-biz-party.cjs} 幂等补齐。
+     *
+     * @param what     写的是什么（进日志，便于定位是哪一半出了问题）
+     * @param partyId  主体 id（进日志）
+     * @param partyName 主体名称（进日志；软删场景没有，传 null）
+     */
+    private void inSavepoint(String what, Long partyId, String partyName, Runnable work) {
+        Connection conn = txBoundConnection();
+        Savepoint savepoint = null;
+        try {
+            if (conn != null) {
+                savepoint = conn.setSavepoint();
+            }
+            work.run();
         } catch (Exception e) {
-            log.error("【双写】软删同步失败（不阻断删除）: partyId={}, 原因={}", partyId, e.getMessage());
+            if (savepoint != null) {
+                try {
+                    conn.rollback(savepoint);
+                } catch (Exception nested) {
+                    // 连保存点都回不去 ⇒ 外层事务确实被拖坏了。这是必须让人看见的严重情况
+                    log.error("【双写】回滚到保存点失败，外层事务可能已被拖坏: partyId={}, 原因={}",
+                            partyId, nested.getMessage());
+                }
+            }
+            log.error("【双写】{} 写入失败 ⇒ 本次双写已整体回滚（`biz_party` 不受影响；"
+                            + "请跑 tools/sync-party-from-biz-party.cjs 对账补数）: partyId={}, partyName={}, 原因={}",
+                    what, partyId, partyName, e.getMessage());
+            return;
         }
+        if (savepoint != null) {
+            try {
+                conn.releaseSavepoint(savepoint);
+            } catch (Exception ignored) {
+                // 释放失败无害：提交时 PostgreSQL 自会清理子事务
+            }
+        }
+    }
+
+    /**
+     * 取"当前事务绑定的那根 JDBC 连接"——就是 **MyBatis 自己正在用的那根**。
+     *
+     * <h3>为什么不走 Spring 的 {@code TransactionStatus.createSavepoint()}</h3>
+     * 本应用的 {@code PlatformTransactionManager} 是 {@code JpaTransactionManager}，
+     * 它的 {@code createSavepoint()} 会直接抛
+     * 「JpaDialect does not support savepoints - check your JPA provider's capabilities」
+     * （2026-09-27 实测，日志里连一次镜像都没写成）。而保存点其实是**连接级**能力：
+     * 只要能拿到事务绑定的那根连接，用 JDBC 的
+     * {@code setSavepoint / rollback(savepoint) / releaseSavepoint} 语义完全等价，
+     * 还不必新开事务（新开事务会在外层回滚时留下孤儿镜像行）。
+     *
+     * @return 事务绑定的连接；**没有事务、或拿不到绑定的连接时返回 {@code null}**
+     *         —— 调用方退化为"直接执行 + catch"：此时单条语句自带隔离，
+     *         失败不会牵连任何别人，不需要保存点。
+     */
+    private Connection txBoundConnection() {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return null;
+        }
+        DataSource mybatisDataSource = sqlSessionFactory.getConfiguration().getEnvironment().getDataSource();
+        Object resource = TransactionSynchronizationManager.getResource(mybatisDataSource);
+        if (resource instanceof ConnectionHolder holder) {
+            try {
+                // ConnectionHolder 在"绑定了但还没开连接"时 getConnection() 会抛 IllegalStateException
+                // （hasConnection() 是 protected，只能这么探），那就是拿不到 ⇒ 交给调用方退化处理
+                return holder.getConnection();
+            } catch (IllegalStateException noConnectionYet) {
+                return null;
+            }
+        }
+        return null;
     }
 }

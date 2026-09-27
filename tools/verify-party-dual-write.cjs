@@ -83,6 +83,9 @@ async function login(user) {
 
 /** 硬删探针（三张表一起）。 */
 function cleanup() {
+  // ⑤ 用的诱导约束必须一并摘掉：上一轮被 Ctrl-C 打断就可能留在这里，
+  // 而它会**静默**让所有 SALE 边写不进去（建档照旧成功，所以没人会发现）。
+  sql(`ALTER TABLE party_tenant DROP CONSTRAINT IF EXISTS zz_e2e_probe_no_sale`, true)
   const ids = `SELECT id FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`
   sql(`DELETE FROM party_tenant WHERE party_id IN (${ids})`, true)
   sql(`DELETE FROM party WHERE id IN (${ids})`, true)
@@ -161,6 +164,60 @@ function cleanup() {
     ok('前一次写入的字段没被擦掉（phone 之类本就没写，验 code 仍在）',
       scalar(`SELECT party_type FROM party WHERE id=${id}`) === '1',
       `party_type=${scalar(`SELECT party_type FROM party WHERE id=${id}`)}`)
+
+    section('⑤ 反向验证：双写失败**不得连累建档**（用户裁定「选项乙」的硬要求）')
+    // 为什么要专门验这条：2026-09-27 实测过一次**静默丢数据** ——
+    //   `party_tenant.price_track_enabled` 是布尔列却收到整型参数 ⇒ 边写入报错
+    //   ⇒ PostgreSQL 把整个事务打成 aborted ⇒ **同事务里刚 insert 的 biz_party 行一起没了**，
+    //   而接口照样返回 HTTP 200（`data: null`）。也就是说"catch 住异常"根本没兜住这条裁定，
+    //   必须回滚到保存点。这个用例就是钉住它。
+    //
+    // 怎么确定性触发镜像失败（不改一行业务代码、跑完必摘）：给 `party_tenant` 挂一条
+    // **只对新行生效**的 CHECK，让 SALE 边插不进去。`NOT VALID` = 不校验存量行。
+    const R = `${PREFIX}${Date.now()}`
+    const CODE_FAIL = `E2EDWFAIL${Date.now()}`
+    const CODE_OK = `E2EDWOK${Date.now()}`
+    sql(`ALTER TABLE party_tenant ADD CONSTRAINT zz_e2e_probe_no_sale
+         CHECK (direction <> 'SALE') NOT VALID`)
+    try {
+      const r = await req('POST', '/erp/md/customer', {
+        token, body: {
+          partnerCode: CODE_FAIL, partnerName: R + '甲',
+          partnerType: 'customer', partyType: 1, roles: 'CUSTOMER', status: 1,
+        },
+      })
+      ok('建档仍返回 200', r.status === 200, `status=${r.status}`)
+      // ⚠️ 这条是"事务有没有被拖坏"的**直接观测点**：id 为空说明控制器拿到的是 null 实体
+      //    （只剩这一步能证明"事务还活着"，因为响应体本身不带错误信息）。
+      ok('响应里带回了 id（⇒ 事务没被镜像失败拖坏）', r.json?.data?.id != null,
+        `data=${JSON.stringify(r.json?.data)?.slice(0, 120)}`)
+      ok('biz_party **有**这一行（双写失败没有连累建档）',
+        num(`SELECT count(*) FROM biz_party WHERE party_code='${CODE_FAIL}' AND deleted=0`) === 1,
+        `实际 ${num(`SELECT count(*) FROM biz_party WHERE party_code='${CODE_FAIL}' AND deleted=0`)} 行`)
+      ok('party 侧**没有**镜像行（本次双写已整体回滚，符合预期）',
+        num(`SELECT count(*) FROM party WHERE party_code='${CODE_FAIL}'`) === 0,
+        `实际 ${num(`SELECT count(*) FROM party WHERE party_code='${CODE_FAIL}'`)} 行`)
+      ok('缺口可被对账脚本看见（party 行数 < biz_party 未删行数）',
+        num(`SELECT count(*) FROM party`) < num(`SELECT count(*) FROM biz_party WHERE deleted=0`),
+        `party=${num(`SELECT count(*) FROM party`)} vs biz_party=${num(`SELECT count(*) FROM biz_party WHERE deleted=0`)}`)
+    } finally {
+      sql(`ALTER TABLE party_tenant DROP CONSTRAINT IF EXISTS zz_e2e_probe_no_sale`, true)
+    }
+
+    // 约束摘掉后再建一次：证明①失败真的只是那条约束造成的 ②补齐路径是通的
+    const r2 = await req('POST', '/erp/md/customer', {
+      token, body: {
+        partnerCode: CODE_OK, partnerName: R + '乙',
+        partnerType: 'customer', partyType: 1, roles: 'CUSTOMER', status: 1,
+      },
+    })
+    const id2 = r2.json?.data?.id
+    ok('约束摘掉后建档成功且双写补齐（party 行 + SALE 边都在）',
+      id2 != null
+        && num(`SELECT count(*) FROM party WHERE party_code='${CODE_OK}'`) === 1
+        && num(`SELECT count(*) FROM party_tenant WHERE party_id=${id2} AND direction='SALE'`) === 1,
+      `id=${id2}, party=${num(`SELECT count(*) FROM party WHERE party_code='${CODE_OK}'`)}, ` +
+      `边=${id2 == null ? 'n/a' : num(`SELECT count(*) FROM party_tenant WHERE party_id=${id2} AND direction='SALE'`)}`)
   } finally {
     console.log('\n—— 现场还原（探针一律硬删）——')
     cleanup()
