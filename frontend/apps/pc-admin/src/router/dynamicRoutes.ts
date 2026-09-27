@@ -85,15 +85,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   'finance/index': () => import('@/views/finance/index.vue'),
   'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
   'finance/voucher/index': () => import('@/views/finance/voucher/index.vue'),
-  'finance/voucher/VoucherDetail': () => import('@/views/finance/voucher/VoucherDetail.vue'),
   'finance/receivable/index': () => import('@/views/finance/receivable/index.vue'),
   'finance/payable/index': () => import('@/views/finance/payable/index.vue'),
-  'finance/pre-payment/index': () => import('@/views/finance/pre-payment/index.vue'),
   'finance/deposit/index': () => import('@/views/finance/deposit/index.vue'),
   'finance/write-off/index': () => import('@/views/finance/write-off/index.vue'),
   'finance/offset/index': () => import('@/views/finance/offset/index.vue'),
-  'finance/receipt/index': () => import('@/views/finance/receipt/index.vue'),
-  'finance/payment/index': () => import('@/views/finance/payment/index.vue'),
   'notification/index': () => import('@/views/notification/index.vue'),
   'order-center/index': () => import('@/views/order-center/index.vue'),
   'profile/index': () => import('@/views/profile/index.vue'),
@@ -860,19 +856,16 @@ const routeBillTypeMap: Record<string, string> = {
   'finance/deposit/index': '801',
   'erp/finance/receivable': '801',
   'finance/receipt': '801',
-  'finance/receipt/index': '801',
 
   // ── 付款单 (802) ──
   'finance/payable': '802',
   'finance/payable/index': '802',
   'finance/pre-payment': '802',
-  'finance/pre-payment/index': '802',
   'finance/advance-payment': '802',
   'finance/advance-payment/index': '802',
   'finance/advance-payment/form': '802',
   'erp/finance/payable': '802',
   'finance/payment': '802',
-  'finance/payment/index': '802',
 }
 
 /**

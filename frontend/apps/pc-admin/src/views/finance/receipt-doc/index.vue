@@ -243,6 +243,10 @@
                   <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
                   <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">修改</a-button>
                   <a-button v-if="record.status === 0" type="link" size="small" @click="handleConfirm(record)">记账</a-button>
+                  <!-- 「完成」是收款单状态机的最后一步（已核销 6 → 已完成 7，并写资金流水）。
+                       原先只有不可达的 views/finance/receipt/index.vue 提供该入口 ⇒ 在此页面下
+                       单据永远走不到 COMPLETED。此处补齐能力，旧页面方可安全下线。 -->
+                  <a-button v-if="record.status === 6" type="link" size="small" @click="handleComplete(record)">完成</a-button>
                   <a-button
                     v-if="[1, 2, 4, 5].includes(record.status)"
                     type="link"
@@ -746,6 +750,25 @@ function handleConfirm(record: any) {
         message.error(error?.response?.data?.message || '记账失败')
       }
     },
+  })
+}
+
+/** 完成收款：状态机最后一步（已核销 6 → 已完成 7），后端会同时写资金流水。 */
+function handleComplete(record: any) {
+  Modal.confirm({
+    title: '确认完成',
+    content: `确定完成收款单 "${record.receiptNo || ''}" 吗？完成后将计入资金流水且不可再取消。`,
+    okText: '确认完成',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await receiptApi.complete(record.id)
+        message.success('收款已完成')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '完成失败')
+      }
+    }
   })
 }
 
