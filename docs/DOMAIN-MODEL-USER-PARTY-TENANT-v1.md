@@ -315,7 +315,29 @@ party_tenant(
   status INT, effective_from DATE, effective_to DATE, ...
   UNIQUE (tenant_id, party_id, direction) WHERE deleted = 0
 )
+```
 
+> **✅ 已落地形态（2026-09-27 实测；上面是设计草图，两者有差异，以下为准）**
+>
+> | 表 | 迁移 | 落地形态与**与草图的差异** |
+> |---|---|---|
+> | `party` | `V11.497.0` 建 + `V11.506.0` 扩列 | **22 列**（薄主档）：`id tenant_id party_code unified_code party_name short_name company_full_name mnemonic_code party_type legal_person phone email website fax legal_person_phone status remark` + 技术列 5。⚠️ `party_type` 落地是 **INT 枚举**（1 客户 / 2 供应商 / 3 物流 / 4 其他），**不是**草图里那个 `VARCHAR` 的"企业/个体户/个人会员"；`tenant_id` **恒 0**（共享层，§6.5） |
+> | `party_cert` `party_bank` `party_address` | `V11.506.0` 建 + `V11.521.0` 补幂等键 | 草图中**没有这三张**。立它们的原因：A 组 27 列若全塞进 `party` ⇒ 41 列，**超本仓"主表 ≤25 列"规范**，且证件/银行/地址天然是"多张、带有效期 / 多账户 / 分注册营业收货发货"⇒ 拆子表。⚠️ 三张表**刻意没有 `tenant_id`**（它们随系统级的 `party` 走）⇒ 必须登记 `IGNORE_TENANT_TABLES`（见下方"环境级坑"） |
+> | `party_tenant` | `V11.497.0` 建 + `V11.520.0` 补 B 组 | 除草图列外补了 `current_debt credit_days payment_days payment_term_type fixed_credit_day settlement_day promoter_id promoter_name buyer_account customer_source roles category_id warehouse_name last_trade_time default_handler_name`（`handler_id` 更名 `default_handler_id`）。**且逐列钉死了"归哪个方向"**（裁定 ⑲）：`credit_limit`/`current_debt`/`credit_days`/`fixed_credit_day` **只落 SALE 边**；`payment_days`/`fixed_payment_day` **只落 PURCHASE 边**，另一边显式 NULL —— **不是"每条边都照抄"**。`settlement_type` 落地取本模块词表 `'现结'`/`'挂账'`（源是历史两值整数），**与协议侧 `SETTLEMENT_TYPE` 五项枚举不是一套** |
+>
+> **并存期怎么保两边不漂**：`PartyServiceImpl` 覆盖 6 个写方法 → `PartyMirrorWriter`/`PartyMirrorMapper`
+> 双写（含三张子表的 upsert + **清空即软删**）；兜底是幂等对账
+> `tools/sync-party-from-biz-party.cjs`（7 项差额），验收 `tools/verify-party-dual-write.cjs`（35 条）。
+> 完整归位表与逐批状态见 `docs/PHASE-3-5-MIGRATION-PLAN-v1.md` §3.2b~§3.2f。
+>
+> **⚠️ 两个环境级坑（都在这批身上炸过，别重踩）**：
+> ① **双写失败在 PG 上会 abort 整个事务**，"catch 住异常"兜不住"不阻断建档"——实测接口返 200 而
+> `biz_party` 的行没了；正确做法是把双写包进**保存点**（本应用 `JpaTransactionManager` 不支持
+> Spring 的 `createSavepoint`，要用 MyBatis 事务绑定连接上的 JDBC 原生保存点）。
+> ② **没有 `tenant_id` 列的表必须登记 `IGNORE_TENANT_TABLES`**，否则租户拦截器会给 INSERT
+> **自动补一列 `tenant_id`**（`party_cert` 就这么炸过）—— 与 `shop_user`/`party` 同一处置。
+
+```sql
 -- R3 自然人 × 租户（入店注册 + 审核）
 person_tenant(
   id BIGINT PK, person_id BIGINT, tenant_id BIGINT,
@@ -1199,7 +1221,15 @@ F 只能看到"我这单在 B 那边的**进度摘要**"（状态 / 交期 / 发
 > **用户原话**：「**0 号租户是默认共享租户，1 号租户才是系统平台租户**」
 
 **这是一条"地基级"口径**，因为它决定"某一行数据归谁看得见"这件事怎么表达。真库现状与之一致：
-`sys_tenant` 里**没有 0 号行**（只有 `1 = 系统租户 / SYSTEM`）—— 0 是**共享层的哨兵值，不是一个真实租户**。
+**0 是共享层的哨兵值，不是一个可用的真实租户**。
+
+> ⚠️ **2026-09-27 订正一处事实表述**：本节此前写的是「`sys_tenant` 里**没有 0 号行**」——
+> **不准确**。真库（`SELECT id, tenant_code, status, deleted FROM sys_tenant`）里 **0 号行是存在的**：
+> `id=0` / `tenant_code=tenant_mqd4cr9h` / `status=0` / **`deleted=1`** —— 即"注册测试残留"，
+> **已软删**。所以它"看上去不存在"只是因为所有租户列表查询都带 `deleted = 0`。
+> **口径不变**（0 是共享层哨兵、不是可用租户），但"有没有这一行"这件事必须写准：
+> 否则会有人拿"表里没有 0"去反证"共享层不需要哨兵"，或反过来以为 0 号是个能登录的租户。
+> 与 `MASTER_TODO_20260920.md` 的 F-01 条（"租户 0 = `tenant_mqd4cr9h`，status=0 已禁用"）**现已一致**。
 
 | 编号 | 是什么 | 数据长什么样 | 谁能看见 |
 |---|---|---|---|
@@ -1617,7 +1647,7 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 | **0** ✅ | 权限与租户隔离地基 | E-01 鉴权收口 · 模块 entitlement 门 · 租户 fail-closed · `sys_module_permission` | — | — | **已完成** |
 | **1** | **自然人侧收尾（R3）** | `shop_user`（已系统级）· **`shop_user_tenant`（表已建）** · `MallGuestAccess` · `tenant_shop_config.reg_audit_required` · `MallAdminController` 顾客页 | ✅ **五项全部已施工**（2026-09-22/23）：登录**入店校验** · 注册**两分支**（新建系统顾客 / 复用并绑定，**须自证身份**）· 租户**同意/拒绝/默认同意** · **审核改挂关联表** · **启用/停用也下沉到关联表**（`V11.494.0` 加 `shop_user_tenant.enabled`，与准入 `status` **正交**；`shop_user.status` 保留为**平台级**账号开关）。连带修掉三处既有缺陷（`Optional.of(null)` NPE、`shop_user_party_link` 缺登记致登录 500、后台按 `shop_user.tenant_id` 过滤致顾客页恒空）。验收 `tools/verify-mall-shop-entry.cjs` **32/32** | 无 | 低（表已就位） |
 | **2** | **快照规范（U2）**（横切） | `erp_purchase_order` 已有部分名称快照 | ✅ **规范已定稿 = §11.6**（清单/列名/表形态/业务日期/两张存量清单/登记表/`tools/audit-snapshot-spec.cjs` 门禁）。**仍待**：统一快照写入工具（等**第一张新单据**落地时一并做 —— 现在没有消费方，先造工具就是过度设计）；**新单据立即执行**，存量不回改 | 无 | 低，但**必须早做**（晚做要全表回填） |
-| **3** | **往来单位升系统级（R2 拆两层 + R1 转正）** | `biz_party`(152) · `biz_party_contact`(72) · `shop_user_party_link`(壳) · `sys_user_tenant`(形状可抄) | `party`(unified_code 唯一) · `party_tenant`(按 direction) · `person_party` · `party_alias`/`party_change_log`/`party_relation`/`merge_request` | 阶段 2 | **🔴 最高**：动 ERP 大量读取路径 ⇒ 建议**并存期**（视图/双读）。**施工方案已出：`docs/PHASE-3-5-MIGRATION-PLAN-v1.md`**（实测：未删仅 **19 行**、`unified_code` **全空**、引用面 **100 张表**；第一步是**引用面判定**而非建表；**"自动归并"当前不可执行**，见该文 §3.4） |
+| **3** | **往来单位升系统级（R2 拆两层 + R1 转正）** | `biz_party`(152) · `biz_party_contact`(72) · `shop_user_party_link`(壳) · `sys_user_tenant`(形状可抄) | `party`(unified_code 唯一) · `party_tenant`(按 direction) · `person_party` · `party_alias`/`party_change_log`/`party_relation`/`merge_request` | 阶段 2 | **🔴 最高**：动 ERP 大量读取路径 ⇒ 建议**并存期**（视图/双读）。**施工方案已出：`docs/PHASE-3-5-MIGRATION-PLAN-v1.md`**（实测：未删仅 **19 行**、`unified_code` **全空**、引用面 **100 张表**；第一步是**引用面判定**而非建表；**"自动归并"当前不可执行**，见该文 §3.4）<br>**进展（2026-09-27，v3.25）**：✅ 批 1（`V11.506.0` 建 `party` 22 列 + 三张子表）· ✅ 批 2（`V11.520.0` `party_tenant` B 组 + 方向归属）· ✅ 批 2b（`V11.521.0` 子表幂等键 + 纳入双写）· ✅ **双写跑通并验收 35/35**、对账 7 项差额 0 · ✅ 切读前置收敛（4 处 `partner_id` 结案，只剩 `erp_capital_flow.party_id` 待按 `partyType` 分派）· 🟡 批 3 会员列**部分阻塞**（12 列只有 4 列能停，见方案 §3.2f）· 🔴 批 4 期初余额**待与财务对齐** · ⏳ 读路径切换**未开始**（待批 3/4 定案） |
 | **4** | **开店与租户主体（R4）** | `TenantRegistrationController`（申请→审批→初始化）· `sys_tenant` | `tenant_owner`（一照一店 + `multi_store_exempt` + **法人授权留痕**） | 阶段 3 | 中；⚠️ 该接口**不在白名单**（缺陷表已登记） |
 | **5** | **单据四主体 + 角色** | 全部业务单据表 + 名称快照习惯 | `seller_party_id`/`buyer_party_id`/`person_id`/`acting_party_id` · `trade_party_role`（+ U4 项目维度预留） | 阶段 2·3 | 中（改动面广但机械）。**实测面：64 张表含 `customer_id`/`supplier_id`**；⚠️ **必须与快照列同一次迁移加**（否则就是 §11.6 说的"晚做要全表回填"，这次要回填 64 张）—— 方案见 `docs/PHASE-3-5-MIGRATION-PLAN-v1.md` §三 |
 | **6** | **跨租户协同（推单）S6~S9** | `wms_event_outbox`(形状) · `crm_erp_customer_mapping`(先例) | `inter_tenant_doc_link` · 投递/回执/**验签**/幂等 · 补偿对账(T1-4) · **可见性矩阵(T1-3)** | 阶段 5 | 🔴 高；现有回调**无验签，不可照抄** |
@@ -2270,3 +2300,4 @@ agreement_fulfillment_mode 协议约定的**履约方式集合**（多行并存�
 | 2026-09-23 | v3.22 | **新增 §6.5「租户编号口径」（2026-09-23 用户裁定）：`0 = 默认共享租户`、`1 = 系统平台租户`** —— 地基级口径，决定"某一行数据归谁看得见"怎么表达。真库与之一致：`sys_tenant` 里**没有 0 号行**（只有 `1 = 系统租户/SYSTEM`），0 是**共享层哨兵**、**不是真实租户**。四条推论：① **`tenant_id=0` ≠ 平台专属**（读成平台会把共享数据当平台私有）；② **平台专属能力归租户 1**（`system:*`、系统模块、平台协议写权限），本轮 `agreement:platform:*` 即该口径的现成实现；③ **普通租户看得见 `tenant_id=0` 的数据**（"共享"的本义），要防的是"看见别的**租户**的数据"；④ 全文所有"系统级/平台级对象"表述按本条重读——协议主档 `tenant_id` 恒 0 的准确说法是「**共享层**对象 + 可见性由两端**显式判定**」，登记进 `IGNORE_TENANT_TABLES` 的表**不等于**"平台私有表"，而是「**共享层表**：行不按租户切分」。**连带作废** MASTER_TODO §4 第 1 条的旧建议（"0=平台全局 + 新增 `is_global` 列"）——不需要那个列，"共享"一词已说清 |
 | 2026-09-23 | v3.23 | **补上装配门禁的 mapper 盲区 + 拍板事项落地**。① `ComponentScanCoverageTest` 新增 `allMapperInterfacesAreMapperScanned`：**从 `@MapperScan` 注解本身读**包模式（不写死副本，否则门禁会退化）；并修掉扫描器**跳过接口**的缺陷（父类默认要求 `isConcrete()`，控制器都是具体类所以过去从没暴露）。**首次运行即查出真违规**：`cn.aiedge.storage.permission.FilePermissionMapper` —— 同模块的 `storage.mapper.FileInfoMapper` 因通配能注册、它不能，**将来谁把 storage 接进 `scanBasePackages`，`FilePermissionService` 立刻起不来**；已按门禁给的首选修法**移包**到 `cn.aiedge.storage.mapper`（门禁 4/4 绿）。② 拍板落地：**§6.5 租户编号口径**（0=默认共享租户 / 1=系统平台租户，旧建议"0=平台全局 + `is_global` 列"作废）· 平台专属码机制直接复用 `agreement:platform:*` · 文件访问**不接受**"UUID 即权限"（路径加租户层级）· 退货**一申请一单**（+自动生成草稿退货单）· DMS 结算**在范围内**（原建议已过期）· 总账**以凭证重算**且统一"凭证→总账"单向派生 · 应收/应付**挂菜单** · 往来单位三页面**收敛**。③ 三条口径小项定案：货到付款**取业务日** · 固定账期日**不接** · 档案缺天数**不拒单**。④ 悬空/无明细数据核实：24 张无明细销售单现**仅剩 1 张**（取消态零额测试单，**不补数据**——宁可留空也不编）· 22 条悬空 `order_id` 现为 **0** · DMS 24 条悬空 `source_bill_no` = `XSCKD-E2E-*` **确认 E2E 造数** |
 | 2026-09-23 | v3.24 | **阶段 3+5 施工方案与回滚预案（D1(c) 产出）** ⇒ 新增 `docs/PHASE-3-5-MIGRATION-PLAN-v1.md` 并从 §11.3 阶段 3/5 两行链过去。方案的四个关键结论：① **前置事实实测推翻了一处执行前提** —— `biz_party` 未删只有 **19 行**（133 行是软删残留），且 **`unified_code` 152 行全为空** ⇒ **唯一合法识别键（信用代码）在存量里根本没被填过**，而按名称归并是裁定④明令禁止的 ⇒ **"自动归并即可"（裁定②的前提）当前不可执行**，给了三条出路并推荐 **I：先一照一档地搬、归并留给 `merge_request` 流程**；② **阶段 3 第一步不是建表，是"引用面判定"**（引用面 100 张表，其中 `partner_id` 25 张**未必指向 `biz_party.id`**，而本仓几乎没有外键 ⇒ 按列名猜引用关系=改错数据且不可逆）⇒ 产出物 `refsurface.csv` + 三条并证判定法；③ 并存期三方案取 **B（新增表 + 双写 + 读走视图）**，因为视图投影（A）解不了病根、直接改表（C）不可回滚；④ **不可逆操作清单**（删列/删表/删归并行）一律排最后、**单独一次发布**，此前每步都是"只加不删 + 双写 + 切读"，随时可退；⑤ 阶段 5 强调**与快照列同批加**（64 张表，拆两次就是 64 张表的二次回填） |
+| 2026-09-27 | v3.25 | **阶段 3 批 1/2/2b 落地 + 双写真正跑通**（上文 §3.4.2 下方"已落地形态"表即本条的产物）。① **批 1**（`V11.506.0`）：`party` 扩到 22 列 + 新建 `party_cert`/`party_bank`/`party_address` 三张子表 —— 先拆子表再扩列，是为了不超"主表 ≤25 列"规范、不把 `biz_party` 的上帝表原样搬家；② **批 2**（`V11.520.0`）：`party_tenant` 补 B 组 16 列并**逐列钉死方向归属**（⑲：`credit_limit`/`current_debt`/`credit_days`/`fixed_credit_day` 只落 SALE 边、`payment_days`/`fixed_payment_day` 只落 PURCHASE 边，另一边显式 NULL；迁移自检 + 真机验收两处机检"方向纯度"）；`settlement_type` 明确取本模块词表 `'现结'`/`'挂账'`，**与协议侧五项枚举不是一套**；③ **批 2b**（`V11.521.0`）：三张子表补**幂等唯一键**（与批 1 回填的行形状一一对应）并纳入双写，且**源列被清空即软删**（只 upsert 不软删会留下陈旧账户，而这类"多出来的"漂移对账脚本看不见）；④ **双写真正跑通**：`PartyServiceImpl` 覆盖 6 个写方法 → `PartyMirrorWriter`；⚠️ 本轮实测定性了一条**很贵的语义**——PG 里一条语句报错会 abort 整个事务，**"catch 住异常"兜不住"不阻断建档"**（接口返 200 而 `biz_party` 的行被静默回滚）⇒ 改用**保存点**隔离（本应用 `JpaTransactionManager` 不支持 Spring 的 `createSavepoint`，走 MyBatis 事务绑定连接上的 JDBC 原生保存点）；⑤ ⚠️ **新表若没有 `tenant_id` 列，必须登记 `IGNORE_TENANT_TABLES`**：否则租户拦截器会给 INSERT **自动补一列 `tenant_id`**（`party_cert` 实测）—— 这类坑已咬 4 次（`shop_user`/`shop_user_party_link`/`party`/三张子表）；⑥ **切读前置收敛**：`refsurface.csv` 里 4 处"待人工确认"的 `partner_id` **全部用代码证据结案为 `biz_party`**（"样本太少"不再是障碍），**只剩 `erp_capital_flow.party_id` 是"待按 `partyType` 分派"的多态引用**；⑦ **批 3 判定为"做不了"并给出逐列依据**（§3.2f）：12 个会员列里只有 4 列能停，其余 8 列有业务读方（尤其 `points` 是零售/商城的**积分余额权威值**）⇒ 4 张 `member_card_no` 已导出留档（`docs/archive/`），停写待定新归属 |
