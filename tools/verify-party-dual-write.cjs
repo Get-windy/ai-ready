@@ -418,6 +418,29 @@ function cleanup() {
     ok('biz_party 自己也软删了',
       num(`SELECT count(*) FROM biz_party WHERE id=${id8} AND deleted=0`) === 0,
       `未删=${num(`SELECT count(*) FROM biz_party WHERE id=${id8} AND deleted=0`)}`)
+
+    section('⑨ 角色变了：不再适用的方向必须**软删**（同属"写≠删"不对称）')
+    // ⑬ 裁定"角色可以并存"，同样意味着**角色可以变**（客户 → 供应商）。
+    // 只 upsert 适用方向、不清理旧方向的话，会留下一条"曾经是客户"的陈旧 SALE 边 ——
+    // 而它**对账脚本看不见**（脚本只数"缺边"、不数"多边"）⇒ 切读后这个主体会同时是客户和供应商。
+    const R9 = `${PREFIX}${Date.now()}`
+    const CODE_ROLE = `E2EDWROLE${Date.now()}`
+    const r9 = await req('POST', '/erp/md/customer', {
+      token, body: { partnerCode: CODE_ROLE, partnerName: R9 + '转', partnerType: 'customer', roles: 'CUSTOMER' },
+    })
+    const id9 = r9.json?.data?.id
+    const edge9 = (dir, del) =>
+      num(`SELECT count(*) FROM party_tenant WHERE party_id=${id9} AND direction='${dir}' AND deleted=${del}`)
+    ok('建时是客户 ⇒ SALE 边在、PURCHASE 边不在', edge9('SALE', 0) === 1 && edge9('PURCHASE', 0) === 0,
+      `SALE=${edge9('SALE', 0)}, PURCHASE=${edge9('PURCHASE', 0)}`)
+
+    const conv = await req('PUT', `/erp/md/customer/${id9}`, {
+      token, body: { partnerType: 'supplier', roles: 'SUPPLIER' },
+    })
+    ok('改类型成功（HTTP 200）', conv.status === 200, `status=${conv.status}`)
+    ok('改成供应商后：PURCHASE 边在、**SALE 边被软删**（不留"曾经是客户"的陈旧边）',
+      edge9('PURCHASE', 0) === 1 && edge9('SALE', 0) === 0 && edge9('SALE', 1) === 1,
+      `SALE(未删/已删)=${edge9('SALE', 0)}/${edge9('SALE', 1)}, PURCHASE(未删)=${edge9('PURCHASE', 0)}`)
   } finally {
     console.log('\n—— 现场还原（探针一律硬删）——')
     cleanup()

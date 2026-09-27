@@ -140,6 +140,21 @@ public interface PartyMirrorMapper {
             + "WHERE party_id = #{partyId} AND deleted = 0")
     int softDeleteEdges(@Param("partyId") Long partyId);
 
+    /**
+     * 软删某主体的**某一个方向**的边 —— 用于"这个方向不再适用"（⑬ 角色可以变）。
+     *
+     * <p>⚠️ 这条是**必须**有的：只 upsert 适用方向、不清理不再适用的方向，
+     * 就会出现"客户改成供应商之后，SALE 边还挂着 `deleted = 0`"的**陈旧边** ——
+     * 而这类"**多出来的**"漂移**对账脚本看不见**（它只数"缺贸易边"，不数"多出来的边"），
+     * 切读之后这个主体会被当成"既是客户又是供应商"。同一类"写≠删"不对称本轮已踩两次
+     * （另一次是子表：见 `PartyMirrorWriter.onDelete`）。</p>
+     */
+    @Update("UPDATE party_tenant SET deleted = 1, update_time = now() "
+            + "WHERE tenant_id = #{tenantId} AND party_id = #{partyId} "
+            + "AND direction = #{direction} AND deleted = 0")
+    int softDeleteEdge(@Param("tenantId") Long tenantId, @Param("partyId") Long partyId,
+                       @Param("direction") String direction);
+
     // ══════════════════ 三张子表（批 2b / `V11.521.0`） ══════════════════
     //
     // ⚠️ 为什么子表也要双写：批 1 就把它们建好并回填了，但**双写没覆盖** ⇒ 客户表单里

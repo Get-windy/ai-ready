@@ -123,6 +123,18 @@ function gap() {
                         JOIN biz_party b ON b.id = t.party_id
                        WHERE t.deleted = 0 AND b.deleted = 0
                          AND t.roles IS NULL AND b.roles IS NOT NULL`),
+    // ⚠️ "多出来的边"也要数：角色会变（客户改成供应商），历史版本的双写只 upsert 适用方向、
+    //    不清理旧方向 ⇒ 会留下"曾经是客户"的陈旧 SALE 边。这类漂移**只数"缺"是看不见的**。
+    //    判据与 `PartyMirrorWriter.directionsOf` 一致：SALE 要 roles 含 CUSTOMER；
+    //    PURCHASE 要 roles 含 SUPPLIER 或 party_type = 2。（用 COALESCE 避开 NULL LIKE 的三值逻辑）
+    多余贸易边: num(`SELECT count(*) FROM party_tenant t
+                        JOIN biz_party b ON b.id = t.party_id AND b.tenant_id = t.tenant_id
+                       WHERE t.deleted = 0 AND b.deleted = 0
+                         AND ((t.direction = 'SALE'
+                               AND COALESCE(b.roles, '') NOT LIKE '%CUSTOMER%')
+                           OR (t.direction = 'PURCHASE'
+                               AND COALESCE(b.roles, '') NOT LIKE '%SUPPLIER%'
+                               AND COALESCE(b.party_type, 0) <> 2))`),
     子表缺行: num(`SELECT
         (SELECT count(*) FROM biz_party b WHERE b.deleted = 0
            AND btrim(coalesce(b.business_license, '')) <> ''
@@ -145,7 +157,8 @@ function gap() {
 }
 
 const clean = (n) => n === 0
-const allClean = (g) => clean(g.未进新表) && clean(g.缺贸易边) && clean(g.边缺商务条件) && clean(g.子表缺行)
+const allClean = (g) => clean(g.未进新表) && clean(g.缺贸易边) && clean(g.边缺商务条件)
+  && clean(g.子表缺行) && clean(g.多余贸易边)
 
 // ─────────────────────────── 补齐 ───────────────────────────
 
@@ -171,7 +184,20 @@ function backfill() {
                           WHERE t.party_id = b.id AND t.tenant_id = b.tenant_id
                             AND t.direction = d.direction AND t.deleted = 0)`)
 
-  // ③ 子表：证件 执照 / 税务
+  // ②b 清掉**不再适用**的方向的边（角色变了：客户 → 供应商）
+  //     ⚠️ 与 `PartyMirrorWriter.onWrite` 的反向清理同口径；漏了这一步，对账脚本自己
+  //     就会把"多余的边"永久留在库里（因为它默认只补缺、不删多）。
+  sql(`UPDATE party_tenant t SET deleted = 1, update_time = now()
+       FROM biz_party b
+       WHERE t.party_id = b.id AND t.tenant_id = b.tenant_id
+         AND t.deleted = 0 AND b.deleted = 0
+         AND ((t.direction = 'SALE'
+               AND COALESCE(b.roles, '') NOT LIKE '%CUSTOMER%')
+           OR (t.direction = 'PURCHASE'
+               AND COALESCE(b.roles, '') NOT LIKE '%SUPPLIER%'
+               AND COALESCE(b.party_type, 0) <> 2))`)
+
+  // ③ 子表：证件 —— 执照 / 税务各一条
   sql(`INSERT INTO party_cert (party_id, cert_type, cert_no, valid_to, remark,
                                create_time, update_time, deleted)
        SELECT b.id, 'BUSINESS_LICENSE', b.business_license, b.business_license_expiry, '对账补齐',
@@ -306,6 +332,7 @@ function refresh() {
     const bad = []
     if (!clean(after.未进新表)) bad.push(`未进新表 ${after.未进新表}`)
     if (!clean(after.缺贸易边)) bad.push(`缺贸易边 ${after.缺贸易边}`)
+    if (!clean(after.多余贸易边)) bad.push(`多余贸易边 ${after.多余贸易边}`)
     if (!clean(after.边缺商务条件)) bad.push(`边缺商务条件 ${after.边缺商务条件}`)
     if (!clean(after.子表缺行)) bad.push(`子表缺行 ${after.子表缺行}`)
     if (bad.length) {

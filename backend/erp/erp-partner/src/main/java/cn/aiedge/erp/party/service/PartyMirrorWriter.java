@@ -57,6 +57,9 @@ public class PartyMirrorWriter {
     /** 证件类型：税务登记 */
     private static final String CERT_TAX = "TAX";
 
+    /** 全部方向 —— 用来把"不再适用的方向"清掉（见 {@code onWrite} 里的反向清理）。 */
+    private static final List<String> ALL_DIRECTIONS = List.of(DIRECTION_SALE, DIRECTION_PURCHASE);
+
     private final PartyMirrorMapper mirrorMapper;
 
     /**
@@ -119,6 +122,15 @@ public class PartyMirrorWriter {
             }
             for (String direction : directions) {
                 mirrorMapper.upsertEdge(tenantId, p.getId(), direction, p);
+            }
+            // ⚠️ **反向也要做**：不再适用的方向必须软删。⑬ 裁定"角色可以并存"，同样意味着
+            //    **角色可以变**（客户改成供应商）。只 upsert 不清理的话，会留下一条
+            //    "曾经是客户"的陈旧 SALE 边 —— 而它**对账脚本看不见**（脚本只数"缺边"、不数"多边"），
+            //    切读之后这个主体会被当成"既是客户又是供应商"。
+            for (String direction : ALL_DIRECTIONS) {
+                if (!directions.contains(direction)) {
+                    mirrorMapper.softDeleteEdge(tenantId, p.getId(), direction);
+                }
             }
         });
     }
