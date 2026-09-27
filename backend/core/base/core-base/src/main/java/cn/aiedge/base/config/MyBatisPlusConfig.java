@@ -60,6 +60,15 @@ public class MyBatisPlusConfig {
         //    `TenantRegistrationService`（注册）照常跨租户可查；认证之后的常规查询则自动带上 tenant_id。
         //    **另**：平台超管（SUPER_ADMIN）经 `isTenantScopeExempt()` 整体豁免，保持全局视野（见该方法注释）。
         "sys_login_log",          // 登录日志表
+        // 系统操作日志（系统 → 日志管理 → 操作日志）与网关访问日志（网关 → 日志 → 访问日志）：
+        // ⚠️ 两张表**均无 tenant_id 列**（真库 information_schema 已核，2026-09-27），
+        // 它们是**纯技术日志**（一次接口调用 / 一次网关转发），行的归属是「操作者 / 请求」而非「租户」，
+        // 本就不该按租户切分 ⇒ 不是"漏加列"，与上面的 `sys_login_log` 同处置。
+        // 不忽略时：拦截器给 SELECT 注入 `AND tenant_id = <会话租户>`（字段不存在 ⇒ SQL 报错），
+        // 给 INSERT **自动补一列** tenant_id（同样字段不存在，报错后**整个事务静默回滚**）——
+        // 后果不只是"日志写不进去"，还会连累同事务里的业务写入。
+        "sys_system_log",
+        "gateway_log",
         "sys_region",             // 行政区划（省/市/区县，全系统公共数据，无tenant_id列）
         "flyway_schema_history",  // Flyway迁移历史表
         "sys_print_chain_item",   // 打印链路项（无tenant_id列）

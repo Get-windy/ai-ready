@@ -11,22 +11,22 @@
 #     (B) 它本该按租户切分、只是漏了列 ⇒ **那是数据模型缺口**，补一个 tenant_id 列（迁移）。
 #     ⚠️ 别图省事一律走 (A)：那会把"本该隔离的数据"变成"所有租户可见"。
 #
-# 实测（2026-09-27）：下面 16 张**当前都是 0 行** ⇒ 还没有数据受损，属**潜伏**状态；
-# 但只要相应端点被租户会话走到就会 500/静默回滚。
+# 进展（2026-09-27）：原报出的 16 张已逐张判定完毕 ——
+#   · 9 张数据模型缺口 → 补列回填，见 V11.524.0__Add_Tenant_Id_To_Missing_Business_Tables.sql
+#     （erp_cost_sharing_expense_item / erp_purchase_exchange_approval_record / fin_reconciliation_item /
+#       kb_document / kb_document_chunk / report_schedule_log / supplier_notification_config /
+#       supplier_notification_record / sys_file_permission）；
+#   · 2 张纯技术日志 → 登记忽略清单（sys_system_log / gateway_log）；
+#   · 余下 5 张定价引擎相关（见下）**另案清理**。
 # 判定完一张就删一行；**门禁对新增行会直接判违规**（CI/评审里拦下来）。
-erp_cost_sharing_expense_item
+#
+# ⚠️ 下面 5 张**是定价引擎的死代码 / 内存对象，另案清理**：它们只被 `PriceEngineServiceImpl`
+#    当**内存对象**用、**无 Mapper 注入点**，属"实体误标 `@TableName`"（表在库里，但运行期
+#    不经过 MyBatis 拦截器）⇒ "无 tenant_id 列"不会真的报错。
+#    ⚠️ 因此**不要**图省事把它们一律按 (A) 判成"共享/系统级"登记进忽略清单 ——
+#    正确处置是连同实体上的 `@TableName` 一起清理（另一案），本轮只保留基线行 + 本条说明。
 erp_discount_rule
 erp_price_calculation_request
 erp_price_calculation_result
 erp_pricing_rule
 erp_pricing_strategy
-erp_purchase_exchange_approval_record
-fin_reconciliation_item
-gateway_log
-kb_document
-kb_document_chunk
-report_schedule_log
-supplier_notification_config
-supplier_notification_record
-sys_file_permission
-sys_system_log
