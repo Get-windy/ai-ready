@@ -496,6 +496,7 @@ import type { MenuInfo } from '@/api/menu'
 import { useTabsStore } from '@/stores/tabs'
 import { useRecentStore } from '@/stores/recent'
 import { userApi, type TenantInfo } from '@/api/user'
+import { resetDynamicRoutesLoaded } from '@/router/guard'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import GlobalSearch from '@/components/GlobalSearch/GlobalSearch.vue'
 import TabsView from '@/components/TabsView/TabsView.vue'
@@ -846,23 +847,34 @@ function formatTime(timeStr: string): string {
   return `${date.getFullYear()}/${d}`
 }
 
-// 切换租户
+// 切换企业
+// 必须调后端改**会话租户**：只改 localStorage 会让后续请求的 X-Tenant-Id
+// 与会话租户不一致，被 TenantHeaderInterceptor 直接 403（切完系统就不可用了）。
 const handleTenantSwitch = async (tenantId: number) => {
   const target = userStore.userTenants.find(t => t.id === tenantId)
-  if (!target) return
+  if (!target || tenantId === userStore.tenantId) return
   tenantSwitching.value = true
   try {
-    await userApi.getTenants()
-    userStore.tenantId = tenantId
-    localStorage.setItem('tenantId', String(tenantId))
-    localStorage.setItem('tenantName', target.tenantName)
-    userStore.tenantName = target.tenantName
+    const res = await userApi.switchTenant(tenantId) as any
+
+    // 会话已切到新企业，同步本地状态与持久化
+    const newTenants = res?.tenants || userStore.userTenants
+    userStore.tenantId = res?.tenantId ?? tenantId
+    userStore.tenantName = res?.tenantName || target.tenantName
+    userStore.userTenants = newTenants
+    localStorage.setItem('tenantId', String(userStore.tenantId))
+    localStorage.setItem('tenantName', userStore.tenantName)
+    localStorage.setItem('userTenants', JSON.stringify(newTenants))
+
+    // 角色/权限/菜单都随企业变：让路由守卫重新加载动态路由，再拉一次用户信息
+    resetDynamicRoutesLoaded()
     await userStore.getUserInfo()
-    message.success('已切换到: ' + target.tenantName)
+
+    message.success('已切换到「' + userStore.tenantName + '」')
     router.push('/dashboard')
   } catch (error) {
-    console.error('切换租户失败:', error)
-    message.error('切换租户失败，请重试')
+    console.error('切换企业失败:', error)
+    message.error('切换企业失败，请重试')
   } finally {
     tenantSwitching.value = false
   }

@@ -89,24 +89,35 @@ public class TenantRegistrationService {
             throw BusinessException.badRequest("管理员用户名已被占用");
         }
 
-        // 4. 校验管理员邮箱唯一性（全局）
-        List<SysUser> emailUsers = sysUserMapper.selectList(
-                new LambdaQueryWrapper<SysUser>()
-                        .eq(SysUser::getEmail, dto.adminEmail())
-                        .last("LIMIT 1")
-        );
-        if (!emailUsers.isEmpty()) {
-            throw BusinessException.badRequest("管理员邮箱已被占用");
+        // 4. 校验管理员手机号唯一性（全局）
+        //    手机号是国内登录的首选标识，必须能唯一定位账号。sys_user.phone 目前**无唯一索引**，
+        //    此处先做应用层查重；并发下仍可能撞号，登录侧 findByPhoneForLogin 遇到歧义会明确
+        //    报错让用户改用用户名登录，而不是随机挑一个账号把人登错。
+        List<SysUser> phoneUsers = sysUserMapper.selectListByPhoneForLogin(dto.adminPhone());
+        if (!phoneUsers.isEmpty()) {
+            throw BusinessException.badRequest("管理员手机号已被占用");
         }
 
-        // 5. 校验管理员密码复杂度
+        // 5. 校验管理员邮箱唯一性（全局）—— 邮箱已改为选填，仅在填写时校验
+        if (dto.adminEmail() != null && !dto.adminEmail().isBlank()) {
+            List<SysUser> emailUsers = sysUserMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>()
+                            .eq(SysUser::getEmail, dto.adminEmail())
+                            .last("LIMIT 1")
+            );
+            if (!emailUsers.isEmpty()) {
+                throw BusinessException.badRequest("管理员邮箱已被占用");
+            }
+        }
+
+        // 6. 校验管理员密码复杂度
         String passwordError = PasswordPolicy.validate(dto.adminPassword());
         if (passwordError != null) {
             throw BusinessException.badRequest("管理员" + passwordError
                     + "（" + PasswordPolicy.getStrengthDescription() + "）");
         }
 
-        // 6. 创建租户（待审核，status=0 表示未启用，待审批后置为 1）
+        // 7. 创建租户（待审核，status=0 表示未启用，待审批后置为 1）
         SysTenant tenant = new SysTenant()
                 .setTenantName(dto.tenantName())
                 .setTenantCode(dto.tenantCode())
@@ -118,12 +129,13 @@ public class TenantRegistrationService {
                 .setDeleted(0);
         tenantMapper.insert(tenant);
 
-        // 6. 创建管理员用户（禁用状态，审批后启用）
+        // 8. 创建管理员用户（禁用状态，审批后启用）
         SysUser user = new SysUser()
                 .setTenantId(tenant.getId())
                 .setUsername(dto.adminUsername())
                 .setPassword(BCrypt.hashpw(dto.adminPassword(), BCrypt.gensalt()))
                 .setNickname(dto.contactPerson())
+                .setPhone(dto.adminPhone())                    // 登录首选标识
                 .setEmail(dto.adminEmail())
                 .setUserType(1)                                // 企业用户
                 .setStatus(0)                                  // 禁用（待审批后启用）
@@ -133,7 +145,7 @@ public class TenantRegistrationService {
                 .setUpdateTime(LocalDateTime.now());
         sysUserMapper.insert(user);
 
-        // 7. 关联用户与租户
+        // 9. 关联用户与租户
         SysUserTenant userTenant = new SysUserTenant()
                 .setUserId(user.getId())
                 .setTenantId(tenant.getId())
@@ -143,7 +155,7 @@ public class TenantRegistrationService {
                 .setUpdateTime(LocalDateTime.now());
         sysUserTenantMapper.insert(userTenant);
 
-        // 8. 更新 tenant.adminUserId
+        // 10. 更新 tenant.adminUserId
         tenant.setAdminUserId(user.getId());
         tenantMapper.updateById(tenant);
 

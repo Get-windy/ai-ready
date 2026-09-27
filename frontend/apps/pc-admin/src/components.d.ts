@@ -125,6 +125,7 @@ declare module 'vue' {
     SkeletonDashboard: typeof import('./components/Skeleton/SkeletonDashboard.vue')['default']
     SkeletonForm: typeof import('./components/Skeleton/SkeletonForm.vue')['default']
     SkeletonTable: typeof import('./components/Skeleton/SkeletonTable.vue')['default']
+    SocialBindingCard: typeof import('./components/SocialBindingCard/SocialBindingCard.vue')['default']
     StatCard: typeof import('./components/business/StatCard/StatCard.vue')['default']
     StatusTag: typeof import('./components/StatusTag/StatusTag.vue')['default']
     SubjectEditorModal: typeof import('./components/business/SubjectEditorModal/index.vue')['default']

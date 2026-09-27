@@ -92,37 +92,81 @@ export const useUserStore = defineStore('user', {
       destroySseClient()
     },
 
+    /**
+     * 登录第一步：只校验身份（用户名 + 密码 + 验证码）。
+     *
+     * 返回 `needSelectTenant: true` 表示该账号关联多个企业，此时**尚未签发 token**，
+     * 需由登录页弹出企业选择框，再用 `selectTenant` 完成登录。
+     * 企业在候选列表里的顺序即推荐顺序（上次登录的排第一）。
+     */
     async login(loginForm: LoginForm) {
-      try {
-        // 登录前先清除旧的登录状态，避免残留token干扰
-        this.token = ''
-        localStorage.removeItem('token')
-        localStorage.removeItem('tenantId')
-        localStorage.removeItem('tenantName')
-        localStorage.removeItem('userTenants')
+      // 登录前先清除旧的登录状态，避免残留token干扰
+      this.clearLoginState()
 
-        const res = await userApi.login(loginForm) as any
-        if (res && res.token) {
-          this.token = res.token
-          this.userId = res.userId || 0
-          this.tenantId = res.tenantId || 1
-          this.tenantName = res.tenantName || ''
-          this.userTenants = res.tenants || []
-          // 立即同步存储token（localStorage.setItem是同步操作）
-          localStorage.setItem('token', res.token)
-          localStorage.setItem('tenantId', String(res.tenantId || 1))
-          localStorage.setItem('tenantName', res.tenantName || '')
-          localStorage.setItem('userTenants', JSON.stringify(res.tenants || []))
-          console.info('[登录] Token已存储:', res.token.substring(0, 8) + '...')
-          // 登录成功后建立 SSE 通知连接
-          this.connectSse()
-          return true
+      const res = await userApi.login(loginForm) as any
+      if (res?.needSelectTenant) {
+        return {
+          needSelectTenant: true,
+          selectToken: res.selectToken as string,
+          tenants: res.tenants || [],
+          lastLoginTenantId: res.lastLoginTenantId as number | undefined
         }
-        return false
-      } catch (error) {
-        console.error('登录失败:', error)
-        return false
       }
+      this.applyLoginResult(res)
+      return { needSelectTenant: false }
+    },
+
+    /** 手机号验证码登录（同样支持单/多企业分流） */
+    async loginBySms(form: { phone: string; smsCode: string }) {
+      this.clearLoginState()
+
+      const res = await userApi.loginBySms(form) as any
+      if (res?.needSelectTenant) {
+        return {
+          needSelectTenant: true,
+          selectToken: res.selectToken as string,
+          tenants: res.tenants || [],
+          lastLoginTenantId: res.lastLoginTenantId as number | undefined
+        }
+      }
+      this.applyLoginResult(res)
+      return { needSelectTenant: false }
+    },
+
+    /** 登录第二步：选定企业后完成登录（会话随之绑定到该企业） */
+    async selectTenant(selectToken: string, tenantId: number) {
+      const res = await userApi.selectTenant({ selectToken, tenantId }) as any
+      this.applyLoginResult(res)
+    },
+
+    /** 登录成功后落地状态（token / 当前企业 / 企业候选列表） */
+    applyLoginResult(res: any) {
+      this.token = res.token
+      this.userId = res.userId || 0
+      this.tenantId = res.tenantId
+      this.tenantName = res.tenantName || ''
+      this.userTenants = res.tenants || []
+      // 立即同步存储（localStorage.setItem 是同步操作）
+      localStorage.setItem('token', res.token)
+      localStorage.setItem('tenantId', String(res.tenantId))
+      localStorage.setItem('tenantName', res.tenantName || '')
+      localStorage.setItem('userTenants', JSON.stringify(res.tenants || []))
+      console.info('[登录] Token已存储:', String(res.token).substring(0, 8) + '...')
+      // 登录成功后建立 SSE 通知连接
+      this.connectSse()
+    },
+
+    /** 清空登录态（登录前 / 登出时） */
+    clearLoginState() {
+      this.token = ''
+      this.userId = 0
+      this.tenantId = 1
+      this.tenantName = ''
+      this.userTenants = []
+      localStorage.removeItem('token')
+      localStorage.removeItem('tenantId')
+      localStorage.removeItem('tenantName')
+      localStorage.removeItem('userTenants')
     },
 
     async getUserInfo() {

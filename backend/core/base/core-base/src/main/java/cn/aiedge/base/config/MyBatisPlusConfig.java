@@ -72,6 +72,11 @@ public class MyBatisPlusConfig {
         "sys_region",             // 行政区划（省/市/区县，全系统公共数据，无tenant_id列）
         "flyway_schema_history",  // Flyway迁移历史表
         "sys_print_chain_item",   // 打印链路项（无tenant_id列）
+        // 用户三方账号绑定（钉钉/企业微信/飞书）：**无 tenant_id 列**。
+        // 归属是「用户」而非「租户」—— 一个用户可能属于多个企业，绑定关系跟着人走；
+        // 且三方登录发生在认证之前（尚未确定企业），本就必须跨租户查。
+        // 不忽略时：INSERT 会被自动补一列不存在的 tenant_id，报错后整个事务静默回滚。
+        "sys_user_social_binding",
         "sys_screenshot_task",    // 截图任务（无tenant_id列）
         "dms_event_outbox",       // DMS事件发件箱（无tenant_id列）
         // 定时任务（开发工具 → 定时任务）：平台级调度配置，与租户无关。

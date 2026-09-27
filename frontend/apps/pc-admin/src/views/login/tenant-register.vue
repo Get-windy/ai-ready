@@ -89,12 +89,12 @@
             </a-form-item>
 
             <a-form-item
-              label="联系邮箱"
+              label="联系邮箱（选填）"
               name="contactEmail"
             >
               <a-input
                 v-model:value="formState.contactEmail"
-                placeholder="请输入邮箱地址"
+                placeholder="选填，用于接收通知"
                 size="large"
               />
             </a-form-item>
@@ -113,6 +113,17 @@
             layout="vertical"
           >
             <a-form-item
+              label="管理员手机号"
+              name="adminPhone"
+            >
+              <a-input
+                v-model:value="formState.adminPhone"
+                placeholder="用于登录和接收通知"
+                size="large"
+              />
+            </a-form-item>
+
+            <a-form-item
               label="管理员用户名"
               name="adminUsername"
             >
@@ -124,12 +135,12 @@
             </a-form-item>
 
             <a-form-item
-              label="管理员邮箱"
+              label="管理员邮箱（选填）"
               name="adminEmail"
             >
               <a-input
                 v-model:value="formState.adminEmail"
-                placeholder="用于接收通知和找回密码"
+                placeholder="选填，绑定后可用于找回密码"
                 size="large"
               />
             </a-form-item>
@@ -190,6 +201,9 @@
                 </a-descriptions-item>
                 <a-descriptions-item label="联系邮箱">
                   {{ formState.contactEmail }}
+                </a-descriptions-item>
+                <a-descriptions-item label="管理员手机号">
+                  {{ formState.adminPhone }}
                 </a-descriptions-item>
                 <a-descriptions-item label="管理员">
                   {{ formState.adminUsername }}
@@ -280,6 +294,7 @@ interface FormState {
   contactPerson: string
   contactPhone: string
   contactEmail: string
+  adminPhone: string
   adminUsername: string
   adminEmail: string
   adminPassword: string
@@ -292,6 +307,7 @@ const formState = reactive<FormState>({
   contactPerson: '',
   contactPhone: '',
   contactEmail: '',
+  adminPhone: '',
   adminUsername: '',
   adminEmail: '',
   adminPassword: '',
@@ -316,8 +332,8 @@ const rules1: Record<string, Rule[]> = {
     { required: true, message: '请输入联系电话', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码', trigger: 'blur' }
   ],
+  // 邮箱选填（国内以手机号为主要联系方式）：留空放行，填了才校验格式
   contactEmail: [
-    { required: true, message: '请输入联系邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
   ]
 }
@@ -336,12 +352,17 @@ const validateConfirmPassword = async (_rule: Rule, value: string) => {
 }
 
 const rules2: Record<string, Rule[]> = {
+  // 手机号是国内登录的首选标识，故为必填
+  adminPhone: [
+    { required: true, message: '请输入管理员手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码', trigger: 'blur' }
+  ],
   adminUsername: [
     { required: true, message: '请输入管理员用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度 3-20 个字符', trigger: 'blur' }
   ],
+  // 邮箱选填：留空放行，填了才校验格式
   adminEmail: [
-    { required: true, message: '请输入管理员邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
   ],
   adminPassword: [
@@ -377,10 +398,12 @@ const handleSubmit = async () => {
       tenantCode: formState.tenantCode,
       contactPerson: formState.contactPerson,
       contactPhone: formState.contactPhone,
-      contactEmail: formState.contactEmail,
+      // 邮箱选填：空串会被后端 @Email 判为非法，故留空时传 undefined
+      contactEmail: formState.contactEmail || undefined,
+      adminPhone: formState.adminPhone,
       adminUsername: formState.adminUsername,
       adminPassword: formState.adminPassword,
-      adminEmail: formState.adminEmail
+      adminEmail: formState.adminEmail || undefined
     })
     submitted.value = true
     message.success('注册申请已提交，请等待审核')

@@ -37,10 +37,16 @@ public class TenantRegisterDTO {
             @JsonProperty("contactPhone")
             String contactPhone,
 
-            @NotBlank(message = "联系邮箱不能为空")
+            // 联系邮箱：选填。国内以手机号为主要联系方式，邮箱仅作辅助/安全绑定
             @jakarta.validation.constraints.Email(message = "请输入有效的邮箱地址")
             @JsonProperty("contactEmail")
             String contactEmail,
+
+            // 管理员手机号：必填。国内登录首选手机号，这是管理员的主要登录标识
+            @NotBlank(message = "管理员手机号不能为空")
+            @Pattern(regexp = "^1[3-9]\\d{9}$", message = "请输入有效的手机号码")
+            @JsonProperty("adminPhone")
+            String adminPhone,
 
             @NotBlank(message = "管理员用户名不能为空")
             @Size(min = 3, max = 20, message = "用户名长度 3-20 个字符")
@@ -52,7 +58,7 @@ public class TenantRegisterDTO {
             @JsonProperty("adminPassword")
             String adminPassword,
 
-            @NotBlank(message = "管理员邮箱不能为空")
+            // 管理员邮箱：选填。用于绑定与找回密码，不作为登录主标识
             @jakarta.validation.constraints.Email(message = "请输入有效的邮箱地址")
             @JsonProperty("adminEmail")
             String adminEmail

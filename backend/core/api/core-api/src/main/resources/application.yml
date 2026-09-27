@@ -158,6 +158,37 @@ sms:
   sign-name: ${SMS_SIGN_NAME:}
   timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
 
+# 三方登录（钉钉 / 企业微信 / 飞书）。
+#
+# 凭据留空（或 social-login.enabled=false）时，对应平台**不会出现在登录页**，
+# 也不会签发授权地址 —— 不做点了没反应的死按钮。
+#
+# ⚠️ backend-callback-base 必须是**公网可访问**的地址，且与三方平台后台配置的回调域
+#    完全一致（含协议与端口），否则会报 redirect_uri 不匹配。
+#    实际回调地址为：<backend-callback-base>/api/auth/social/<platform>/callback
+#
+# 各平台申请入口与注意事项：
+#   钉钉：open.dingtalk.com 创建企业内部应用取 AppKey/AppSecret
+#         （**不需要服务商资质**，任意钉钉用户可扫码；但只返回 unionId，拿不到手机号）
+#   企微：work.weixin.qq.com 自建应用取 CorpID/AgentId/Secret
+#         （**仅本企业成员可登录**；要支持客户企业各自登录需升级服务商模式）
+#   飞书：open.feishu.cn 创建网页应用取 App ID/App Secret
+#         （**应用必须先发布**，否则凭据不生效）
+social-login:
+  enabled: ${SOCIAL_LOGIN_ENABLED:false}
+  backend-callback-base: ${SOCIAL_LOGIN_CALLBACK_BASE:}
+  frontend-callback-url: ${SOCIAL_LOGIN_FRONTEND_URL:/login}
+  dingtalk:
+    app-key: ${SOCIAL_LOGIN_DINGTALK_APP_KEY:}
+    app-secret: ${SOCIAL_LOGIN_DINGTALK_APP_SECRET:}
+  wecom:
+    corp-id: ${SOCIAL_LOGIN_WECOM_CORP_ID:}
+    agent-id: ${SOCIAL_LOGIN_WECOM_AGENT_ID:}
+    secret: ${SOCIAL_LOGIN_WECOM_SECRET:}
+  feishu:
+    app-id: ${SOCIAL_LOGIN_FEISHU_APP_ID:}
+    app-secret: ${SOCIAL_LOGIN_FEISHU_APP_SECRET:}
+
 # Actuator 可观测性端点（Prometheus 指标导出）
 management:
   endpoints:

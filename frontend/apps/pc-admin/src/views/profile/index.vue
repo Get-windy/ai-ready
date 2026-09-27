@@ -266,6 +266,9 @@
             </a-card>
           </a-col>
         </a-row>
+
+        <!-- 账号绑定：三方账号（钉钉/企业微信/飞书）的绑定与解绑 -->
+        <SocialBindingCard class="profile-binding-card" />
       </div>
 
       <!-- 编辑个人资料弹窗 -->
@@ -369,6 +372,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { profileApi, type ProfileInfo, type PreferenceSettings } from '@/api/profile'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import SocialBindingCard from '@/components/SocialBindingCard/SocialBindingCard.vue'
 
 const debounceMap = new Map<string, number>()
 function debounceClick(key: string, fn: () => void, delay = 300) {

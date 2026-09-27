@@ -29,7 +29,28 @@
             </p>
           </div>
         
+          <!-- 登录方式切换：手机号是国内用户的首选，账号密码作为备选 -->
+          <div class="login-tabs">
+            <button
+              type="button"
+              class="login-tab"
+              :class="{ 'is-active': loginTab === 'sms' }"
+              @click="switchTab('sms')"
+            >
+              手机号登录
+            </button>
+            <button
+              type="button"
+              class="login-tab"
+              :class="{ 'is-active': loginTab === 'password' }"
+              @click="switchTab('password')"
+            >
+              账号密码
+            </button>
+          </div>
+
           <a-form
+            v-show="loginTab === 'password'"
             ref="formRef"
             :model="formState"
             :rules="rules"
@@ -38,24 +59,6 @@
             :aria-label="t('login.title')"
             @finish="handleSubmit"
           >
-            <a-form-item
-              id="form-item-tenant"
-              name="tenantName"
-            >
-              <a-input
-                v-model:value="formState.tenantName"
-                size="large"
-                placeholder="请输入租户名称"
-                aria-required="true"
-                aria-label="租户名称"
-                @keyup.enter="focusNextInput('username')"
-              >
-                <template #prefix>
-                  <ShopOutlined aria-hidden="true" />
-                </template>
-              </a-input>
-            </a-form-item>
-
             <a-form-item
               id="form-item-username"
               name="username"
@@ -166,30 +169,158 @@
               </a-button>
             </a-form-item>
 
-            <div class="login-footer">
-              <span class="footer-text">还没有账号？</span>
-              <a-button
-                type="link"
-                :loading="registerLoading"
-                class="register-link"
-                @click="handleRegister"
-              >
-                立即注册
-              </a-button>
-            </div>
-            <div
-              class="login-footer"
-              style="margin-top: 4px;"
-            >
-              <span class="footer-text">企业用户？</span>
-              <router-link
-                to="/tenant-register"
-                class="enterprise-link"
-              >
-                企业注册
-              </router-link>
-            </div>
           </a-form>
+
+          <!-- 手机号验证码登录（国内主流方式） -->
+          <a-form
+            v-show="loginTab === 'sms'"
+            ref="smsFormRef"
+            :model="smsFormState"
+            :rules="smsRules"
+            layout="vertical"
+            role="form"
+            aria-label="手机号登录"
+            @finish="handleSmsSubmit"
+          >
+            <a-form-item
+              id="form-item-phone"
+              name="phone"
+            >
+              <a-input
+                v-model:value="smsFormState.phone"
+                size="large"
+                placeholder="请输入手机号"
+                aria-required="true"
+                :maxlength="11"
+              >
+                <template #prefix>
+                  <MobileOutlined aria-hidden="true" />
+                </template>
+              </a-input>
+            </a-form-item>
+
+            <a-form-item
+              id="form-item-sms-code"
+              name="smsCode"
+            >
+              <div class="captcha-container">
+                <a-input
+                  v-model:value="smsFormState.smsCode"
+                  size="large"
+                  placeholder="请输入短信验证码"
+                  class="captcha-input"
+                  aria-required="true"
+                  :maxlength="6"
+                >
+                  <template #prefix>
+                    <SafetyOutlined aria-hidden="true" />
+                  </template>
+                </a-input>
+                <a-button
+                  size="large"
+                  class="sms-code-btn"
+                  :disabled="smsCountdown > 0"
+                  :loading="sendingCode"
+                  @click="handleSendSmsCode"
+                >
+                  {{ smsCountdown > 0 ? `${smsCountdown}s 后重发` : '获取验证码' }}
+                </a-button>
+              </div>
+            </a-form-item>
+
+            <a-form-item>
+              <a-button
+                type="primary"
+                html-type="submit"
+                size="large"
+                :loading="loading"
+                :aria-busy="loading"
+                block
+                class="login-button"
+              >
+                {{ loading ? '登录中...' : '登 录' }}
+              </a-button>
+            </a-form-item>
+          </a-form>
+
+          <!-- 三方登录：按后端已配置的平台渲染，未配置则不显示（不做点了没反应的死按钮） -->
+          <div
+            v-if="socialProviders.length"
+            class="social-login"
+          >
+            <div class="social-login-divider">
+              <span>其他登录方式</span>
+            </div>
+            <div class="social-login-list">
+              <button
+                v-for="p in socialProviders"
+                :key="p.platform"
+                type="button"
+                class="social-login-item"
+                :title="`使用${p.name}登录`"
+                @click="handleSocialLogin(p.platform)"
+              >
+                {{ p.name }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 注册入口：不属于任一登录表单，故置于表单之外 -->
+          <div class="login-footer">
+            <span class="footer-text">还没有账号？</span>
+            <a-button
+              type="link"
+              :loading="registerLoading"
+              class="register-link"
+              @click="handleRegister"
+            >
+              立即注册
+            </a-button>
+          </div>
+          <div
+            class="login-footer"
+            style="margin-top: 4px;"
+          >
+            <span class="footer-text">企业用户？</span>
+            <router-link
+              to="/tenant-register"
+              class="enterprise-link"
+            >
+              企业注册
+            </router-link>
+          </div>
+
+          <!-- 多企业账号：登录第一步只验身份，此处选择本次要登录的企业 -->
+          <a-modal
+            v-model:open="showTenantPicker"
+            title="选择要登录的企业"
+            :footer="null"
+            :closable="!selecting"
+            :mask-closable="false"
+            :keyboard="!selecting"
+            width="420px"
+            centered
+          >
+            <p class="tenant-picker-tip">
+              该账号关联多个企业，请选择本次要登录的企业
+            </p>
+            <div class="tenant-picker-list">
+              <button
+                v-for="tenant in tenantOptions"
+                :key="tenant.id"
+                type="button"
+                class="tenant-picker-item"
+                :disabled="selecting"
+                @click="handlePickTenant(tenant.id)"
+              >
+                <span class="tenant-picker-name">{{ tenant.tenantName }}</span>
+                <span
+                  v-if="tenant.id === lastLoginTenantId"
+                  class="tenant-picker-badge"
+                >上次登录</span>
+              </button>
+            </div>
+          </a-modal>
         </div>
       </div>
     </div>
@@ -207,10 +338,11 @@ import {
   LockOutlined,
   SafetyOutlined,
   LoadingOutlined,
-  ShopOutlined
+  MobileOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { userApi } from '@/api/user'
+import { userApi, type TenantInfo } from '@/api/user'
+import { socialApi, type SocialProvider } from '@/api/social'
 import { resetDynamicRoutesLoaded } from '@/router/guard'
 import { useSubmitLock } from '@/composables'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -232,19 +364,44 @@ const rememberMe = ref(false)
 const captchaUrl = ref('')
 const captchaKey = ref('')
 
+// 多企业账号的「选择企业」弹窗
+const showTenantPicker = ref(false)
+const tenantOptions = ref<TenantInfo[]>([])
+const lastLoginTenantId = ref<number | undefined>()
+const selectToken = ref('')
+const selecting = ref(false)
+
+// 登录方式：sms = 手机号验证码（默认，国内用户首选）；password = 账号密码
+const loginTab = ref<'sms' | 'password'>('sms')
+const smsFormRef = ref<FormInstance>()
+const smsFormState = reactive({ phone: '', smsCode: '' })
+const sendingCode = ref(false)
+const smsCountdown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
+
+// 三方登录（钉钉/企业微信/飞书）：按后端已配置的平台渲染
+const socialProviders = ref<SocialProvider[]>([])
+
+const smsRules: any = {
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码', trigger: 'blur' }
+  ],
+  smsCode: [
+    { required: true, message: '请输入短信验证码', trigger: 'blur' },
+    { len: 6, message: '请输入 6 位验证码', trigger: 'blur' }
+  ]
+}
+
 // 表单数据
 const formState = reactive({
   username: '',
   password: '',
-  captcha: '',
-  tenantName: ''
+  captcha: ''
 })
 
 // 表单验证规则
 const rules: any = {
-  tenantName: [
-    { required: true, message: '请输入租户名称', trigger: 'blur' }
-  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
@@ -297,7 +454,7 @@ const focusNextInput = (inputName: string) => {
   }
 }
 
-// 处理登录提交
+// 处理登录提交（第一步：只验身份，不再需要输入企业名称）
 const handleSubmit = async () => {
   if (loading.value) return // 防止重复提交
   try {
@@ -306,38 +463,23 @@ const handleSubmit = async () => {
     // 表单验证
     await formRef.value?.validate()
 
-    // 执行登录（传递租户名称、验证码，后端验证）
-    const success = await userStore.login({
+    const res: any = await userStore.login({
       username: formState.username,
       password: formState.password,
-      tenantName: formState.tenantName,
       captcha: formState.captcha,
       captchaKey: captchaKey.value
     })
 
-    if (success) {
-      message.success('登录成功，欢迎回来！')
-
-      // 保存租户名到localStorage
-      localStorage.setItem('rememberedTenantName', formState.tenantName)
-
-      // 处理记住我功能
-      if (rememberMe.value) {
-        localStorage.setItem('rememberedUsername', formState.username)
-      } else {
-        localStorage.removeItem('rememberedUsername')
-      }
-
-      // 重置动态路由加载状态，让路由守卫重新加载
-      resetDynamicRoutesLoaded()
-
-      // 直接导航，由路由守卫负责加载用户信息和动态路由
-      const redirect = (route.query.redirect as string) || '/dashboard'
-      router.replace(redirect)
-    } else {
-      message.error('登录失败，请检查用户名和密码')
-      refreshCaptcha()
+    // 账号关联多个企业：先弹框选企业，选定后再真正完成登录
+    if (res?.needSelectTenant) {
+      tenantOptions.value = res.tenants || []
+      lastLoginTenantId.value = res.lastLoginTenantId
+      selectToken.value = res.selectToken
+      showTenantPicker.value = true
+      return
     }
+
+    finishLogin()
   } catch (error: any) {
     console.warn('[登录] 登录失败', error)
     const errorMsg = error?.message || error?.response?.data?.message || '登录失败，请稍后重试'
@@ -345,6 +487,185 @@ const handleSubmit = async () => {
     refreshCaptcha()
   } finally {
     loading.value = false
+  }
+}
+
+// 选定企业，完成登录（第二步）
+const handlePickTenant = async (tenantId: number) => {
+  if (selecting.value) return
+  selecting.value = true
+  try {
+    await userStore.selectTenant(selectToken.value, tenantId)
+    showTenantPicker.value = false
+    finishLogin()
+  } catch (error: any) {
+    console.warn('[登录] 选择企业失败', error)
+    const errorMsg = error?.message || error?.response?.data?.message || '选择企业失败，请重新登录'
+    message.error(errorMsg)
+    // 票据可能已过期/被消费，退回登录表单重新来过
+    showTenantPicker.value = false
+    refreshCaptcha()
+  } finally {
+    selecting.value = false
+  }
+}
+
+// 登录成功后的收尾：记住用户名、重置动态路由、跳转
+const finishLogin = () => {
+  message.success('登录成功，欢迎回来！')
+
+  // 处理记住我功能
+  if (rememberMe.value) {
+    localStorage.setItem('rememberedUsername', formState.username)
+  } else {
+    localStorage.removeItem('rememberedUsername')
+  }
+
+  // 重置动态路由加载状态，让路由守卫重新加载
+  resetDynamicRoutesLoaded()
+
+  // 直接导航，由路由守卫负责加载用户信息和动态路由
+  const redirect = (route.query.redirect as string) || '/dashboard'
+  router.replace(redirect)
+}
+
+// 切换登录方式（清掉上一种方式的校验残留，避免切换后还挂着红字）
+const switchTab = (tab: 'sms' | 'password') => {
+  if (loginTab.value === tab) return
+  loginTab.value = tab
+  if (tab === 'password') formRef.value?.clearValidate?.()
+  else smsFormRef.value?.clearValidate?.()
+}
+
+// 发送短信验证码（只校验手机号，不要求验证码已填）
+const handleSendSmsCode = async () => {
+  if (smsCountdown.value > 0 || sendingCode.value) return
+  try {
+    await smsFormRef.value?.validateFields('phone')
+  } catch {
+    return
+  }
+
+  sendingCode.value = true
+  try {
+    await userApi.sendSmsCode(smsFormState.phone)
+    message.success('验证码已发送')
+    startSmsCountdown()
+  } catch (error: any) {
+    console.warn('[登录] 发送验证码失败', error)
+    message.error(error?.message || error?.response?.data?.message || '验证码发送失败，请稍后重试')
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+// 60 秒重发倒计时（与后端重发间隔一致）
+const startSmsCountdown = () => {
+  smsCountdown.value = 60
+  smsTimer = setInterval(() => {
+    smsCountdown.value--
+    if (smsCountdown.value <= 0 && smsTimer) {
+      clearInterval(smsTimer)
+      smsTimer = null
+    }
+  }, 1000)
+}
+
+// 手机号验证码登录
+const handleSmsSubmit = async () => {
+  if (loading.value) return
+  try {
+    loading.value = true
+    await smsFormRef.value?.validate()
+
+    const res: any = await userStore.loginBySms({
+      phone: smsFormState.phone,
+      smsCode: smsFormState.smsCode
+    })
+
+    if (res?.needSelectTenant) {
+      tenantOptions.value = res.tenants || []
+      lastLoginTenantId.value = res.lastLoginTenantId
+      selectToken.value = res.selectToken
+      showTenantPicker.value = true
+      return
+    }
+
+    finishLogin()
+  } catch (error: any) {
+    console.warn('[登录] 短信登录失败', error)
+    message.error(error?.message || error?.response?.data?.message || '登录失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载可用三方平台（未配置凭据的平台后端不返回，前端也就不显示）
+const loadSocialProviders = async () => {
+  try {
+    const res: any = await socialApi.getProviders()
+    socialProviders.value = res || []
+  } catch {
+    socialProviders.value = []
+  }
+}
+
+// 发起三方登录：整页跳转到三方授权页
+const handleSocialLogin = async (platform: string) => {
+  try {
+    const url: any = await socialApi.getAuthorizeUrl(platform, 'login')
+    if (!url) {
+      message.error('未取得授权地址')
+      return
+    }
+    window.location.href = url
+  } catch (error: any) {
+    message.error(error?.message || '暂时无法发起三方登录')
+  }
+}
+
+// 清掉地址栏上的三方回调参数，避免刷新时重复处理
+const clearSocialQuery = () => {
+  router.replace({ path: route.path, query: {} })
+}
+
+/**
+ * 处理三方授权回调带回的参数（后端 302 回本页时携带）：
+ * socialTicket=票据 → 用票据换登录结果；socialError=原因 → 提示
+ */
+const handleSocialCallback = async () => {
+  const errorCode = route.query.socialError as string
+  if (errorCode) {
+    const errorMap: Record<string, string> = {
+      state_expired: '授权已超时，请重新发起',
+      cancelled: '已取消授权',
+      not_bound: '该账号尚未绑定系统账号，请先用账号密码登录，在「个人中心 → 账号绑定」中绑定后即可扫码登录',
+      failed: '三方授权失败，请重试'
+    }
+    message.error(errorMap[errorCode] || '三方登录失败')
+    clearSocialQuery()
+    return
+  }
+
+  const ticket = route.query.socialTicket as string
+  if (!ticket) return
+
+  try {
+    const res: any = await socialApi.exchange(ticket)
+    if (res?.needSelectTenant) {
+      tenantOptions.value = res.tenants || []
+      lastLoginTenantId.value = res.lastLoginTenantId
+      selectToken.value = res.selectToken
+      showTenantPicker.value = true
+      clearSocialQuery()
+      return
+    }
+    userStore.applyLoginResult(res)
+    clearSocialQuery()
+    finishLogin()
+  } catch (error: any) {
+    message.error(error?.message || '三方登录失败，请重试')
+    clearSocialQuery()
   }
 }
 
@@ -379,11 +700,6 @@ function handleKeydown(e: KeyboardEvent) {
 // 初始化
 onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
-  // 检查是否有记住的租户名
-  const rememberedTenantName = localStorage.getItem('rememberedTenantName')
-  if (rememberedTenantName) {
-    formState.tenantName = rememberedTenantName
-  }
 
   // 检查是否有记住的用户名
   const rememberedUsername = localStorage.getItem('rememberedUsername')
@@ -394,10 +710,18 @@ onMounted(async () => {
 
   // 获取验证码
   fetchCaptcha()
+
+  // 可用的三方登录平台 + 处理三方授权回调带回的参数
+  loadSocialProviders()
+  handleSocialCallback()
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
+  }
 })
 </script>
 
@@ -672,6 +996,153 @@ onUnmounted(() => {
 
 :deep(.register-link.ant-btn-link) {
   padding: 0 0 0 1px;
+}
+
+/* ── 登录方式切换（钉钉/企微风格：文字 tab） ─── */
+.login-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.login-tab {
+  position: relative;
+  padding: 8px 2px 10px;
+  font-size: 15px;
+  color: #8c8c8c;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.login-tab:hover {
+  color: #667eea;
+}
+
+.login-tab.is-active {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.login-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 1px;
+}
+
+/* 获取验证码按钮：与验证码输入框同容器排布 */
+.sms-code-btn {
+  flex-shrink: 0;
+  width: 116px;
+}
+
+/* ── 三方登录入口 ───────────────────── */
+.social-login {
+  margin-top: 8px;
+}
+
+.social-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+.social-login-divider::before,
+.social-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #f0f0f0;
+}
+
+.social-login-list {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.social-login-item {
+  padding: 6px 18px;
+  font-size: 14px;
+  color: #595959;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.social-login-item:hover {
+  color: #667eea;
+  border-color: #667eea;
+  background: #f7f8ff;
+}
+
+/* ── 选择企业弹窗 ───────────────────── */
+.tenant-picker-tip {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #666;
+}
+
+.tenant-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tenant-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #1a1a1a;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tenant-picker-item:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f7f8ff;
+}
+
+.tenant-picker-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.tenant-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-picker-badge {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 12px;
+  color: #667eea;
+  background: #eef0ff;
+  border-radius: 4px;
 }
 
 /* 响应式设计 */

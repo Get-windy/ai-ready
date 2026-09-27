@@ -90,39 +90,72 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
 
     @Override
     public String login(String username, String password, Long tenantId, String loginIp) {
-        // 1. 查询用户（用户名全局唯一）
+        return completeLogin(verifyCredentials(username, password), tenantId, loginIp);
+    }
+
+    @Override
+    public SysUser verifyCredentials(String username, String password) {
+        // 用户名全局唯一，据此跨租户定位账号（登录发生在认证之前，见 MyBatisPlusConfig 对 sys_user 的说明）
         SysUser user = baseMapper.selectByUsername(username, null);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
 
-        // 2. 验证用户是否属于指定租户（通过 sys_user_tenant 关联表）
-        if (!isUserInTenant(user.getId(), tenantId)) {
-            throw BusinessException.badRequest("该用户不属于此租户，请检查租户名称");
-        }
-
-        // 3. 检查用户状态
+        // 检查用户状态
         if (user.getStatus() != 1) {
             throw new BusinessException(403, "用户已禁用或锁定");
         }
 
-        // 4. 验证密码
+        // 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw BusinessException.badRequest("密码错误");
         }
+        return user;
+    }
 
-        // 5. 登录成功，生成Token
+    @Override
+    public SysUser findByPhoneForLogin(String phone) {
+        List<SysUser> users = baseMapper.selectListByPhoneForLogin(phone);
+        if (users.isEmpty()) {
+            throw BusinessException.notFound("该手机号未绑定账号");
+        }
+        if (users.size() > 1) {
+            // phone 无唯一约束：宁可拒绝也不能随机选一个，否则会把人登进别人的账号
+            log.warn("手机号命中多个账号，拒绝短信登录: phone={}, count={}", phone, users.size());
+            throw BusinessException.badRequest("该手机号关联了多个账号，请改用用户名登录");
+        }
+
+        SysUser user = users.get(0);
+        if (user.getStatus() != 1) {
+            throw new BusinessException(403, "用户已禁用或锁定");
+        }
+        return user;
+    }
+
+    @Override
+    public String completeLogin(SysUser user, Long tenantId, String loginIp) {
+        // 校验用户确实属于该企业。用 getUserTenants 而非 isUserInTenant：
+        // 前者额外过滤了「企业已停用 / 已删除」，否则停用的企业仍能登进去。
+        boolean allowed = tenantId != null && getUserTenants(user.getId()).stream()
+                .anyMatch(t -> t.getId().equals(tenantId));
+        if (!allowed) {
+            throw BusinessException.badRequest("该用户不属于所选企业");
+        }
+
+        // 登录成功，生成Token
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
 
-        // 6. 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
+        // 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
         StpUtil.getSession().set("tenantId", tenantId);
+        StpUtil.getSession().set("username", user.getUsername());
 
-        // 6.1 写入「租户隔离整体豁免」标记（平台超管）。
+        // 写入「租户隔离整体豁免」标记（平台超管）。
         // 必须在这里算并写进 Session —— 拦截器侧只能读缓存，实时算角色会经过 SQL 造成无限递归。
+        // 也必须排在 tenantId 落会话之后：角色是按租户查的。
         StpUtil.getSession().set("tenantScopeExempt", StpUtil.hasRole("SUPER_ADMIN"));
 
-        // 7. 密码过期检查（有效期来自平台安全策略，未配置时回退 yml）
+        // 密码过期检查（有效期来自平台安全策略，未配置时回退 yml）
         int maxAgeDays = resolvePasswordMaxAgeDays();
         boolean passwordExpired = false;
         if (user.getPasswordUpdateTime() != null && maxAgeDays > 0) {
@@ -131,12 +164,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         }
         StpUtil.getSession().set("passwordExpired", passwordExpired);
 
-        // 8. 更新登录信息
+        // 记录「上次登录该企业」的时间 → 下次登录把它排在候选第一位
+        touchTenantLoginTime(user.getId(), tenantId);
+
+        // 更新登录信息
         String safeLoginIp = (loginIp != null && !loginIp.isEmpty()) ? loginIp : "0.0.0.0";
         baseMapper.updateLoginInfo(user.getId(), safeLoginIp);
 
         log.info("用户登录成功: userId={}, username={}, tenantId={}, passwordExpired={}",
-            user.getId(), username, tenantId, passwordExpired);
+            user.getId(), user.getUsername(), tenantId, passwordExpired);
         return token;
     }
 
@@ -149,6 +185,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     public boolean isUserInTenant(Long userId, Long tenantId) {
         SysUserTenant ut = userTenantMapper.selectByUserAndTenant(userId, tenantId);
         return ut != null;
+    }
+
+    @Override
+    public void touchTenantLoginTime(Long userId, Long tenantId) {
+        userTenantMapper.updateLastLoginTime(userId, tenantId);
+    }
+
+    @Override
+    public Long getLastLoginTenantId(Long userId) {
+        return userTenantMapper.selectLastLoginTenantId(userId);
     }
 
     @Override

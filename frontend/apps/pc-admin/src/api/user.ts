@@ -8,6 +8,25 @@ export interface LoginResponse {
   tenantId: number
   tenantName: string
   tenants: TenantInfo[]
+  /** 账号关联多个企业：需先选企业，此时未签发 token */
+  needSelectTenant?: boolean
+  /** 选企业用的短期票据（仅 needSelectTenant 为 true 时返回） */
+  selectToken?: string
+  /** 上次登录的企业ID（用于在候选列表里标出「上次登录」） */
+  lastLoginTenantId?: number
+}
+
+// 选择企业完成登录
+export interface SelectTenantForm {
+  selectToken: string
+  tenantId: number
+}
+
+// 切换企业的响应（会话不变，仅租户上下文变更，故无 token）
+export interface SwitchTenantResponse {
+  tenantId: number
+  tenantName: string
+  tenants: TenantInfo[]
 }
 
 // 用户信息
@@ -56,9 +75,14 @@ export interface TenantInfo {
 export interface LoginForm {
   username: string
   password: string
-  tenantName: string
   captcha: string
   captchaKey: string
+}
+
+// 手机号验证码登录
+export interface SmsLoginForm {
+  phone: string
+  smsCode: string
 }
 
 // 用户查询参数
@@ -76,16 +100,42 @@ export interface UserQuery {
 // 用户API - 修复版
 export const userApi = {
   // 登录 - 跳过认证刷新，避免登录失败时触发token刷新
+  // 只验身份，不再要求输入企业名称：单企业直接返回 token，多企业返回候选列表待选
   login(data: LoginForm): Promise<ApiResponse<LoginResponse>> {
     return request.post('/auth/login', {
       username: data.username,
       password: data.password,
-      tenantName: data.tenantName,
       captcha: data.captcha,
       captchaKey: data.captchaKey
     }, {
       _skipAuthRefresh: true
     } as any)
+  },
+
+  // 发送登录短信验证码
+  sendSmsCode(phone: string): Promise<ApiResponse<void>> {
+    return request.post('/auth/sms-code', { phone }, {
+      _skipAuthRefresh: true
+    } as any)
+  },
+
+  // 手机号验证码登录
+  loginBySms(data: SmsLoginForm): Promise<ApiResponse<LoginResponse>> {
+    return request.post('/auth/login-by-sms', data, {
+      _skipAuthRefresh: true
+    } as any)
+  },
+
+  // 选择企业完成登录（多企业用户的登录第二步）
+  selectTenant(data: SelectTenantForm): Promise<ApiResponse<LoginResponse>> {
+    return request.post('/auth/select-tenant', data, {
+      _skipAuthRefresh: true
+    } as any)
+  },
+
+  // 切换企业（已登录用户在其可访问企业之间切换，会话租户随之变更）
+  switchTenant(tenantId: number): Promise<ApiResponse<SwitchTenantResponse>> {
+    return request.post('/auth/switch-tenant', { tenantId })
   },
 
   // 获取当前用户可访问的租户列表（用于租户切换器）

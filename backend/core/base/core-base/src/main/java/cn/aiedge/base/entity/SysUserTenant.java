@@ -45,6 +45,12 @@ public class SysUserTenant {
     private Integer status;
 
     /**
+     * 上次登录该租户的时间（登录成功/切换企业时更新）
+     * <p>多企业用户登录选企业时，据此把上次登录的企业排在第一位。</p>
+     */
+    private LocalDateTime lastLoginTime;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

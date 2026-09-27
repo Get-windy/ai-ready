@@ -190,10 +190,14 @@ export interface TenantRegisterForm {
   tenantCode: string
   contactPerson: string
   contactPhone: string
-  contactEmail: string
+  /** 联系邮箱：选填（国内以手机号为主要联系方式） */
+  contactEmail?: string
+  /** 管理员手机号：登录首选标识，必填 */
+  adminPhone: string
   adminUsername: string
   adminPassword: string
-  adminEmail: string
+  /** 管理员邮箱：选填，用于绑定与找回密码 */
+  adminEmail?: string
 }
 
 /** 租户审批 API */
