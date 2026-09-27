@@ -25,6 +25,22 @@ CONN = dict(host='localhost', port=5432, dbname='devdb', user='devuser', passwor
 ANNO = re.compile(r'@SaCheckPermission\s*\(([^)]*)\)', re.S)
 STR = re.compile(r'"([^"]+)"')
 
+# 扫描前先剔除注释：javadoc 里举例写的 @SaCheckPermission(...) 会被当成真实注解，
+# 在「代码引用了但库中没有」清单里产生误报（2026-09-26 实测到一次：
+# SetMenuConfigController 的类注释里写了 @SaCheckPermission("set:menu-config:view|update")）。
+# 用等长空白替换而不是删除，保证后续行号仍然准确。
+NL = chr(10)
+COMMENT = re.compile('//[^' + NL + ']*|/[*].*?[*]/', re.S)
+
+
+def strip_comments(src):
+    def _blank(m):
+        t = m.group(0)
+        return NL * t.count(NL) if NL in t else ' ' * len(t)
+
+    return COMMENT.sub(_blank, src)
+
+
 
 def scan_java():
     refs = collections.defaultdict(list)   # code -> [文件:行]
@@ -41,6 +57,7 @@ def scan_java():
                 src = open(p, encoding='utf-8').read()
             except Exception:
                 continue
+            src = strip_comments(src)
             for m in ANNO.finditer(src):
                 for code in STR.findall(m.group(1)):
                     line = src[:m.start()].count('\n') + 1

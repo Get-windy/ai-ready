@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 /**
@@ -48,23 +49,12 @@ public class MallProductServiceImpl implements MallProductService {
     /**
      * 解析当前店铺并做**游客准入校验**，返回该店铺配置。
      *
-     * <p>B2B 租户商城模型下，游客必须能知道「我在逛哪家店」，否则任何查询都无意义：
-     * 要么带 {@code X-Tenant-Id}，要么先登录。取不到就明确报错，
-     * 而不是退化成「查全部租户」或「查 tenant_id=0」。</p>
-     *
-     * <p>准入口径见 {@link MallGuestAccess#guestMayBrowse}：店铺
-     * {@code allowGuest = ALLOW} 才允许游客；无配置行（未开通商城）按 fail-closed 拒绝。</p>
+     * <p>2026-09-26：实现已上提到 {@link MallGuestAccess#requireShop()} —— 店铺配置下发、
+     * 商品列表、标签等 C 端只读接口必须用**同一套**准入判定，各写一份迟早出现
+     * "商品进不去但店铺配置能看到"这类不一致。此处保留薄包装，避免本类多处调用点改写。</p>
      */
     private ShopConfig requireShop() {
-        Long tenantId = guestAccess.currentShopTenantId();
-        if (tenantId == null) {
-            throw BusinessException.badRequest("无法确定店铺：请携带 X-Tenant-Id 请求头，或先登录");
-        }
-        ShopConfig config = guestAccess.shopConfig(tenantId);
-        if (!guestAccess.guestMayBrowse(config)) {
-            throw BusinessException.forbidden("该店铺未开放游客访问，请先登录");
-        }
-        return config;
+        return guestAccess.requireShop();
     }
 
     /**
@@ -83,8 +73,9 @@ public class MallProductServiceImpl implements MallProductService {
     }
 
     @Override
-    public PageResult<ProductListDTO> listProducts(int page, int size, String categoryId, String keyword) {
-        log.info("查询商品列表: page={}, size={}, categoryId={}, keyword={}", page, size, categoryId, keyword);
+    public PageResult<ProductListDTO> listProducts(int page, int size, String categoryId, String keyword, String tagCode) {
+        log.info("查询商品列表: page={}, size={}, categoryId={}, keyword={}, tagCode={}",
+                page, size, categoryId, keyword, tagCode);
 
         ShopConfig shopConfig = requireShop();
 
@@ -99,6 +90,13 @@ public class MallProductServiceImpl implements MallProductService {
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(ErpProductMall::getProductName, keyword);
         }
+        // 商品标签（分类页最顶部的标签 Tab）：erp_product.mall_tags 是**逗号分隔的槽位码**，
+        // 故用 like 做"包含"匹配（不能 eq，否则一个商品挂多标签时查不到）。
+        // ⚠️ 前置条件：tagCode 必须来自本店启用的标签（erp_mall_tag），不能是任意串 ——
+        // 否则用户可凭此探测任意文本；由 /v1/mall/tags 下发、前端只回传已知码。
+        if (tagCode != null && !tagCode.isEmpty()) {
+            wrapper.like(ErpProductMall::getProductTag, tagCode);
+        }
 
         wrapper.orderByDesc(ErpProductMall::getSalesCount, ErpProductMall::getCreateTime);
 
@@ -108,6 +106,7 @@ public class MallProductServiceImpl implements MallProductService {
                 .map(this::convertToListDTO)
                 .collect(Collectors.toList());
         applyPriceVisibility(shopConfig, records);
+        fillCategoryNames(records);
 
         PageResult<ProductListDTO> result = new PageResult<>();
         result.setRecords(records);
@@ -154,23 +153,45 @@ public class MallProductServiceImpl implements MallProductService {
         log.info("获取商品分类列表");
         requireShop();
 
-        // 从 v_mall_product 视图中提取所有存在的分类
+        // ① 找出**在售商品实际挂了的**分类 id（商城里只该出现有货的分类）
+        Long tenantId = getTenantId();
         List<ErpProductMall> products = erpProductMallMapper.selectList(
                 new LambdaQueryWrapper<ErpProductMall>()
                         .eq(ErpProductMall::getDeleted, 0)
-                        .eq(ErpProductMall::getTenantId, getTenantId())
+                        .eq(ErpProductMall::getStatus, "ON_SHELF")
+                        .eq(ErpProductMall::getTenantId, tenantId)
                         .isNotNull(ErpProductMall::getCategoryId)
-                        .select(ErpProductMall::getCategoryId, ErpProductMall::getCategoryName)
-                        .groupBy(ErpProductMall::getCategoryId, ErpProductMall::getCategoryName)
+                        .select(ErpProductMall::getCategoryId)
+                        .groupBy(ErpProductMall::getCategoryId)
         );
+        List<String> ids = products.stream()
+                .map(ErpProductMall::getCategoryId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-        return products.stream().map(p -> {
-            Map<String, Object> cat = new LinkedHashMap<>();
-            cat.put("id", p.getCategoryId());
-            cat.put("name", p.getCategoryName() != null ? p.getCategoryName() : p.getCategoryId());
-            cat.put("icon", "default");
-            return cat;
-        }).collect(Collectors.toList());
+        // ② 名称回**分类树**取（权威来源），而不是用商品表上的冗余列 —— 见 Mapper 注释：
+        //    商品上的 mall_category_name/category 实测为空，直接读会退化成显示裸 id。
+        List<Map<String, Object>> cats = erpProductMallMapper.selectCategoryNames(tenantId, ids);
+        return cats.stream()
+                .sorted(Comparator.comparing(c -> {
+                    Object o = c.get("sort_order");
+                    return o instanceof Number ? ((Number) o).intValue() : 0;
+                }))
+                .map(c -> {
+                    Map<String, Object> cat = new LinkedHashMap<>();
+                    cat.put("id", c.get("category_id"));
+                    cat.put("name", c.get("category_name"));
+                    // 分类树的 icon 列当前无数据；非 URL 时前端自动落到文字占位
+                    cat.put("icon", "default");
+                    cat.put("level", c.get("category_level"));
+                    cat.put("parentId", c.get("parent_id"));
+                    return cat;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -187,6 +208,7 @@ public class MallProductServiceImpl implements MallProductService {
         List<ErpProductMall> products = erpProductMallMapper.selectList(wrapper);
         List<ProductListDTO> dtos = products.stream().map(this::convertToListDTO).collect(Collectors.toList());
         applyPriceVisibility(shopConfig, dtos);
+        fillCategoryNames(dtos);
         return dtos;
     }
 
@@ -204,6 +226,7 @@ public class MallProductServiceImpl implements MallProductService {
         List<ErpProductMall> products = erpProductMallMapper.selectList(wrapper);
         List<ProductListDTO> dtos = products.stream().map(this::convertToListDTO).collect(Collectors.toList());
         applyPriceVisibility(shopConfig, dtos);
+        fillCategoryNames(dtos);
         return dtos;
     }
 
@@ -229,6 +252,52 @@ public class MallProductServiceImpl implements MallProductService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * 批量把分类名补进列表 DTO（**一次查询**，不是每条商品查一次）。
+     *
+     * <p>视图里的 category_name 来自商品表上的冗余列，实测为空；权威名称在
+     * {@code erp_product_category}。列表页每屏 20 条，不批量处理就是 20 次单查。</p>
+     */
+    private void fillCategoryNames(List<ProductListDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            return;
+        }
+        List<String> ids = dtos.stream()
+                .map(ProductListDTO::getCategoryId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<String, String> nameById = new HashMap<>();
+        for (Map<String, Object> row : erpProductMallMapper.selectCategoryNames(getTenantId(), ids)) {
+            Object id = row.get("category_id");
+            Object name = row.get("category_name");
+            if (id != null && name != null) {
+                nameById.put(id.toString(), name.toString());
+            }
+        }
+        for (ProductListDTO dto : dtos) {
+            String name = nameById.get(dto.getCategoryId());
+            if (name != null) {
+                dto.setCategoryName(name);
+            }
+        }
+    }
+
+    /** 取文本首行并截断（列表响应里不该出现整段详情；null 安全） */
+    private static String firstLine(String text, int maxLen) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String line = text.strip().split("\\R", 2)[0].strip();
+        if (line.isEmpty()) {
+            return null;
+        }
+        return line.length() > maxLen ? line.substring(0, maxLen) : line;
+    }
+
     private ProductListDTO convertToListDTO(ErpProductMall product) {
         ProductListDTO dto = new ProductListDTO();
         dto.setId(product.getId());
@@ -239,6 +308,17 @@ public class MallProductServiceImpl implements MallProductService {
         dto.setMarketPrice(product.getMarketPrice());
         dto.setStockQuantity(product.getStockQuantity());
         dto.setSalesCount(product.getSalesCount());
+        // 2026-09-26：补齐 C 端商品卡所需字段（视图列已存在，不增加查询）
+        dto.setCategoryId(product.getCategoryId());
+        dto.setCategoryName(product.getCategoryName());
+        dto.setIndustryCategory(product.getIndustryCategory());
+        dto.setSpecification(product.getSpecification());
+        dto.setUnitName(product.getUnitName());
+        dto.setProductTag(product.getProductTag());
+        // 卖点条只取首行并截断，避免把整段图文详情塞进列表响应
+        dto.setDescription(firstLine(product.getDescription(), 30));
+        dto.setMinOrderQuantity(product.getMinOrderQuantity());
+        dto.setProductType(product.getProductType());
         return dto;
     }
 }

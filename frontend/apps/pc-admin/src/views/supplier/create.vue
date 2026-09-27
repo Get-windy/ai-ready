@@ -282,7 +282,7 @@
               取消
             </a-button>
             <a-button
-              v-permission.disabled="'supplier:add'"
+              v-permission.disabled="'supplier:create'"
               type="primary"
               :loading="saving"
               @click="handleSubmit"

@@ -35,7 +35,7 @@
               tooltip="打印盘点记录"
             />
             <a-button
-              v-permission="'erp:fixed-asset:inventory:list'"
+              v-permission="'fixed-asset:inventory:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)()"
@@ -219,7 +219,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'erp:fixed-asset:inventory:update'"
+                  v-permission="'fixed-asset:inventory:update'"
                   type="link"
                   size="small"
                   @click="editRecord(record)"
@@ -253,7 +253,7 @@
                     <a-menu-item
                       v-if="record.status === 'pending'"
                       key="complete"
-                      v-permission="'erp:fixed-asset:inventory:update'"
+                      v-permission="'fixed-asset:inventory:update'"
                     >
                       <CheckCircleOutlined /> 完成盘点
                     </a-menu-item>

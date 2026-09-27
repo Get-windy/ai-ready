@@ -1,6 +1,7 @@
 package cn.aiedge.erp.finance.analytics.support;
 
 import cn.aiedge.base.config.MyBatisPlusConfig;
+import cn.aiedge.common.exception.BusinessException;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -22,10 +23,23 @@ public final class AnalyticsSupport {
     private AnalyticsSupport() {
     }
 
-    /** 当前登录会话租户；取不到时回落到 1（与既有分析模块实现一致）。 */
+    /**
+     * 当前登录会话租户；**取不到时明确拒绝，不回落到任何默认租户**。
+     *
+     * <p>⚠️ 2026-09-23 修复：原实现是 {@code return t == null ? 1L : t}（注释还写着"与既有分析模块实现一致"）。
+     * 这是本仓已明令要根除的高危写法 —— 见 {@code DocQueryController#currentTenantId} 的注释：
+     * 「一旦解析不出（旧 token、登录链路漏存 tenantId 等），回退 1 就等于**把租户 1 的数据展示给另一个租户的用户**」。</p>
+     *
+     * <p>本包所有端点在 Controller 层都带 {@code @SaCheckLogin}/{@code @SaCheckPermission}，
+     * 正常必然解析得出租户，因此这里与 {@code DocQueryController}、{@code SetAppCenterController}
+     * 保持同一口径：解析不出应当明确报「请重新登录」，而不是猜一个租户继续查。</p>
+     */
     public static Long tenantId() {
         Long t = MyBatisPlusConfig.getCurrentTenantIdValue();
-        return t == null ? 1L : t;
+        if (t == null) {
+            throw new BusinessException(401, "无法确定当前租户，请重新登录");
+        }
+        return t;
     }
 
     /** invoice 表的 tenant_id 是 varchar(50)，与本系统其余表的 bigint 不同。 */

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useUserStore } from '@/stores/user'
+import { currentShopTenantId } from '@/utils/shop'
 
 // ── 数据接口定义 ──
 export interface BannerItem {
@@ -42,17 +43,17 @@ export interface SkuItem {
   stock?: number
 }
 
+/**
+ * 收货地址（与后端 AddressDTO / 表 mall_address 对齐）。
+ * 2026-09-26：原先这里是 name/tel/province/city/district/detail 那一套，
+ * 而表实际是 region（省市区一个串）+ address（详细）—— 对不上就会 500。
+ */
 export interface AddressItem {
   id: string | number
-  name?: string
+  consignee?: string
   phone?: string
-  tel?: string
-  province?: string
-  city?: string
-  district?: string
-  detail?: string
+  region?: string
   address?: string
-  fullAddress?: string
   isDefault?: boolean
 }
 
@@ -88,26 +89,54 @@ export interface LogisticsItem {
   content?: string
 }
 
-const request = axios.create({
+/**
+ * 本实例的**响应拦截器已经把 `AxiosResponse` 解成业务体**（见下方 interceptors.response）。
+ * 但 axios 的静态类型并不知道这件事 —— `axios.create()` 仍声明成返回 `AxiosResponse<T>`，
+ * 于是 `request.get<{data: AddressItem[]}>(...)` 的 `res.data` 在类型上是整个信封
+ * `{data: AddressItem[]}`、而**运行期**它就是里面的数组。
+ *
+ * 后果是"运行对、类型错"：调用方写 `res.data`（正确）却被 TS 判为把对象赋给数组。
+ * 这里用一个最小的 `HttpClient` 接口把类型对齐到事实：**resolve 出来就是业务体**。
+ * （不改成 `AxiosResponse` 是因为那会与拦截器的实际行为不符，反而要所有调用点加 `.data.data`。）
+ */
+interface HttpClient {
+  get<T = any>(url: string, config?: any): Promise<T>
+  post<T = any>(url: string, data?: any, config?: any): Promise<T>
+  put<T = any>(url: string, data?: any, config?: any): Promise<T>
+  delete<T = any>(url: string, config?: any): Promise<T>
+}
+
+const axiosInstance = axios.create({
   baseURL: '/api/v1/mall',
   timeout: 10000
 })
 
-request.interceptors.request.use(
-  (config) => {
+axiosInstance.interceptors.request.use(
+  (config: any) => {
     const userStore = useUserStore()
     if (userStore.token) {
-      // Sa-Token 认证头
-      config.headers['Sa-Token'] = userStore.token
+      // ⚠️ 2026-09-26 修 P0：这里原本写的是自定义头 `Sa-Token: <token>`，
+      //    而后端 sa-token 配置是 `token-name: Authorization`（+ `Bearer` 前缀），
+      //    pc-admin 也是发 `Authorization: Bearer <token>`。
+      //    头名对不上 ⇒ **登录成功但之后每个请求都 401**（真机实测：
+      //    `Sa-Token` 头 401 / `Authorization: Bearer` 200），
+      //    C 端所有需登录页面（购物车/我的/订单/地址/资料）实际都进不去。
+      config.headers.Authorization = `Bearer ${userStore.token}`
+    }
+    // 店铺识别：游客没有会话，后端只能靠这个头知道"游客在逛哪家店"。
+    // 不带 ⇒ 所有 C 端接口 400「无法确定店铺」（见 utils/shop.ts 注释）。
+    const tenantId = currentShopTenantId()
+    if (tenantId) {
+      config.headers['X-Tenant-Id'] = tenantId
     }
     return config
   },
-  (error) => Promise.reject(error)
+  (error: any) => Promise.reject(error)
 )
 
-request.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
+axiosInstance.interceptors.response.use(
+  (response: any) => response.data,
+  (error: any) => {
     if (error.response?.status === 401) {
       const userStore = useUserStore()
       userStore.logout()
@@ -121,6 +150,13 @@ request.interceptors.response.use(
   }
 )
 
+/**
+ * 对外请求器：**resolve 出来就是业务体**（拦截器已解包）。
+ * 实例本体是 `axiosInstance`（保留 AxiosInstance 类型，拦截器要用），
+ * 这里只做一层类型对齐，避免调用方被迫写 `res.data.data`。
+ */
+const request = axiosInstance as unknown as HttpClient
+
 // ── 身份体系 ──
 export interface IdentityItem {
   partyId?: number
@@ -132,6 +168,23 @@ export interface IdentityItem {
 }
 
 export const api = {
+  /** 店铺配置（2026-09-26 新增，`GET /v1/mall/shop/config`，游客可达）
+   *  返回白名单字段：店铺名/logo/主题色/展示与交易开关；不含任何凭据。 */
+  shop: {
+    getConfig: () => request.get('/shop/config')
+  },
+
+  /** 公告（`GET /v1/mall/notice/list`，游客可达；原管理端路径 /erp/mall/notice 已迁移） */
+  notice: {
+    getList: (limit = 10) => request.get('/notice/list', { params: { limit } })
+  },
+
+  /** 商品标签（`GET /v1/mall/tags`，游客可达）
+   *  用途：**分类页最顶部的标签栏** + 商品卡角标 code→name 翻译 */
+  tag: {
+    getList: () => request.get('/tags')
+  },
+
   auth: {
     login: (data: { username: string; password: string }) => request.post('/auth/login', data),
     register: (data: any) => request.post('/auth/register', data),
@@ -180,15 +233,23 @@ export const api = {
     getDetail: (id: string) => request.get(`/orders/${id}`),
     cancel: (id: string) => request.put(`/orders/${id}/cancel`),
     confirm: (id: string) => request.put(`/orders/${id}/confirm`),
-    pay: (id: string, data: any) => request.post(`/orders/${id}/pay`, data),
     getPaymentMethods: () => request.get('/orders/payment-methods'),
-    track: (id: string) => request.get(`/orders/${id}/track`)
+    // ⚠️ 2026-09-23 删除 `pay`：后端 `POST /orders/{id}/pay` 已移除（它只把订单置为已付、
+    //    不产生支付记录，等于"白拿单"通道）。付款一律走下面的 payment.createPayment +
+    //    渠道回调驱动订单状态。详见 TRADE_MODULE_AUDIT_20260923.md P0-5。
+    /** F-06 物流信息：发货信息（物流公司/运单号）+ traces（真实轨迹待承运商对接） */
+    track: (id: string) => request.get(`/orders/${id}/track`),
+    /** F-05 订单状态计数：五宫格 / 顶部 Tab 角标（口径与列表一致） */
+    getCounts: () => request.get('/orders/counts')
   },
 
   payment: {
+    /** 发起支付：拿到渠道参数后跳转/唤起收银台 */
     createPayment: (data: any) => request.post('/payments', data),
-    getPaymentStatus: (id: string) => request.get(`/payments/${id}/status`),
-    callback: (data: any) => request.post('/payments/callback', data)
+    /** 轮询支付结果（回调由渠道服务端到服务端调用，前端只查状态） */
+    getPaymentStatus: (id: string) => request.get(`/payments/${id}/status`)
+    // ⚠️ 2026-09-23 删除 `callback`：支付回调只能由渠道服务器调用后端，
+    //    前端调用它既无意义（会被 Sa-Token 拦成 401）又会被误当成"支付完成"的信号。
   }
 }
 

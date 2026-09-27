@@ -170,7 +170,7 @@
             />
             <a-space>
               <a-button
-                v-permission="'erp:partner:create'"
+                v-permission="'party:create'"
                 type="primary"
                 size="small"
                 @click="router.push('/erp/partner/create')"
@@ -243,7 +243,7 @@
                     查看
                   </a-button>
                   <a-button
-                    v-permission="'erp:partner:edit'"
+                    v-permission="'party:update'"
                     type="link"
                     size="small"
                     @click="router.push(`/erp/partner/${record.id}`)"
@@ -259,7 +259,7 @@
                     {{ record.status === 'ENABLED' ? '停用' : '启用' }}
                   </a-button>
                   <a-button
-                    v-permission="'erp:partner:delete'"
+                    v-permission="'party:delete'"
                     type="link"
                     size="small"
                     danger

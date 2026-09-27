@@ -250,6 +250,7 @@
       <PrintDialog
         ref="printDialogRef"
         page-code="purchase-receive"
+        :document-id="printData.id ?? printData.orderId"
         :print-data="printData"
         @print-success="handlePrintSuccess"
       />

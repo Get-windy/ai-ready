@@ -36,7 +36,7 @@
               tooltip="打印折旧记录"
             />
             <a-button
-              v-permission="'erp:fixed-asset:depreciation:list'"
+              v-permission="'fixed-asset:depreciation:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)()"

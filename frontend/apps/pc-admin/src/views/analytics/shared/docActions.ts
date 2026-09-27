@@ -23,8 +23,13 @@ export async function runDocAction(
     return false
   }
   try {
-    if (record.docTypeCode === 'EXPENSE') {
-      // 费用申请单走 JPA 审批流（/erp/expense/approval/process），入参与其余单据不同
+    // ⚠️ 费用申请单**只有审批**（approve/reject）走 JPA 审批流，入参与其余单据不同；
+    //    submit/remove 与其它单据一样调费用域自己的通用端点
+    //    （`POST /erp/expense/application/{id}/submit`、`DELETE /erp/expense/application/{id}`）。
+    //    2026-09-23 修复：原判断只看了 docTypeCode、未同时看 kind，而 docTypes.ts 给 EXPENSE 登记的能力是
+    //    `submit/approve/reject/remove` 四种 ⇒ 草稿页点「删除」或「提交记账」都会被送成 action=REJECT
+    //    （即"删除"实际执行了"驳回"，越权改变单据审批状态）。
+    if (record.docTypeCode === 'EXPENSE' && (kind === 'approve' || kind === 'reject')) {
       await docActionApi.expenseApproval(
         String(record.docId),
         kind === 'approve' ? 'APPROVE' : 'REJECT',

@@ -1077,39 +1077,56 @@ const handleBatchPrint = async () => {
   } catch { message.error('打印失败') }
 }
 
-/** 连续打印：逐张渲染已发布模板，合并为一次打印任务输出 */
+/** 取出完整 HTML 文档里的 <style> 块（合并多份文档时集中放 head） */
+function extractStyles(html: string): string {
+  return (html.match(/<style[\s\S]*?<\/style>/gi) || []).join('\n')
+}
+
+/** 取出 <body> 内部内容；没有 body 标记就原样返回 */
+function extractBody(html: string): string {
+  const m = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+  return m ? m[1] : html
+}
+
+/**
+ * 连续打印：逐张走后端「单据打印」接口取 HTML，再合并成一个打印任务。
+ *
+ * 合并成一次打印是**客户端本分**（后端没有「多单据一次打印」的能力），保留；
+ * 但「挑模板 → 取数 → 渲染」不再自己抄一遍 —— 那条流水线归服务端，
+ * 抄一份就会像原来那样连带复制它的缺陷（列配置/字段口径/打印设置各写各的）。
+ *
+ * ⚠️ 合并时**不能把整份文档塞进 <body>**：每张渲染结果都是完整 HTML（含自己的
+ * <style> 与 @page），文档套文档会让内层 <head>/<style> 被浏览器丢弃，
+ * 模板样式与纸张尺寸全部失效（原来就是这么写的）。这里抽出各自 body 内容拼接，
+ * 样式取第一份（同一 pageCode 的模板，引擎 CSS 一致）。
+ */
 async function printContinuous(ids: any[]): Promise<boolean> {
-  const tplRes: any = await printingApi.getTemplates({ page: 1, size: 50, pageCode: 'sale', status: 1 })
-  const templates = tplRes?.data?.records || tplRes?.records || []
-  if (!templates.length) {
-    message.warning('未找到已发布的销售订单打印模板，请先在「打印模板」中配置并发布')
+  const parts: string[] = []
+  for (const id of ids) {
+    const res: any = await printingApi.renderDocument('sale', id)
+    const html = res?.data?.html || res?.html || ''
+    if (html) parts.push(html)
+  }
+  if (!parts.length) {
+    message.warning('没有可打印的内容：请确认单据存在，且「打印模板」里有已发布的销售订单模板')
     return false
   }
-  const tpl = templates.find((t: any) => t.isDefault) || templates[0]
-  const htmls: string[] = []
-  for (const id of ids) {
-    const detail: any = await saleOrderApi.getById(id)
-    const res: any = await printingApi.renderTemplate({
-      templateJson: tpl.templateJson,
-      dataJson: JSON.stringify(detail?.data || detail || {}),
-    })
-    htmls.push(res?.data?.html || res?.html || '')
-  }
+
   const iframe = document.createElement('iframe')
   iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
   document.body.appendChild(iframe)
   const doc = iframe.contentDocument || iframe.contentWindow?.document
   if (!doc) { message.error('无法创建打印窗口'); return false }
   doc.open()
-  doc.write(`<!DOCTYPE html><html><head><title>销售订单打印</title>
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>销售订单打印</title>
+    ${extractStyles(parts[0])}
     <style>
-      body{margin:0;padding:8mm;font-family:SimSun,serif;font-size:12px}
-      table{border-collapse:collapse;width:100%}
-      td,th{border:1px solid #333;padding:4px 6px}
-      .print-page{page-break-after:always}
-      .print-page:last-child{page-break-after:auto}
-      @media print{@page{size:auto;margin:8mm}}
-    </style></head><body>${htmls.map(h => `<div class="print-page">${h}</div>`).join('')}</body></html>`)
+      body{margin:0;font-family:SimSun,serif;font-size:12px}
+      .merged-doc{page-break-after:always}
+      .merged-doc:last-child{page-break-after:auto}
+    </style></head><body>
+    ${parts.map(h => `<div class="merged-doc">${extractBody(h)}</div>`).join('')}
+    </body></html>`)
   doc.close()
   await new Promise(r => setTimeout(r, 300))
   iframe.contentWindow?.focus()

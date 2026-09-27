@@ -56,6 +56,10 @@ class ChainServiceTest {
     private PrintTaskProducer taskProducer;
     @Mock
     private RedisCache redisCache;
+    @Mock
+    private cn.aiedge.erp.printing.spi.PrintDataProviderRegistry providerRegistry;
+    @Mock
+    private cn.aiedge.erp.printing.service.PrintConfigService printConfigService;
 
     private PrintChainService chainService;
     private PrintClientService clientService;
@@ -77,7 +81,8 @@ class ChainServiceTest {
         executorService = new ChainExecutorServiceImpl(
                 chainMapper, chainItemMapper, taskMapper, templateMapper,
                 clientMapper, screenshotMapper, screenshotService,
-                objectMapper, taskProducer, redisCache
+                objectMapper, taskProducer, redisCache,
+                providerRegistry, printConfigService
         );
     }
 

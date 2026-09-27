@@ -26,6 +26,12 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
  *
  * <p>提供对 {@code logs/structured/app.jsonl} 文件的查询、过滤和统计接口。</p>
  *
+ * <p><b>⚠️ 本项目零调用方（2026-09-26 系统模块审计复核）</b>：全仓无任何 Java 代码引用本类，
+ * 前端也没有任何页面或 api 封装调用本控制器的端点。本系统「日志」相关页面唯一在用的后端是
+ * {@code cn.aiedge.audit.controller.SysLogStubController}（前缀 {@code /api/log}）。
+ * 保留而非删除的原因见 {@link AdvancedLogController} 的类注释（可能有本仓之外的调用方）；
+ * <b>改日志逻辑前请先确认改的是不是本类</b>。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */

@@ -100,6 +100,15 @@ public class CustomerGradeServiceImpl extends ServiceImpl<cn.aiedge.erp.party.ma
     }
 
     @Override
+    public long countUsedByGradeName(String gradeName) {
+        if (gradeName == null || gradeName.isBlank()) {
+            return 0L;
+        }
+        Long used = baseMapper.countUsedByGradeName(gradeName);
+        return used == null ? 0L : used;
+    }
+
+    @Override
     @Transactional
     public boolean enableGrade(Long id) {
         CustomerGrade grade = new CustomerGrade();

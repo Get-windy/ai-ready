@@ -294,7 +294,7 @@
                     </a-space>
                     <div class="form-tip">
                       对应列 <code>reg_default_grade_id</code>（对标 <code>Default2bCustomerDealerTypeId</code>，实测样本「A餐饮客户」= 464415）。
-                      选项取自本系统<strong>客户级别字典</strong> <code>GET /erp/partner/grades?gradeType=CUSTOMER</code>（<code>partnerGradeApi.list('CUSTOMER')</code>，
+                      选项取自本系统<strong>客户级别字典</strong> <code>GET /erp/partner/grades</code>（<code>partnerGradeApi.list()</code>，
                       与「买家账号」「客户资料」等页同源）；{{ gradeOptions.length ? `当前字典 ${gradeOptions.length} 项` : '⚠️ 字典为空或接口不可用，暂时无法选择' }}。
                       「客户级别设置」按钮置灰：<strong>本系统无该跳转页</strong>。
                     </div>
@@ -482,7 +482,7 @@
  *   · 注册设置（对标实测 5 项，Flyway V11.365.0 重做）：
  *       ① 允许注册账号 → enable_join_apply（复选框；同行「设置注册信息」按钮本系统未实现 → 禁用）
  *       ② 买家注册默认级别 → reg_default_grade_id（**必填**，选项来自本系统客户级别字典
- *            partnerGradeApi.list('CUSTOMER')；同行「客户级别设置」按钮本系统无跳转页 → 禁用）
+ *            partnerGradeApi.list()；同行「客户级别设置」按钮本系统无跳转页 → 禁用）
  *       ③ 买家注册默认分类 → reg_default_category（**必填**；⚠️ 对标选项字典**未实测** → 文本输入承载原值，不造字典）
  *       ④ 买家账号注册审核 → reg_audit_required（**必填**，否(0)/是(1)）
  *       ⑤ 新用户注册送优惠券 → reg_give_coupon + reg_give_coupons
@@ -613,14 +613,14 @@ const gradeLoading = ref(false)
 async function loadGradeOptions() {
   gradeLoading.value = true
   try {
-    const list: any = await partnerGradeApi.list('CUSTOMER')
+    const list: any = await partnerGradeApi.list()
     const rows: any[] = Array.isArray(list) ? list : (list?.data ?? [])
     gradeOptions.value = (Array.isArray(rows) ? rows : [])
       .filter(g => g && g.id !== undefined && g.id !== null)
       .map(g => ({ label: String(g.gradeName ?? g.gradeCode ?? g.id), value: Number(g.id) }))
   } catch (e) {
     // 字典不可用时不阻断页面：置空 + 页面提示，保存时按必填校验拦截
-    console.warn('[店铺设置] 客户级别字典获取失败（/erp/partner/grades?gradeType=CUSTOMER）', e)
+    console.warn('[店铺设置] 客户级别字典获取失败（/erp/partner/grades）', e)
     gradeOptions.value = []
   } finally {
     gradeLoading.value = false

@@ -25,9 +25,10 @@ public class WechatChannel implements PaymentChannel {
     }
 
     @Override
-    public String createPayment(PaymentRequest request) {
-        // TODO: 调用微信支付API创建订单
-        return "WECHAT_" + request.getId();
+    public ChannelPayResult createPayment(PaymentRequest request) {
+        // TODO(微信)：JSAPI/Native 下单需要商户号 + APIv3 密钥 + 证书。
+        // 在凭据齐备前**不伪造**渠道单号，直接拒绝，避免出现"下单成功但根本付不了"的假象。
+        throw new IllegalStateException("微信支付通道尚未接入（需配置商户号与 APIv3 凭据）");
     }
 
     @Override
@@ -36,15 +37,6 @@ public class WechatChannel implements PaymentChannel {
         record.setChannelOrderNo(channelOrderNo);
         record.setChannel(getChannelCode());
         record.setStatus(0);
-        return record;
-    }
-
-    @Override
-    public PaymentRecord handleCallback(String callbackData) {
-        PaymentRecord record = new PaymentRecord();
-        record.setChannel(getChannelCode());
-        record.setCallbackData(callbackData);
-        record.setStatus(2);
         return record;
     }
 

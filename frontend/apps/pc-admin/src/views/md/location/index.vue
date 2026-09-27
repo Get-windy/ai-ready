@@ -174,7 +174,7 @@
             :view-mode="true"
             :fill-mode="true"
             storage-key="md-location-columns"
-            global-config-key="md-location-columns"
+            global-config-key="md-location-columns-global"
             @checkbox-change="handleCheckboxChange"
             @checkbox-all="handleCheckboxAll"
             @expand-change="onTableExpand"
@@ -822,8 +822,31 @@ async function handleExport() {
 
 // ── 打印(F8)：列表打印 ──
 const printDialogRef = ref<any>(null)
+/**
+ * 打印数据（结果集打印）。
+ *
+ * 形状与其它结果集页统一为 `{ title, columns, rows, printTime }`：
+ * 模板用 `items.columnsFrom: "columns"` 按这里给的列**动态**画表头，
+ * 所以列改了不用去改模板（这也是「用户当前列配置」能被如实打出来的前提）。
+ * `columns` 必须与 `rows` 的键一一对应，否则那一列会是空的。
+ */
 const printData = computed<Record<string, any>>(() => ({
-  pageTitle: '商品货位设置',
+  title: '商品货位设置',
+  columns: [
+    { key: 'productName', title: '商品名称' },
+    { key: 'productCode', title: '货号' },
+    { key: 'shelfStatusText', title: '上架', align: 'center' },
+    { key: 'unit', title: '单位', align: 'center' },
+    { key: 'barcode', title: '条码' },
+    { key: 'spec', title: '规格' },
+    { key: 'model', title: '型号' },
+    { key: 'origin', title: '产地' },
+    { key: 'brand', title: '品牌' },
+    { key: 'warehouseName', title: '仓库' },
+    { key: 'locationCode', title: '推荐货位' },
+    { key: 'remark', title: '备注' },
+    { key: 'modifyTime', title: '修改时间' },
+  ],
   rows: (selectedRows.value.length ? selectedRows.value : tableData.value).map(row => ({
     productName: row.productName,
     productCode: row.productCode,

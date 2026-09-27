@@ -139,7 +139,9 @@
               </template>
               <template #actionCell="{ record }">
                 <a-space :size="2">
-                  <a-button type="link" size="small" danger @click="handleRemove(record)">删除</a-button>
+                  <!-- 2026-09-23：按能力矩阵渲染 —— SALE_OUTBOUND/PURCHASE_INBOUND/PURCHASE_RETURN/RECEIPT/PAYMENT
+                       在 docTypes.ts 里都没有 remove，此前无条件渲染 ⇒ 点下去只会弹「不支持该操作」 -->
+                  <a-button v-if="canDo(record.docTypeCode, 'remove')" type="link" size="small" danger @click="handleRemove(record)">删除</a-button>
                   <a-button v-if="canDo(record.docTypeCode, 'copy')" type="link" size="small" @click="handleCopy(record)">复制</a-button>
                 </a-space>
               </template>

@@ -29,20 +29,32 @@ export const partnerCategoryApi = {
   }
 }
 
-// ── 往来单位等级 ──
+// ── 客户级别（全站唯一数据源 = biz_customer_grade，2026-09-26 收敛） ──
+// 原 gradeType 维度已移除：它是历史表 erp_partner_grade 的列（按 grade_type 区分客户/供应商等级），
+// 收敛后的 biz_customer_grade 没有该列，客户级别只有一套。
 export interface PartnerGrade {
   id: number
   gradeCode: string
   gradeName: string
-  gradeType: string
   gradeLevel: number
+  /** 折扣率（百分数，100 = 不打折） */
+  discountRate?: number
+  pointRate?: number
+  creditLimit?: number
+  creditDays?: number
+  description?: string
   sortOrder: number
   status: number
 }
 
 export const partnerGradeApi = {
-  list(gradeType?: string): Promise<PartnerGrade[]> {
-    return request.get('/erp/partner/grades', { params: { gradeType } })
+  /** 下拉用：仅返回启用级别 */
+  list(): Promise<PartnerGrade[]> {
+    return request.get('/erp/partner/grades')
+  },
+  /** 列表页用：分页 + 关键字 + 状态（不传 status 则含停用） */
+  page(params?: { keyword?: string; status?: number; pageNum?: number; pageSize?: number }): Promise<{ records: PartnerGrade[]; total: number }> {
+    return request.get('/erp/partner/grades/page', { params })
   },
   create(data: Partial<PartnerGrade>): Promise<boolean> {
     return request.post('/erp/partner/grades', data)

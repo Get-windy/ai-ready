@@ -9,7 +9,14 @@ import java.util.Map;
 
 public interface MallProductService {
 
-    PageResult<ProductListDTO> listProducts(int page, int size, String categoryId, String keyword);
+    /**
+     * 商品列表。
+     *
+     * @param tagCode 商品标签编码（{@code erp_product.mall_tags} 逗号分隔的槽位码，
+     *                如 {@code TAG_1}）——用于**分类页最顶部的商品标签 Tab**；
+     *                传空表示不过滤。命中的是"包含"关系，不是相等。
+     */
+    PageResult<ProductListDTO> listProducts(int page, int size, String categoryId, String keyword, String tagCode);
 
     ProductDetailDTO getProductDetail(Long id);
 

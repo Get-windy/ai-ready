@@ -4,6 +4,8 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // `import.meta.env` 的类型来自 vite/client；缺它时 registerSW.ts 会报 TS2339
+    "types": ["vite/client"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

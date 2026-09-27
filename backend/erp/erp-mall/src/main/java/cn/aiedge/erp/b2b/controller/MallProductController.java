@@ -28,8 +28,10 @@ public class MallProductController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "分类ID") @RequestParam(required = false) String categoryId,
-            @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword) {
-        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, categoryId, keyword);
+            @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "商品标签编码（mall_tags 槽位码，如 TAG_1）")
+            @RequestParam(required = false) String tagCode) {
+        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, categoryId, keyword, tagCode);
         return ApiResponse.success(result);
     }
 
@@ -54,7 +56,7 @@ public class MallProductController {
             @Parameter(description = "分类ID") @PathVariable String categoryId,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
-        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, categoryId, null);
+        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, categoryId, null, null);
         return ApiResponse.success(result);
     }
 
@@ -64,7 +66,7 @@ public class MallProductController {
             @Parameter(description = "搜索关键词") @RequestParam String keyword,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
-        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, null, keyword);
+        PageResult<ProductListDTO> result = mallProductService.listProducts(page, size, null, keyword, null);
         return ApiResponse.success(result);
     }
 

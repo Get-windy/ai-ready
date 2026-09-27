@@ -694,6 +694,7 @@ import { useUserStore } from '@/stores/user'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { dictItemApi } from '@/api/dict'
+import { isWriteFailed } from '@/utils/writeResult'
 
 // ── 岗位级别选项（从API加载） ──────────────────────────
 const levelOptions = ref<{ label: string; value: number }[]>([])
@@ -701,11 +702,11 @@ const levelOptions = ref<{ label: string; value: number }[]>([])
 async function loadLevelOptions() {
   try {
     const res = await dictItemApi.getByDictCode('POSITION_LEVEL')
-    if (res.data) {
-      levelOptions.value = res.data
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
-    }
+    // ⚠️ 响应拦截器已拆包：res 即数组本体，旧写法 `if (res.data)` 恒 false → 岗位级别下拉恒空
+    const items = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as Array<{ sortOrder: number; itemText: string; itemValue: string }>
+    levelOptions.value = items
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
   } catch (err) {
     console.warn('[岗位管理] 加载岗位级别失败', err)
   }
@@ -890,9 +891,10 @@ const fetchData = async () => {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     })
-    if (res.data) {
-      tableData.value = res.records
-      pagination.total = res.total
+    // ⚠️ 响应拦截器已拆包：res 即 Page 本体，旧写法 `if (res.data)` 恒 false → 列表恒空
+    if (res) {
+      tableData.value = (res as any).records || []
+      pagination.total = (res as any).total || 0
     }
   } catch (error) {
     hasError.value = true
@@ -911,9 +913,7 @@ const fetchData = async () => {
 const fetchCategoryList = async () => {
   try {
     const res = await positionApi.getCategoryList({ tenantId: userStore.tenantId, status: 0 })
-    if (res.data) {
-      categoryList.value = res.data
-    }
+    categoryList.value = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as any[]
   } catch (error) {
     console.warn('[岗位管理] 加载岗位分类失败')
   }
@@ -923,9 +923,7 @@ const fetchCategoryList = async () => {
 const fetchDepartmentList = async () => {
   try {
     const res = await departmentApi.getList({ tenantId: userStore.tenantId, status: 0 })
-    if (res.data) {
-      departmentList.value = res.data
-    }
+    departmentList.value = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as any[]
   } catch (error) {
     console.warn('[岗位管理] 加载部门列表失败')
   }
@@ -1051,7 +1049,9 @@ const handleDelete = (record: PositionInfo) => {
     content: `确定要删除岗位 "${record.positionName}" 吗？`,
     async onOk() {
       try {
-        await positionApi.delete(record.id)
+        const delRes = await positionApi.delete(record.id)
+        // 后端可能以 false / {success:false} 表达「没删成」（岗位被引用等），不能只看请求没报错
+        if (isWriteFailed(delRes)) { message.error('删除失败：岗位不存在或已被引用，不允许删除'); return }
         message.success('删除成功')
         fetchData()
       } catch (err) {
@@ -1072,7 +1072,8 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
     async onOk() {
       batchDeleteLoading.value = true
       try {
-        await positionApi.batchDelete(ids)
+        const delRes = await positionApi.batchDelete(ids)
+        if (isWriteFailed(delRes)) { message.error('批量删除未全部成功：选中项可能已被引用或已删除'); fetchData(); return }
         message.success('删除成功')
         selectedRowKeys.value = []
         fetchData()
@@ -1108,8 +1109,8 @@ const fetchCategoryData = async () => {
   categoryLoading.value = true
   try {
     const res = await positionApi.getCategoryPage({ tenantId: userStore.tenantId, size: 100 } as any)
-    if (res.data) {
-      categoryData.value = res.records
+    if (res) {
+      categoryData.value = (res as any).records || []
     }
   } catch (error) {
     message.error('加载分类数据失败')

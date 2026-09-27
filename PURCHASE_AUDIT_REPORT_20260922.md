@@ -579,6 +579,79 @@ GREATEST(COALESCE(o.total_quantity,0) - COALESCE(o.received_amount,0), 0) AS unr
 | 317 列僵尸表 DROP | 破坏性操作，且需确认无外部系统依赖，按纪律先出方案 |
 | 重复服务实现（`PurchaseDemandAnalysisService` ~950 行无入口、`PurchaseQuoteComparisonService` 只被测试引用） | 属"这个功能产品还要不要"的裁定，不代为删除；我复核过引用面（确实只有自身文件），删起来安全，但删的是**功能**不是死代码 |
 
+---
+
+# 附录 D：第四轮（2026-09-26，重启后收尾）
+
+## 重启后的落地验证（实测）
+
+Flyway 已应用 `V11.498.0`（菜单）与 `V11.499.0`（并行会话的 routeName 修复），我的菜单改动**全部生效且未被覆盖**：70051/52/53 → `stock:replenishment`、70071 → `purchase:order`、80421/80422 → `purchase:analytics` + `menu_level=0`、81006/81007 → `supplier:*`、**70073 采购询价已入库**。
+
+接口实测（真实登录 admin）：
+
+| 探针 | 结果 |
+|---|---|
+| `GET /api/erp/purchase/exchange/1/items` | **200** —— `price_level_1..8` 列名修复生效（若映射仍错，PG 建 SELECT 时就报错，与有无数据行无关） |
+| `/api/purchase/price-track/page`、`/trend` | 200 —— 换成 `purchase:price-track:*` 精确码后正常 |
+| `/api/erp/purchase/order/page` | 200 带真实分页数据 |
+| `/api/erp/purchase/return/export`、`inbound/export` | 200（返回 JSON，前端负责转 CSV） |
+| `GET /api/menu/user/client/tenant-admin` | 369 条，**70073 在列**（path/component/menuType 均正确） |
+
+## 表单页「页面配置」弹窗（第三轮遗留项）—— 已完成
+
+按**更正后**的方案落地：
+
+- 新增共享组合式 `components/BillFormPage/useFormPageConfig.ts`：字段显隐 / 显示名 / 回车跳转 + 持久化（`userPageConfigApi`）+ 动态选项注入（`decorate`）+ 录单默认值/打印设置收集回填。
+- 新增共享组件 `components/BillFormPage/FormPageConfigModal.vue`：三页签（页面配置 / 录单默认值<slot> / 打印设置），供**单据表单页**使用（与列表页专用的 `PageConfigPanel` 明确分开）。
+- 接入 `return/form.vue`（34 个可配置字段）与 `exchange/form.vue`（15 个基本信息字段）；退货页补上顶部「配置」入口，换货页把原先只弹「请使用底部Tab中的列配置功能」的假按钮换成真弹窗。
+
+**Playwright 实测**：两页点「配置」均能打开弹窗，页签为 `页面配置 / 录单默认值 / 打印设置`，表格行数 34 / 15 与字段数一致，页面无 JS 报错。
+
+顺带修掉一个继承来的缺陷：显示名原来写进 computed 的临时对象，刷新即丢 —— 现在进 `pageConfig` 持久化，真正生效。
+
+**未做**：`inbound/form.vue` 仍保留它自己那份内联弹窗。它工作正常，而迁移它要动模块里最重的表单页、且其录单默认值语义没有 E2E 覆盖，故不在本轮硬改；共享件已就位，可作为后续一次小重构接回。
+
+## 🔴 运行时查出的新缺陷（已修）：新菜单页登不进 = 路由有了、组件找不到
+
+给询价页加菜单后实测发现 `/purchase/inquiry` **页面空白**，DOM 里是
+`页面组件未找到: purchase/inquiry/index`，且浏览器**没有**去拉组件 chunk。
+
+根因：`router/dynamicRoutes.ts` 的 `componentMap` 是**按页面显式登记**的（每个页面两条：带 `/index` 与不带）。询价页此前只挂静态路由 `erp/purchase/inquiry`，**从未登记进 componentMap**。于是新菜单能注册出路由，但 `getComponent('purchase/inquiry/index')` 逐级兜底都落空，最后 `import('../views/purchase/inquiry/index/index.vue')` 失败 → 渲染「页面组件未找到」。
+
+修法：在 `componentMap` 补 3 条（`purchase/inquiry`、`purchase/inquiry/index`、`purchase/inquiry/form`）。实测 `/purchase/inquiry` 立刻正常渲染（工具栏 新增/刷新/配置/查询 + 列表列 + `/api/erp/purchase/inquiry/page` 调用）。
+
+> **教训（已入记忆）**：给「原本只走静态路由」的页面加菜单时，**必须同时把它登记进 `componentMap`**，否则症状是"路由在、页面空"，且不报错、console 也没有明显异常，极易误判成后端/权限问题。
+
+---
+
+# 附录 E：第五轮（2026-09-26 续）——打印收敛到共享组件
+
+## 先更正我自己上一轮的结论
+
+上一轮我判断「打印链路未铺开、没有模板与客户端，接通等于造一个新的假成功」，据此把 4 个采购列表页的打印改成 `window.print()` 打底。**这个判断是错的**，实测与代码都表明：
+
+- `erp-purchase` **已有** `PurchaseOrderPrintDataProvider`（`PAGE_CODE = "purchase"`），且 `sys_print_template` 里有 `page_code='purchase'` 的**已发布默认模板**（A4，is_default=true）——采购订单的真实打印链路是通的。
+- `PrintDialog` 走的是**浏览器 iframe 打印**（`contentWindow.print()`），根本不需要 `sys_print_client`（那套是网络打印机的可选路径）——所以"客户端 0 行"不构成阻塞。
+- 全仓 **17 个页面**用真实 `<PrintDialog>` 组件，含多个列表页（`dispatch/purchase-receive`、`dispatch/query`、`sales/doc-query`、`md/*` …）。
+
+我此前只 grep 了 `sys_print_task`/`print_client` 就下了结论，漏看了 provider 与模板。教训：判"某能力没接通"之前，要把**前端组件消费方**也纳入证据面。
+
+## 本轮改动
+
+| 页面 | 改动 |
+|---|---|
+| 采购订单列表（`erp/purchase`） | 删掉自写的「打印模板下拉 + 只把打印次数 +1」假弹窗，换成共享 `<PrintDialog page-code="purchase" :document-id>`；打印成功回调里再调 `batch-print` 回写打印次数 |
+| 采购入库单 / 退货单 / 换货单列表 | 同样换成 `<PrintDialog page-code="purchase-inbound / purchase-return / purchase-exchange">`，并移除 `window.print()` 打底与假弹窗 |
+| `components/PrintDialog` | 补**空态提示**：无已发布模板时显示「该页面还没有已发布的打印模板，请到『设置 → 打印管理 → 打印模板』配置并发布后再打印」。此前列表空、打印按钮灰，用户看不出为什么 |
+
+入库/退货/换货三页的 pageCode 目前**后端尚未注册 Provider、也没有模板** —— 此时 `PrintDialog` 会明确提示并禁用打印（它本来就有 `canSubmitPrint` 门禁，不会假成功）。等谁补上模板/Provider，这三页**无需再改前端**即可打印。
+
+## 验证状态（如实）
+
+- 4 个列表页 + `PrintDialog` 全部 **eslint 0 error**。
+- 后端起来的那一刻实测过：`/erp/purchase` 渲染出 15 个按钮（含「打印(F8)"），并成功请求了 `printing/index.ts`、`set/print-config.ts`；采购订单**表单页**（用户新加的 PrintDialog）同样命中这两个 200。
+- **未完成**：入库/退货/换货三页打印弹窗的浏览器实测 —— 探针跑到一半后端被停（`5655` ECONNREFUSED，等待约 5 分钟未恢复），环境在反复重启。恢复后需复跑：点「打印(F8)」应弹出 PrintDialog，并出现上述空态提示。
+
 ## ⚠️ 另一会话已把我的改动提交了（须知悉）
 
 提交 `0004c656 chore(release): 0.3.24 —— 财务审计修复 + 仓储/采购重构 + 死代码清理` 由**并行会话**创建，其中**顺带提交了本轮采购修复**：`PURCHASE_AUDIT_REPORT_20260922.md`、迁移 `V11.495.0` 与 `V11.498.0`、以及采购/换货/退货/记账/费用分摊等 Java 改动。

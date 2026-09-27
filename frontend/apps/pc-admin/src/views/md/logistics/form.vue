@@ -294,15 +294,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { partnerApi, partnerContactApi } from '@/api/erp/partner'
-import request from '@/utils/request'
+import { generateLogisticsCodeAsync } from '../utils/generateCode'
 import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
 import FormSection from '@/components/FormSection/index.vue'
 
 const route = useRoute()
 const router = useRouter()
 
-/** 物流公司编号前缀（对标 ql361 实测：WuLiu + 3 位序号，如 WuLiu001） */
-const CODE_PREFIX = 'WuLiu'
+// 物流公司编号口径（WuLiu + 3 位补零，对标实测）集中在 views/md/utils/generateCode.ts，
+// 本页不再自行拼接，避免与客户/供应商的取号逻辑出现第二份实现。
 
 const saving = ref(false)
 let branchKeySeed = 0
@@ -363,15 +363,9 @@ function removeBranch(index: number) {
   branches.value.splice(index, 1)
 }
 
-// ═══ 编号生成（对标 WuLiu001 口径） ═══
+// ═══ 编号生成（口径见 utils/generateCode.ts） ═══
 async function generateCode() {
-  try {
-    const res: any = await request.get('/erp/md/customer/next-seq', { params: { prefix: CODE_PREFIX } })
-    const seq = Number(res?.seq ?? res?.data?.seq ?? 1) || 1
-    form.partnerCode = CODE_PREFIX + String(seq).padStart(3, '0')
-  } catch {
-    form.partnerCode = CODE_PREFIX + '001'
-  }
+  form.partnerCode = await generateLogisticsCodeAsync()
 }
 
 // ═══ 编辑回填 ═══

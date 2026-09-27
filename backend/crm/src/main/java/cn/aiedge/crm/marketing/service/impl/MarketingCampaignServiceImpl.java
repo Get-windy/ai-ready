@@ -1,6 +1,7 @@
 package cn.aiedge.crm.marketing.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.marketing.entity.MarketingCampaign;
 import cn.aiedge.crm.marketing.entity.MarketingExecution;
 import cn.aiedge.crm.marketing.entity.MarketingTarget;
@@ -31,6 +32,8 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
 
     private final MarketingTargetMapper targetMapper;
     private final MarketingExecutionMapper executionMapper;
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public MarketingCampaign getByCampaignCode(String campaignCode) {
@@ -91,20 +94,8 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
 
     @Override
     public String generateCampaignCode() {
-        String prefix = "MC";
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        LambdaQueryWrapper<MarketingCampaign> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(MarketingCampaign::getCampaignCode, prefix + dateStr)
-                .eq(MarketingCampaign::getDeleted, 0)
-                .orderByDesc(MarketingCampaign::getCampaignCode)
-                .last("LIMIT 1");
-        MarketingCampaign lastCampaign = getOne(wrapper);
-        int seq = 1;
-        if (lastCampaign != null) {
-            String lastNo = lastCampaign.getCampaignCode();
-            seq = Integer.parseInt(lastNo.substring(lastNo.length() - 4)) + 1;
-        }
-        return prefix + dateStr + String.format("%04d", seq);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），替代「查当日最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_CAMPAIGN");
     }
 
     @Override

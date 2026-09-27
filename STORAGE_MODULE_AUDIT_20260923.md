@@ -566,6 +566,42 @@ CHECK_DIFF        → /api/erp/wms/check-diff
 
 **编译验证附加说明**：全量 `mvn -pl core/api/core-api -am compile` 在本机**反复随机失败在不同模块**（erp-partner → erp-marketing → …，且同一模块单独编译又成功），形态是「无法访问 xxx」「找不到符号」在 import 行 —— 与 IDE 的 Java 语言服务器（ECJ）并发写 `target/classes` 的特征一致。最终采用「先 `mvn -pl erp/erp-purchase -am install` 装依赖到本地仓库，再 `mvn -pl core/api/core-api compile`」绕开，**结果 BUILD SUCCESS**。四个受影响的模块（core-base / erp-stock / wms / core-api）均已单独编译通过。
 
+### 11.3 重启后的运行时验收（2026-09-23，全部通过）
+
+后端重启（Flyway 执行 V11.496.0）后逐项做了接口/数据级验收，脚本可复跑：
+
+| 项 | 脚本 | 结果 | 关键证据 |
+|---|------|------|---------|
+| **D1** 收货回写采购订单 | `tools/verify-receipt-backfill.py` | **4/4** | 确认收货 **HTTP 200**（修复前因 401 抛异常必然回滚）；采购订单明细已收数量 **0 → 10.00**；WMS 库存 **95 → 105**（跑完自动回退） |
+| **D3** 非超管可用性 | `tools/verify-storage-fixes.cjs` | **6/6** | 系统管理员账号 `e2e_hr_ta` 访问 `/api/wms/receipt/page`、`/api/erp/stock/in/page` 均 **200**（修复前 403） |
+| **D6** 成本调价回写 | `tools/verify-cost-adjust-backfill.py` | **2/2** | `erp_stock.unit_price` **None → 12.3400** |
+| **D7** 仓库双表同步 | `tools/verify-warehouse-sync.cjs` | **6/6** | 新建仓库 → WMS 扩展行自动补建且 **id 与 warehouse_id 均对齐**；改名同步；删除同步 |
+| **D2/D4** 端点存在性 | `tools/verify-storage-fixes.cjs` | 见上 | `POST /wms/ship/cancel` 非 404；`POST /wms/event/outbox/process` 已 404 |
+| **D5** 菜单连通性 | `tools/audit-storage-menu.py` | **0 失败** | 删 7 页后 component / list_path 解析全部正常 |
+
+> 验收过程中由 `verify-receipt-backfill.py` 撞出的一条业务前置：收货确认会先过 **IQC 质检门禁**（`quality.gate.enabled`），`sourceOrderNo` 对不上已 PASS 的质检单时返回「该来源采购单未质检通过，禁止收货入库」——属既有业务校验，非缺陷。
+
+### 11.4 验收中顺带发现的两个小问题
+
+**① 业务异常被返回成 HTTP 500 —— 已修（2026-09-26）**
+
+- **根因（比"缺 handler"更具体）**：`GlobalExceptionHandler#handleBusinessException` 是**存在**的，它直接拿 `e.getCode()` 当 HTTP 状态返回；
+  真正的问题在异常类本身 —— `BusinessException(String message)` 的默认 `code = 500`，
+  而 `WmsBusinessException` 两个构造都落到 500（一个走默认、一个显式写死）⇒ 「库存不足」「状态不允许」「未质检通过」这类**明确的业务拒绝**全都伪装成服务端故障。
+- **修法**：`WmsBusinessException` 两个构造统一改为 `400`（客户端可纠正的请求问题）。已编译通过。
+- **兼容性核对**：`pc-admin` 与 `pda-warehouse` **均无**对 500 状态码的特判（grep 无命中）⇒ 改 400 无前端兼容风险。
+- **遗留背景（需另议）**：`BusinessException(String)` 默认 500 是**全站性设计**（全仓 188 处直接 new 基类），
+  `DmsBusinessException`、`PermissionDeniedException` 等子类同样如此。本次只统一了 WMS 域口径，
+  **全站是否收敛成 4xx 需要单独决策**（会一次性改变 188 处的 HTTP 状态与 `Result.code`）。
+- ⚠️ 需**重启后端**后生效。
+
+**② `erp_stock_cost_adjust_item.id` 无自增默认值 —— 撤回，非缺陷**
+
+初判为"建表漏了 `nextval`"，复核后**撤回**：该实体标注了 `@TableId(type = IdType.ASSIGN_ID)`，
+id 由 MyBatis-Plus 在应用层生成雪花值，**数据库本就不需要默认值**；
+同族的 `erp_stock_damage_item`、`erp_stock_in_item` 等明细表一致如此，是全项目统一约定。
+只有我那个用原生 SQL 造数据的验收脚本需要显式给主键（脚本内已注明）。
+
 ### 经复核后**决定不动**的死代码
 
 | 对象 | 行数 | 不动的原因 |

@@ -1,6 +1,6 @@
 package cn.aiedge.crm.visit.service.impl;
 
-import cn.aiedge.crm.common.CrmDocNo;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.visit.entity.VisitPlan;
 import cn.aiedge.crm.visit.mapper.VisitPlanMapper;
 import cn.aiedge.crm.visit.service.VisitPlanService;
@@ -17,6 +17,9 @@ import java.time.LocalDate;
 @Service
 @RequiredArgsConstructor
 public class VisitPlanServiceImpl extends ServiceImpl<VisitPlanMapper, VisitPlan> implements VisitPlanService {
+
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public Page<VisitPlan> pageList(Long customerId, Long salesPersonId, Integer status,
@@ -44,8 +47,8 @@ public class VisitPlanServiceImpl extends ServiceImpl<VisitPlanMapper, VisitPlan
 
     @Override
     public String generatePlanNo() {
-        String prefix = CrmDocNo.prefixOf("VP-");
-        return CrmDocNo.next(prefix, baseMapper.selectMaxPlanNo(prefix), 4);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），不再「查最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_VISITPLAN");
     }
 
     @Override

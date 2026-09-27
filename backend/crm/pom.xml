@@ -25,6 +25,12 @@
             <artifactId>core-base</artifactId>
         </dependency>
 
+        <!-- 信用归属 ERP：CRM 客户页的「信用额度 / 当前欠款」按 md_partner_id 取往来单位的值 -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-partner</artifactId>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

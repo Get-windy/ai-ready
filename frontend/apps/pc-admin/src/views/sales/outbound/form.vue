@@ -146,6 +146,14 @@
       />
     </a-modal>
 
+    <!-- ═══ 打印弹窗（真实模板渲染；此前的「打印」只回写了打印次数，什么都没打） ═══ -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="sale-outbound"
+      :document-id="formData.id"
+      :print-data="printData"
+      @print-success="handlePrintSuccess"
+    />
   </div>
 </template>
 
@@ -164,6 +172,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import SaleOutboundFormConfig from '@/views/erp/column-config/SaleOutboundFormConfig.vue'
@@ -1131,18 +1140,37 @@ async function handleCopyOutbound() {
   }
 }
 
-async function handlePrint() {
+// ═══ 打印 ═══
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+
+/**
+ * 打印弹窗的数据。
+ * 该页已在后端注册装配器（pageCode=sale-outbound），弹窗拿到 document-id 会走服务端取数；
+ * 这里的 print-data 只在「单据还没保存、拿不到 id」时给兼容路径兜底。
+ */
+const printData = computed(() => ({ ...formData }))
+
+/**
+ * 打开打印弹窗。
+ *
+ * ⚠️ 改造前这里调的是 `outboundApi.print(id)` —— 那个端点**只回写打印次数**，
+ * 不渲染也不打印，却提示「打印成功」：点了没纸出来。现在渲染/打印交给 PrintDialog，
+ * 次数回写挪到打印成功回调里。
+ */
+function handlePrint() {
   if (!formData.id) {
     message.warning('请先保存出库单')
     return
   }
-  try {
-    await outboundApi.print(formData.id)
-    formData.printCount = (formData.printCount || 0) + 1
-    message.success('打印成功')
-  } catch (error: any) {
-    message.error(error?.response?.data?.message || '打印失败')
-  }
+  printDialogRef.value?.open()
+}
+
+/** 打印成功 → 回写打印次数（失败不影响已经打出来的单据） */
+function handlePrintSuccess() {
+  if (!formData.id) return
+  outboundApi.print(formData.id)
+    .then(() => { formData.printCount = (formData.printCount || 0) + 1 })
+    .catch(() => { /* 忽略：次数回写失败不该报成打印失败 */ })
 }
 
 function handleImport() {

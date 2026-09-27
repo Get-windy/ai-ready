@@ -7,7 +7,10 @@ import cn.aiedge.erp.printing.mapper.*;
 import cn.aiedge.erp.printing.mq.PrintTaskProducer;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.printing.service.ChainExecutorService;
+import cn.aiedge.erp.printing.service.PrintConfigService;
 import cn.aiedge.erp.printing.service.ScreenshotService;
+import cn.aiedge.erp.printing.spi.PrintDataProviderRegistry;
+import cn.aiedge.erp.printing.support.PrintBehaviorApplier;
 import cn.hutool.core.util.IdUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +39,8 @@ public class ChainExecutorServiceImpl implements ChainExecutorService {
     private final ObjectMapper objectMapper;
     private final PrintTaskProducer taskProducer;
     private final RedisCache redisCache;
+    private final PrintDataProviderRegistry providerRegistry;
+    private final PrintConfigService printConfigService;
 
     /** 客户端并发锁前缀 */
     private static final String LOCK_KEY_CLIENT_PREFIX = "print:client:lock:";
@@ -64,11 +69,18 @@ public class ChainExecutorServiceImpl implements ChainExecutorService {
         int startStep = request.getStartStep() != null ? request.getStartStep() : 1;
         int endStep = request.getEndStep() != null ? request.getEndStep() : items.size();
 
-        // 4. 序列化 data_json
+        // 4. 取单据数据并序列化 data_json
+        //    调用方给了数据就用调用方的；没给则按 pageCode + documentId 走装配器 ——
+        //    与「单据打印」同一条取数路径，页面不必为了远程打印再准备一份数据。
         String dataJsonStr;
         try {
             Map<String, Object> data = request.getDataJson();
-            if (data == null) data = new HashMap<>();
+            if (data == null || data.isEmpty()) {
+                data = loadDataFromProvider(request);
+            }
+            // 打印设置（小数位 / 打印内容）在服务端统一生效；
+            // 对已加工过的数据是幂等的（格式化后再格式化结果不变，批次文本按行重算）
+            PrintBehaviorApplier.apply(data, printConfigService.getOrCreate(tenantId, userId));
             dataJsonStr = objectMapper.writeValueAsString(data);
         } catch (JsonProcessingException e) {
             throw BusinessException.internalError("单据数据序列化失败");
@@ -298,6 +310,25 @@ public class ChainExecutorServiceImpl implements ChainExecutorService {
         task.setErrorMessage(error);
         task.setCompleteTime(LocalDateTime.now());
         taskMapper.updateById(task);
+    }
+
+    /**
+     * 调用方没给打印数据时，按 pageCode + documentId 走装配器取。
+     *
+     * <p>两个参数都没给 → 返回空数据（与改造前「不给数据也照样建任务」一致，不改变既有行为）；
+     * 给了 pageCode 但该页面没注册装配器 → 直接报错，宁可当场说清也不要打出空白单据。</p>
+     */
+    private Map<String, Object> loadDataFromProvider(ChainTaskExecuteRequest request) {
+        String pageCode = request.getPageCode();
+        Long documentId = request.getDocumentId();
+        if (pageCode == null || pageCode.isBlank() || documentId == null) {
+            return new HashMap<>();
+        }
+        Map<String, Object> data = providerRegistry.require(pageCode).load(documentId);
+        if (data == null || data.isEmpty()) {
+            throw BusinessException.notFound("单据不存在或没有可打印内容：" + pageCode + " #" + documentId);
+        }
+        return data;
     }
 
     private Map<String, Object> parseDataJson(String dataJson) {

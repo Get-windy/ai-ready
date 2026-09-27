@@ -31,9 +31,8 @@ public class GatewayConfig {
             // 认证服务路由
             .route("auth-service", r -> r.path("/api/auth/**")
                 .uri("lb://auth-service"))
-            // 客户服务路由
-            .route("customer-service", r -> r.path("/api/customer/**")
-                .uri("lb://customer-service"))
+            // 客户服务路由已并入 crm 域：CustomerController 的类级前缀由 /api/customer 统一为
+            // /api/crm/customer（2026-09-26），由下面的 crm-service 路由接管，故原 customer-service 路由移除
             // CRM服务路由
             .route("crm-service", r -> r.path("/api/crm/**")
                 .uri("lb://crm-service"))

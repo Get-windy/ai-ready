@@ -57,6 +57,29 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         // 决定是否允许游客；未开通商城（无配置行）一律拒绝。
                         // 价格是否下发另由同表的 `guestShowPrice` 控制（已登录买家不受该开关影响）。
                         "/api/v1/mall/products/**",
+                        // ── 2026-09-26 商城 C 端新增的三条匿名通路（《商城App设计方案》一期）──
+                        // 三者都**不是**"放行即可访问"：准入统一收敛在 `MallGuestAccess.requireShop()`
+                        // （取不到店铺 → 400；未开放游客 → 403；无配置行 → fail-closed）。
+                        // 放行的只是"可达性"，因为商城首屏必须在**未登录**时就能渲染。
+                        // ① 店铺配置下发：店铺名/logo/主题色/展示与交易开关。
+                        //    返回体是白名单 VO（ShopConfigVO）——appsecret、支付商户密钥等
+                        //    凭据类字段**永不**下发；以后往实体加列也不会自动跟着下发。
+                        "/api/v1/mall/shop/**",
+                        // ② 公告：首页公告滚动条。原端点挂在管理端前缀 /api/erp/mall/notice 且
+                        //    注释自称"公开查询"却需登录（审计 P2-4 实测匿名 401），已迁到 C 端前缀。
+                        "/api/v1/mall/notice/**",
+                        // ③ 商品标签：分类页**最顶部**的标签 Tab 与商品卡角标（用户 2026-09-26 口径）。
+                        //    游客进店就要能看到，否则分类页顶部空白。
+                        "/api/v1/mall/tags",
+                        // ── 2026-09-26 支付渠道回调（真接支付宝/银联时按「启用步骤」放开）──
+                        // 放开的前提是**前两步已经做完**（MallPaymentController 类注释的三步）：
+                        //   ① 已有 PaymentCallbackVerifier 实现认领渠道（支付宝/微信/银联三家都在）；
+                        //   ② 租户已配渠道凭据，isConfigured(tenantId) 才会为 true。
+                        // 这些端点【没有】权限注解，安全性**完全**来自：路径带 tenantId（凭据按租户取）
+                        //   + 无实现/未配凭据/验签失败一律 fail-closed 拒绝 + 应答体按渠道约定。
+                        // 缺任一环都不能放开 —— 那等于把「改单」的口子敞开（审计 P0-2）。
+                        "/api/payment/callback/**",
+                        "/api/v1/mall/payments/callback/**",
                         // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
                         // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
                         // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
@@ -70,6 +93,12 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/sse/**",
                         // 外部运力平台回调（无会话；安全由 HMAC 验签 + 时间戳容差 + nonce 防重放保证，见《渠道管理开发文档》§3.4）
                         "/api/dms/channel/callback",
+                        // 开放 API（外部平台对接）：外部系统无 Sa-Token 会话，必须放行；
+                        // 安全由 OpenApiAuthInterceptor 的 HMAC-SHA256 验签 + 时间戳容差承担
+                        // （密钥取 external_channel_config.app_secret，未配置即一律拒绝）。
+                        // ⚠️ 此前这组端点既未放行、又无任何鉴权注解 ⇒ 外部调不通、
+                        //    登录用户却能无权限码调用（2026-09-27 审计修复）。
+                        "/api/open/**",
                         "/xxl-job-admin/**",
                         "/doc.html",
                         "/webjars/**",
@@ -110,6 +139,29 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         // 决定是否允许游客；未开通商城（无配置行）一律拒绝。
                         // 价格是否下发另由同表的 `guestShowPrice` 控制（已登录买家不受该开关影响）。
                         "/api/v1/mall/products/**",
+                        // ── 2026-09-26 商城 C 端新增的三条匿名通路（《商城App设计方案》一期）──
+                        // 三者都**不是**"放行即可访问"：准入统一收敛在 `MallGuestAccess.requireShop()`
+                        // （取不到店铺 → 400；未开放游客 → 403；无配置行 → fail-closed）。
+                        // 放行的只是"可达性"，因为商城首屏必须在**未登录**时就能渲染。
+                        // ① 店铺配置下发：店铺名/logo/主题色/展示与交易开关。
+                        //    返回体是白名单 VO（ShopConfigVO）——appsecret、支付商户密钥等
+                        //    凭据类字段**永不**下发；以后往实体加列也不会自动跟着下发。
+                        "/api/v1/mall/shop/**",
+                        // ② 公告：首页公告滚动条。原端点挂在管理端前缀 /api/erp/mall/notice 且
+                        //    注释自称"公开查询"却需登录（审计 P2-4 实测匿名 401），已迁到 C 端前缀。
+                        "/api/v1/mall/notice/**",
+                        // ③ 商品标签：分类页**最顶部**的标签 Tab 与商品卡角标（用户 2026-09-26 口径）。
+                        //    游客进店就要能看到，否则分类页顶部空白。
+                        "/api/v1/mall/tags",
+                        // ── 2026-09-26 支付渠道回调（真接支付宝/银联时按「启用步骤」放开）──
+                        // 放开的前提是**前两步已经做完**（MallPaymentController 类注释的三步）：
+                        //   ① 已有 PaymentCallbackVerifier 实现认领渠道（支付宝/微信/银联三家都在）；
+                        //   ② 租户已配渠道凭据，isConfigured(tenantId) 才会为 true。
+                        // 这些端点【没有】权限注解，安全性**完全**来自：路径带 tenantId（凭据按租户取）
+                        //   + 无实现/未配凭据/验签失败一律 fail-closed 拒绝 + 应答体按渠道约定。
+                        // 缺任一环都不能放开 —— 那等于把「改单」的口子敞开（审计 P0-2）。
+                        "/api/payment/callback/**",
+                        "/api/v1/mall/payments/callback/**",
                         // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
                         // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
                         // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
@@ -123,6 +175,12 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/sse/**",
                         // 外部运力平台回调（无会话；安全由 HMAC 验签 + 时间戳容差 + nonce 防重放保证，见《渠道管理开发文档》§3.4）
                         "/api/dms/channel/callback",
+                        // 开放 API（外部平台对接）：外部系统无 Sa-Token 会话，必须放行；
+                        // 安全由 OpenApiAuthInterceptor 的 HMAC-SHA256 验签 + 时间戳容差承担
+                        // （密钥取 external_channel_config.app_secret，未配置即一律拒绝）。
+                        // ⚠️ 此前这组端点既未放行、又无任何鉴权注解 ⇒ 外部调不通、
+                        //    登录用户却能无权限码调用（2026-09-27 审计修复）。
+                        "/api/open/**",
                         "/xxl-job-admin/**",
                         "/doc.html",
                         "/webjars/**",

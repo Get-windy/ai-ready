@@ -180,7 +180,7 @@ public class MallCartServiceImpl implements MallCartService {
         cart.setPrice(product.getSalePrice());
         cart.setQuantity(request.getQuantity());
         cart.setSubtotal(product.getSalePrice().multiply(BigDecimal.valueOf(request.getQuantity())));
-        cart.setChecked(true);
+        cart.setChecked(1);
 
         mallCartMapper.insert(cart);
         return convertToDTO(cart);
@@ -210,8 +210,8 @@ public class MallCartServiceImpl implements MallCartService {
         if (cart == null) {
             throw BusinessException.notFound("购物车项不存在: " + id);
         }
-        cart.setDeleted(1);
-        mallCartMapper.updateById(cart);
+        // ⚠️ @TableLogic 下必须走 deleteById（否则"删了还在"）—— 与 removeBatch 的 deleteBatchIds 同一口径
+        mallCartMapper.deleteById(id);
     }
 
     @Override
@@ -243,9 +243,9 @@ public class MallCartServiceImpl implements MallCartService {
                         .eq(MallCart::getDeleted, 0)
         );
 
+        // 同上：逻辑删除要走 MP 的删除入口
         for (MallCart item : cartItems) {
-            item.setDeleted(1);
-            mallCartMapper.updateById(item);
+            mallCartMapper.deleteById(item.getId());
         }
     }
 
@@ -260,7 +260,8 @@ public class MallCartServiceImpl implements MallCartService {
                         .eq(MallCart::getCustomerId, customerId)
                         .eq(MallCart::getTenantId, tenantId)
                         .eq(MallCart::getDeleted, 0)
-                        .eq(MallCart::getChecked, true)
+                        // 只校验**已勾选**的行参与结算（列由 V11.516.0 补上，值 1/0）
+                        .eq(MallCart::getChecked, 1)
         );
 
         for (MallCart item : cartItems) {
@@ -291,7 +292,8 @@ public class MallCartServiceImpl implements MallCartService {
         dto.setQuantity(cart.getQuantity());
         dto.setSubtotal(cart.getSubtotal());
         dto.setTotalPrice(cart.getSubtotal());
-        dto.setChecked(cart.getChecked());
+        // 对外仍是 Boolean（前端语义），列里存的是 integer 0/1
+        dto.setChecked(Integer.valueOf(1).equals(cart.getChecked()));
         dto.setCustomerId(cart.getCustomerId());
         dto.setCreateTime(cart.getCreateTime());
         // mall_cart.product_id 存的就是商品编码；无商品命中时回退为 product_id，避免列留空

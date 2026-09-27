@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NavBar, Steps, Step, Cell, CellGroup, Card, Button, Tag, Image, showLoadingToast, closeToast } from 'vant'
+import { NavBar, Steps, Step, Cell, CellGroup, Button, Tag, Image, showDialog, showLoadingToast, closeToast } from 'vant'
 import { api, type OrderInfo, type LogisticsItem } from '@/api'
 
 const router = useRouter()
@@ -10,8 +10,12 @@ const route = useRoute()
 const orderId = route.params.id as string
 const order = ref<OrderInfo | null>(null)
 const logistics = ref<LogisticsItem[]>([])
+/** F-06 发货信息：{ logisticsCompany, trackingNo, deliveryStatus, traces, traceTip } */
+const tracking = ref<any>(null)
 
-const statusMap = {
+// 显式 Record<string, ...>：状态来自后端字符串，不能让 TS 推导成固定键集合，
+// 否则 statusMap[order.status] 会报 TS7053（隐式 any 索引）。
+const statusMap: Record<string, { label: string; color: string }> = {
   pending: { label: '待付款', color: '#ff976a' },
   paid: { label: '待发货', color: '#1988fa' },
   shipped: { label: '待收货', color: '#07c160' },
@@ -25,13 +29,15 @@ onMounted(async () => {
     const res = await api.order.getDetail(orderId)
     order.value = res.data
     
-    if (order.value.status === 'shipped' || order.value.status === 'completed') {
-      try {
-        const logisticsRes = await api.order.track(orderId)
-        logistics.value = logisticsRes.data || []
-      } catch (err) {
-        console.warn('[订单详情] 加载物流失败', err)
-      }
+    // F-06：取发货信息（物流公司/运单号）。真实轨迹需承运商接口，后端 traces 恒空，
+    // 故这里显示"已发货但暂无轨迹"的说明，而不是把有运单号伪装成有轨迹。
+    try {
+      const trackRes: any = await api.order.track(orderId)
+      tracking.value = trackRes?.data ?? trackRes
+      logistics.value = tracking.value?.traces || []
+    } catch (err: any) {
+      console.warn('[订单详情] 物流信息加载失败', err?.response?.data?.message || err?.message)
+      tracking.value = null
     }
   } catch (err) {
     console.warn('[订单详情] 加载订单失败', err)
@@ -41,17 +47,20 @@ onMounted(async () => {
 })
 
 const getStepActive = () => {
-  const stepMap = {
+  const stepMap: Record<string, number> = {
     pending: 0,
     paid: 1,
     shipped: 2,
     completed: 3
   }
-  return stepMap[order.value?.status] || 0
+  return stepMap[order.value?.status ?? 'pending'] || 0
 }
 
 const handlePay = () => {
-  router.push(`/order/${orderId}/pay`)
+  // ⚠️ 原先直接 router.push('/order/{id}/pay')，而该路由**不存在** ⇒ 点「去支付」是白屏。
+  //    支付闭环还没通（后端渠道实现仍是桩、回调验签未接线，见审计 P0-2 / 设计文档 F-07），
+  //    这里如实提示，等支付通道接入后再改为跳转收银台。
+  showDialog({ message: '支付通道建设中，请联系业务员线下付款或稍后再试' })
 }
 
 const handleCancel = async () => {
@@ -103,18 +112,22 @@ const loadOrder = async () => {
       </div>
       
       <CellGroup inset title="订单状态">
-        <Cell :title="statusMap[order.status]?.label">
+        <Cell :title="statusMap[order.status ?? 'pending']?.label">
           <template #value>
-            <Tag :color="statusMap[order.status]?.color">
-              {{ statusMap[order.status]?.label }}
+            <Tag :color="statusMap[order.status ?? 'pending']?.color">
+              {{ statusMap[order.status ?? 'pending']?.label }}
             </Tag>
           </template>
         </Cell>
       </CellGroup>
       
-      <CellGroup inset v-if="logistics.length > 0" title="物流信息">
-        <div class="logistics-list">
-          <div 
+      <CellGroup v-if="tracking" inset title="物流信息">
+        <Cell title="物流公司" :value="tracking.logisticsCompany || '—'" />
+        <Cell title="运单号" :value="tracking.trackingNo || '—'" />
+        <!-- 轨迹节点：真实数据需对接承运商，暂无时不编造 -->
+        <Cell v-if="!logistics.length" title="物流轨迹" :value="tracking.traceTip || '暂无轨迹'" />
+        <div v-else class="logistics-list">
+          <div
             v-for="(item, index) in logistics"
             :key="index"
             class="logistics-item"
@@ -126,9 +139,9 @@ const loadOrder = async () => {
       </CellGroup>
       
       <CellGroup inset title="收货信息">
-        <Cell title="收货人" :value="order.address?.name" />
+        <Cell title="收货人" :value="order.address?.consignee" />
         <Cell title="联系电话" :value="order.address?.phone" />
-        <Cell title="收货地址" :value="order.address?.fullAddress" />
+        <Cell title="收货地址" :value="`${order.address?.region ?? ''} ${order.address?.address ?? ''}`.trim()" />
       </CellGroup>
       
       <CellGroup inset title="商品信息">
@@ -163,7 +176,7 @@ const loadOrder = async () => {
       
       <CellGroup inset title="金额信息">
         <Cell title="商品金额" :value="`¥${order.productAmount}`" />
-        <Cell title="运费" :value="order.freight > 0 ? `¥${order.freight}` : '免运费'" />
+        <Cell title="运费" :value="(order.freight ?? 0) > 0 ? `¥${order.freight}` : '免运费'" />
         <Cell title="订单总额" :value="`¥${order.totalAmount}`" value-class="amount-value" />
       </CellGroup>
       

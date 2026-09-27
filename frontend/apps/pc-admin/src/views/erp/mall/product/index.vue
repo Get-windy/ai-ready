@@ -53,11 +53,16 @@
                   </template>导出
                 </a-button>
               </a-tooltip>
-              <PrintButton
-                page-code="erp/mall/product"
-                button-size="small"
-                tooltip="打印"
-              />
+              <a-tooltip title="打印 (Ctrl+P)">
+                <a-button
+                  size="small"
+                  @click="debounceClick('print', handlePrint)"
+                >
+                  <template #icon>
+                    <PrinterOutlined />
+                  </template>打印
+                </a-button>
+              </a-tooltip>
             </a-space>
           </div>
         </div>
@@ -148,7 +153,7 @@
         <template #action="{ record }">
           <a-space>
             <a-button
-              v-permission="'erp:mall:product:edit'"
+              v-permission="'mall:product:update'"
               type="link"
               size="small"
               @click="handleEdit(record)"
@@ -156,7 +161,7 @@
               编辑
             </a-button>
             <a-button
-              v-permission="'erp:mall:product:delete'"
+              v-permission="'mall:product:delete'"
               type="link"
               size="small"
               danger
@@ -277,6 +282,13 @@
           </a-form-item>
         </a-form>
       </FullScreenDetail>
+
+      <!-- 打印弹窗：与「商品」页同一范式（结果集打印，列与行都由页面给） -->
+      <PrintDialog
+        ref="printDialogRef"
+        page-code="erp/mall/product"
+        :print-data="printData"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -287,12 +299,12 @@ defineOptions({ name: 'MallProductList' })
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ReloadOutlined, ExportOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, ExportOutlined, SyncOutlined, PrinterOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 import request from '@/utils/request'
 import { mallProductApi } from '@/api/erp/mall'
 import type { MallProduct } from '@/api/erp/mall'
@@ -302,6 +314,49 @@ const hasError = ref(false)
 const tableData = ref<MallProduct[]>([])
 const tableDataSource = tableData
 const selectedRowKeys = ref<number[]>([])
+
+// ═══ 打印（结果集打印：打的是"当前列表/勾选的这批商品"，不是某一张单据）═══
+// 改造前这里挂的是 <PrintButton>（打印链入口），但既没给 businessId 也没给 record，
+// 于是拿空载荷去找打印链 —— 按钮点了不会有任何输出。列表页的正确做法与「商品」页一致：
+// 把列定义 + 当前行交给 PrintDialog，模板由「打印模板」里为 erp/mall/product 建的那份决定。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({ pageTitle: '商城商品列表', columns: [], rows: [] })
+
+/** 要打印的行：勾选了就打勾选的，否则打当前页 */
+function printableRows(): MallProduct[] {
+  if (!selectedRowKeys.value.length) return tableData.value
+  const keys = new Set(selectedRowKeys.value.map(String))
+  return tableData.value.filter(r => keys.has(String(r.id)))
+}
+
+function handlePrint() {
+  const rows = printableRows()
+  if (!rows.length) {
+    message.warning('暂无可打印的数据')
+    return
+  }
+  printData.value = {
+    // 结果集打印的约定形状：title / columns / rows
+    title: '商城商品列表',
+    printTime: new Date().toLocaleString('zh-CN'),
+    // 列定义给模板用：复选框列与操作列不打印，图片列也没有可打的内容
+    columns: [
+      { key: 'productId', title: '商品编码' },
+      { key: 'productName', title: '商品名称' },
+      { key: 'categoryName', title: '分类' },
+      { key: 'salePrice', title: '销售价' },
+      { key: 'marketPrice', title: '市场价' },
+      { key: 'stockQuantity', title: '库存' },
+      { key: 'statusText', title: '状态' },
+      { key: 'salesCount', title: '销量' },
+    ],
+    rows: rows.map(r => ({
+      ...r,
+      statusText: r.status === 'ON_SHELF' ? '上架' : '下架',
+    })),
+  }
+  printDialogRef.value?.open?.()
+}
 
 const pagination = reactive({
   current: 1,

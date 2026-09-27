@@ -147,23 +147,12 @@ public class AlipayCallbackVerifier implements PaymentCallbackVerifier {
 
     /**
      * 构造待验签串：剔除 sign/sign_type 与空值，按参数名升序，{@code k=v} 以 {@code &} 连接。
+     *
+     * <p>2026-09-26：实现改为委托 {@link cn.aiedge.payment.crypto.Rsa2#buildSignContent} ——
+     * 通道侧（{@code AlipayChannel}）**签名**时用的是同一份实现，两边口径不可能再漂移。</p>
      */
     static String buildSignContent(Map<String, String> params) {
-        // TreeMap 保证字典序；LinkedHashMap 也行但要显式排序，这里用 TreeMap 更直观
-        Map<String, String> sorted = new TreeMap<>(params);
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, String> e : sorted.entrySet()) {
-            String key = e.getKey();
-            String value = e.getValue();
-            if (EXCLUDED_FIELDS.contains(key) || !hasText(value)) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append('&');
-            }
-            sb.append(key).append('=').append(value);
-        }
-        return sb.toString();
+        return cn.aiedge.payment.crypto.Rsa2.buildSignContent(params, EXCLUDED_FIELDS);
     }
 
     /** 解析 x-www-form-urlencoded 报文（保留解码后的值，勿二次编码）。 */
@@ -192,21 +181,14 @@ public class AlipayCallbackVerifier implements PaymentCallbackVerifier {
         }
     }
 
-    /** RSA2（SHA256withRSA）验签。公钥为 Base64（可带 PEM 头尾，自动剥离）。 */
+    /**
+     * RSA2（SHA256withRSA）验签。公钥为 Base64（可带 PEM 头尾，自动剥离）。
+     *
+     * <p>2026-09-26：实现改为委托 {@link cn.aiedge.payment.crypto.Rsa2#verify}（同一份实现
+     * 也供通道签名时使用）。</p>
+     */
     static boolean verifyRsa2(String content, String signBase64, String publicKeyBase64) {
-        try {
-            byte[] keyBytes = Base64.getDecoder().decode(stripPem(publicKeyBase64));
-            PublicKey publicKey = KeyFactory.getInstance("RSA")
-                    .generatePublic(new X509EncodedKeySpec(keyBytes));
-            Signature signature = Signature.getInstance("SHA256withRSA");
-            signature.initVerify(publicKey);
-            signature.update(content.getBytes(StandardCharsets.UTF_8));
-            return signature.verify(Base64.getDecoder().decode(signBase64));
-        } catch (Exception e) {
-            // 任何异常（公钥格式错、签名 Base64 错、算法不可用）一律视为验签不通过
-            log.warn("RSA2 验签异常，按不通过处理：{}", e.getMessage());
-            return false;
-        }
+        return cn.aiedge.payment.crypto.Rsa2.verify(content, signBase64, publicKeyBase64);
     }
 
     /** 剥离 PEM 头尾与换行，便于直接 Base64 解码。 */

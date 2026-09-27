@@ -554,6 +554,8 @@ const RECORD_ACTION_MAP: Record<string, { label: string; color: string }> = {
   withdraw: { label: '撤回', color: 'orange' },
   cancel: { label: '取消', color: 'default' },
   intervene: { label: '流程干预', color: 'purple' },
+  // 8-退回：与前端的 TASK_ACTION_TEXT_MAP 同口径；缺这一项时时间线会渲染英文原文 "return"
+  return: { label: '退回', color: 'orange' },
   pending: { label: '待处理', color: 'gray' },
 }
 

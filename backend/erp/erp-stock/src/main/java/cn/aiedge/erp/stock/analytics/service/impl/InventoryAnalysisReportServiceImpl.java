@@ -67,8 +67,19 @@ public class InventoryAnalysisReportServiceImpl implements InventoryAnalysisRepo
     /** 期初（此前余额）条件 */
     private static final String BEFORE_START = "mv.move_time < COALESCE(rng.sd, DATE '0001-01-01')";
 
+    /**
+     * 当前登录会话租户；**取不到时明确拒绝**，不把 null 传进 SQL。
+     *
+     * <p>⚠️ 2026-09-23 修复：原实现直接返回可能为 null 的租户，而 SQL 里的 {@code tenant_id = null}
+     * 恒不成立 ⇒ 列表**静默返回 0 行**，"数据凭空少了"却没有任何报错。
+     * 按本仓已确立口径（{@code DocQueryController#currentTenantId}），解析不出租户应当明确报「请重新登录」。</p>
+     */
     private static Long tenantId() {
-        return MyBatisPlusConfig.getCurrentTenantIdValue();
+        Long t = MyBatisPlusConfig.getCurrentTenantIdValue();
+        if (t == null) {
+            throw new cn.aiedge.common.exception.BusinessException(401, "无法确定当前租户，请重新登录");
+        }
+        return t;
     }
 
     // ════════════════════════════════════════════════════════════════

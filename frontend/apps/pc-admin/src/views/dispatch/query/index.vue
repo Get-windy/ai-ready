@@ -323,6 +323,7 @@
     <PrintDialog
       ref="printDialogRef"
       page-code="dispatch-query"
+      :document-id="printData.id"
       :print-data="printData"
       @print-success="handlePrintSuccess"
     />

@@ -94,16 +94,26 @@ public class ExpressionEvaluator {
     }
 
     /**
-     * 预处理：将 JS 风格运算符转换为 SpEL
+     * 裸写的 value 要补上 `#`。SpEL 里不带 `#` 的标识符会被当成根对象的属性，
+     * 于是 `value + '元'` 会报 "Property or field 'value' cannot be found"，
+     * 只有 `#value` 才走 setVariable 注入的变量。
+     * 已带 `#` 的、以及字符串模板占位符 `{value}` 里的，都不能动。
+     */
+    private static final java.util.regex.Pattern BARE_VALUE =
+            java.util.regex.Pattern.compile("(?<![#\\w.${])value(?![\\w$}])");
+
+    /**
+     * 预处理：将 JS 风格运算符转换为 SpEL，并把裸 value 变量化
      */
     private String preprocess(String expr) {
         if (expr == null || expr.isEmpty()) {
             return "";
         }
-        return expr
+        String normalized = expr
                 .replace("===", "==")
                 .replace("!==", "!=")
                 .trim();
+        return BARE_VALUE.matcher(normalized).replaceAll("#value");
     }
 
     /**

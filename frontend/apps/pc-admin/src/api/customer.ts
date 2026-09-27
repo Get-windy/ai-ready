@@ -89,14 +89,14 @@ export const customerApi = {
    * 分页查询客户
    */
   getPage(params: CustomerQuery): Promise<ApiResponse<PageResponse<CustomerInfo>>> {
-    return request.get('/customer/page', params)
+    return request.get('/crm/customer/page', params)
   },
 
   /**
    * 获取客户详情
    */
   getById(id: number): Promise<ApiResponse<CustomerInfo>> {
-    return request.get(`/customer/${id}`)
+    return request.get(`/crm/customer/${id}`)
   },
 
   /**
@@ -110,66 +110,30 @@ export const customerApi = {
    * 更新客户
    */
   update(id: number, data: Partial<CustomerInfo>): Promise<ApiResponse<boolean>> {
-    return request.put(`/customer/${id}`, data)
+    return request.put(`/crm/customer/${id}`, data)
   },
 
   /**
    * 删除客户
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/customer/${id}`)
+    return request.delete(`/crm/customer/${id}`)
   },
 
   /**
    * 批量删除客户
    */
   batchDelete(ids: number[]): Promise<ApiResponse<boolean>> {
-    return request.delete('/customer/batch', { data: ids })
-  },
-
-  /**
-   * 更新客户状态
-   */
-  updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.put(`/customer/${id}/status`, null, { params: { status } })
-  },
-
-  /**
-   * 导出客户
-   */
-  export(params: CustomerQuery): Promise<Blob> {
-    return request.get('/customer/export', params, { responseType: 'blob' })
+    return request.delete('/crm/customer/batch', { data: ids })
   },
 
   // ===== 跟进记录相关 =====
 
   /**
-   * 获取客户跟进记录列表
-   */
-  getFollowRecords(customerId: number, params: FollowQuery): Promise<ApiResponse<PageResponse<FollowRecord>>> {
-    return request.get(`/customer/${customerId}/follows`, params)
-  },
-
-  /**
    * 添加跟进记录
    */
   addFollowRecord(customerId: number, data: Partial<FollowRecord>): Promise<ApiResponse<boolean>> {
-    return request.post(`/customer/${customerId}/follow`, data)
-  },
-
-  /**
-   * 获取客户订单记录
-   */
-  getOrderRecords(customerId: number): Promise<ApiResponse<any[]>> {
-    return request.get(`/customer/${customerId}/orders`)
-  },
-
-  /**
-   * 获取客户选项列表（用于下拉选择）
-   * 使用Partner接口获取客户类型partnerType='customer'
-   */
-  getOptions(): Promise<ApiResponse<Array<{ id: number; name: string }>>> {
-    return request.get('/erp/md/customer/list', { partnerType: 'customer', status: 'ENABLED' })
+    return request.post(`/crm/customer/${customerId}/follow`, data)
   },
 
   /**
@@ -179,7 +143,7 @@ export const customerApi = {
     const formData = new FormData()
     formData.append('file', data.file)
     formData.append('mapping', JSON.stringify(data.mapping))
-    return request.post('/customer/import', formData, {
+    return request.post('/crm/customer/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   }

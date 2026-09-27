@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { NavBar, Tabs, Tab, Card, Button, Tag, Steps, Step, Cell, CellGroup, Empty, showLoadingToast, closeToast } from 'vant'
-import { api, type OrderInfo } from '@/api'
+import { useRouter } from 'vue-router'
+import { NavBar, Tabs, Tab, Card, Button, Tag, Empty, showDialog, showLoadingToast, closeToast } from 'vant'
+import { api, type OrderInfo, type OrderItem } from '@/api'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 
 const activeTab = ref('all')
-const orders = ref<OrderInfo[]>([])
+/** 列表项：items / totalAmount 在 loadOrders 里已归一化，这里用确定类型表达，
+ *  否则模板里每处都要判空（漏一处就白屏）。 */
+type NormalizedOrder = OrderInfo & { items: OrderItem[]; totalAmount: number; status: string }
+const orders = ref<NormalizedOrder[]>([])
 
-const statusMap = {
+const statusMap: Record<string, { label: string; color: string; step: number }> = {
   pending: { label: '待付款', color: '#ff976a', step: 0 },
   paid: { label: '待发货', color: '#1988fa', step: 1 },
   shipped: { label: '待收货', color: '#07c160', step: 2 },
@@ -32,8 +34,19 @@ onMounted(async () => {
 const loadOrders = async () => {
   showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
-    const res = await api.order.getList({ status: activeTab.value })
-    orders.value = res.data || []
+    const res: any = await api.order.getList({ status: activeTab.value })
+    // 后端返回 PageResult({ records, total, page, size })；原先写成 res.data（对象当数组）
+    // 会让 v-for 渲染不出任何东西 —— 订单列表恒空。
+    // 同时把可选字段**在边界处归一化**：items/totalAmount 在类型上都是可选的，
+    // 若散落到模板里逐个判空会到处是噪音（且漏一处就白屏）。
+    const records = res?.data?.records ?? (Array.isArray(res?.data) ? res.data : [])
+    orders.value = records.map((o: any) => ({
+      ...o,
+      items: o.items ?? [],
+      totalAmount: o.totalAmount ?? 0,
+      // status 也归一化：模板里拿它索引 statusMap，留 undefined 就会报 TS2538
+      status: o.status ?? 'pending'
+    }))
   } finally {
     closeToast()
   }
@@ -47,8 +60,10 @@ const handleViewDetail = (order: any) => {
   router.push(`/order/${order.id}`)
 }
 
-const handlePay = (order: any) => {
-  router.push(`/order/${order.id}/pay`)
+const handlePay = (_order: any) => {
+  // ⚠️ 原先跳 `/order/{id}/pay`，该路由**不存在** ⇒ 点「去支付」白屏。
+  //    支付通道未接通前如实提示（同 views/order/detail.vue）。
+  showDialog({ message: '支付通道建设中，请联系业务员线下付款或稍后再试' })
 }
 
 const handleCancel = async (order: any) => {
@@ -75,9 +90,6 @@ const handleConfirmReceive = async (order: any) => {
   }
 }
 
-const getStepActive = (status: string) => {
-  return statusMap[status]?.step || 0
-}
 </script>
 
 <template>

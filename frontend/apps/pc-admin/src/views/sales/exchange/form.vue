@@ -188,6 +188,7 @@
     <PrintDialog
       ref="printDialogRef"
       page-code="sale-exchange"
+      :document-id="formData.id"
       :print-data="printPayload"
       :default-template-id="formData.printTemplate"
       :default-copies="formData.printCopies"
@@ -833,8 +834,9 @@ function hasBillContent(): boolean {
 /** 打印模板列表（取真实已发布模板） */
 async function loadPrintTemplates() {
   try {
-    const res: any = await printingApi.getTemplates({ page: 1, size: 50, pageCode: 'sale-exchange', status: 1 })
-    printTemplates.value = res?.data?.records || res?.records || []
+    // 「只有已发布才能打印」这条规则由服务端定，前端不再自己拼 status 参数
+    const res: any = await printingApi.getDocumentTemplates('sale-exchange')
+    printTemplates.value = res?.data?.templates || res?.templates || []
     if (!formData.printTemplate && printTemplates.value.length) {
       const def = printTemplates.value.find((t: any) => t.isDefault) || printTemplates.value[0]
       formData.printTemplate = def.templateId

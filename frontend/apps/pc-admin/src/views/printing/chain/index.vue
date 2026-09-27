@@ -80,7 +80,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'printing:chain:edit'"
+                v-permission="'print:chain:update'"
                 type="link"
                 size="small"
                 @click="handleEdit(record)"
@@ -88,6 +88,7 @@
                 编辑
               </a-button>
               <a-button
+                v-permission="'print:chain:status'"
                 type="link"
                 size="small"
                 @click="debounceClick('toggle_' + record.chainId, () => handleToggleStatus(record))()"
@@ -95,7 +96,7 @@
                 {{ record.status === 'ACTIVE' ? '禁用' : '启用' }}
               </a-button>
               <a-button
-                v-permission="'printing:chain:deleteconfirm'"
+                v-permission="'print:chain:delete'"
                 type="link"
                 size="small"
                 danger

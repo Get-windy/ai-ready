@@ -135,7 +135,7 @@
             <span class="code-text">{{ record.clientCode }}</span>
             <a-tooltip title="复制客户端编码">
               <a-button
-                v-permission="'printing:client:copy'"
+                v-permission="'print:client:detail'"
                 type="link"
                 size="small"
                 class="copy-btn"
@@ -150,7 +150,7 @@
             <span class="code-text masked">******</span>
             <a-tooltip title="复制认证密钥">
               <a-button
-                v-permission="'printing:client:copy'"
+                v-permission="'print:client:detail'"
                 type="link"
                 size="small"
                 class="copy-btn"
@@ -188,7 +188,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'printing:client:resetkey'"
+                v-permission="'print:client:update'"
                 type="link"
                 size="small"
                 @click="handleResetKey(record)"
@@ -196,7 +196,7 @@
                 重置密钥
               </a-button>
               <a-button
-                v-permission="'printing:client:deleteconfirm'"
+                v-permission="'print:client:delete'"
                 type="link"
                 size="small"
                 danger

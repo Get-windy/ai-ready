@@ -526,6 +526,7 @@ import BillTableList, { type FilterField } from '@/components/BillTableList/Bill
 import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/dict'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import { isWriteFailed } from '@/utils/writeResult'
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -835,9 +836,8 @@ const handleExpand = async (expanded: boolean, record: DictType) => {
   itemLoadingMap[typeId] = true
   try {
     const res = await dictItemApi.getByDictTypeId(typeId)
-    if (res.data) {
-      dictItemMap[typeId] = res.data
-    }
+    // ⚠️ 响应拦截器已拆包：res 即数组本体，旧写法 `if (res.data)` 恒 false → 展开后字典项恒空
+    dictItemMap[typeId] = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as DictItem[]
   } catch (err) {
     dictItemMap[typeId] = []
     console.warn('[系统管理] 加载字典项失败', err)
@@ -892,13 +892,13 @@ const handleDeleteItemConfirm = (typeRecord: DictType, itemRecord: DictItem) => 
     centered: true,
     async onOk() {
       try {
-        await dictItemApi.delete(itemRecord.id)
+        const delRes = await dictItemApi.delete(itemRecord.id)
+        // 后端以 { success:false } 表达「没删成」（如字典项不存在/被引用），不能只看请求没报错
+        if (isWriteFailed(delRes)) { message.error('删除失败：字典项不存在或不允许删除'); return }
         message.success('删除成功')
         // 刷新当前类型的字典项
         const res = await dictItemApi.getByDictTypeId(typeRecord.id)
-        if (res.data) {
-          dictItemMap[typeRecord.id] = res.data
-        }
+        dictItemMap[typeRecord.id] = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as DictItem[]
       } catch (err) {
         console.warn('[系统管理] 删除字典项失败', err)
         message.error('删除失败')
@@ -926,9 +926,7 @@ const handleItemModalOk = async () => {
     // 刷新字典项
     if (currentDictType.value) {
       const res = await dictItemApi.getByDictTypeId(currentDictType.value.id)
-      if (res.data) {
-        dictItemMap[currentDictType.value.id] = res.data
-      }
+      dictItemMap[currentDictType.value.id] = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as DictItem[]
     }
   } catch (error) {
     message.error('操作失败')

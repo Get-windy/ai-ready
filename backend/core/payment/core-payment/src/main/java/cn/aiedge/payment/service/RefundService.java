@@ -51,13 +51,6 @@ public interface RefundService {
      */
     void approveRefund(Long id, boolean approved, String remark);
 
-    /**
-     * 处理退款回调
-     * @param channel 渠道
-     * @param callbackData 回调数据
-     * @return 退款记录
-     */
-    RefundRecord handleCallback(String channel, String callbackData);
 
     /**
      * 分页查询退款记录

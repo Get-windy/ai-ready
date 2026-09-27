@@ -35,7 +35,7 @@
               tooltip="打印处置记录"
             />
             <a-button
-              v-permission="'erp:fixed-asset:disposal:list'"
+              v-permission="'fixed-asset:disposal:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)()"
@@ -254,7 +254,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'erp:fixed-asset:disposal:update'"
+                  v-permission="'fixed-asset:disposal:update'"
                   type="link"
                   size="small"
                   @click="editRecord(record)"
@@ -288,14 +288,14 @@
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="approve"
-                      v-permission="'erp:fixed-asset:disposal:approve'"
+                      v-permission="'fixed-asset:disposal:approve'"
                     >
                       <CheckCircleOutlined /> 审批通过
                     </a-menu-item>
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="reject"
-                      v-permission="'erp:fixed-asset:disposal:approve'"
+                      v-permission="'fixed-asset:disposal:approve'"
                     >
                       <CloseCircleOutlined /> 审批拒绝
                     </a-menu-item>

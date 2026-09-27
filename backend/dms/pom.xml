@@ -30,6 +30,14 @@
             <artifactId>erp-finance</artifactId>
         </dependency>
 
+        <!-- 打印服务：实现 PrintDataProvider，让配送任务单能被「单据打印」统一接口渲染
+             ⚠️ 依赖方向 dms → erp-printing 不成环：erp-printing 只依赖 core-base -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-printing</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

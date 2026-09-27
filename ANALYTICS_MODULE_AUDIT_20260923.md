@@ -63,7 +63,58 @@
 
 **回归**：`ANALYTICS_ONLY="采购分析,营销推广分析,商城客户列表,待审批单据" node tools/e2e-analytics.cjs` → **通过 68 / 失败 1 / 未改造 0**（唯一失败仍是上述第 5 条待生效项）。
 
+### 第二轮修复记录（2026-09-26，P1 明确缺陷 —— 不含需拍板项）
+
+> 第 5 条（`mall/admin/user/page`）在 `erp-mall` 重新构建后**已验证通过**（`verify-analytics-fixes.cjs` 5/5）。
+
+| # | 问题（对应前文） | 改动 | 验证结果 |
+|---|---|---|---|
+| 6 | **费用申请单「删除/提交」被误发成驳回**（§3.2） | `shared/docActions.ts:32` 的 EXPENSE 分支加 `kind` 判断：只有 `approve`/`reject` 走 JPA 审批流，`submit`/`remove` 回落通用分支（`POST /erp/expense/application/{id}/submit`、`DELETE /erp/expense/application/{id}` —— 已核实两端点均存在） | E2E 覆盖页 0 error |
+| 7 | **业绩提成中心「页面配置」是死开关**（§3.4） | 解构 `isQueryVisible` 并与 Tab 判断相与（＝ 配置 ∧ Tab），面板取消勾选后查询区真实响应 | E2E「业绩提成中心」6 Tab 全过、0 error |
+| 8 | **能力矩阵不一致**（§3.8） | `draft` 删除按钮加 `canDo(record.docTypeCode,'remove')` 门控（与相邻的「复制」一致）；`pending-approval` 批量过滤由硬编码 `!== 'STOCK_DAMAGE'` 改为 `canDo(r.docTypeCode, action)`，并修正提示文案 | E2E「业务草稿/待审批单据」0 error |
+| 9 | **租户解析失败处置不一致**（§3.10） | **6 处统一**：`AnalyticsSupport`、`CommissionAnalyticsServiceImpl` 去掉「静默回落租户 1」；`PurchaseAnalysisReport`、`PreOrderAnalysisReport`、`InventoryAnalysisReport`、`PromotionFunnelReport`、`SaleAnalysisReport` 五个服务的 `tenantId()` 去掉「把 null 传进 SQL」（原会静默返回 0 行），一律抛 `BusinessException(401,"无法确定当前租户，请重新登录")` | 编译 + 启动通过；三接口 200 |
+| 10 | **费用矩阵金额可成倍放大**（§4.4 #1） | `ExpenseAnalyticsServiceImpl` 的公共 FROM 补 `AND s.tenant_id = d.tenant_id AND s.deleted_flag = 0`（按"与单据同租户"关联，比传参更稳） | 「查费用」4 Tab E2E 全过、0 error |
+| 11 | **回款统计编号串号**（§4.4 相关） | `codeExpr` 改为相关子查询绑定外层主表别名（`u.tenant_id = <alias>.tenant_id`），三处调用分别传 `"r"`/`"pr"`/`"spo"` | 「回款统计」接口 200 |
+
+**经复核后**不修改**的 3 类（说明理由，避免无意义改动）**：`PreOrderAnalysisReportServiceImpl` 的 `biz_party_category` / `biz_party_contact` join，以及 `InventoryAnalysisReportServiceImpl` 的 13 段明细 join —— 均为**按主键 id 关联**（id 全局唯一），不产生跨租户行；改动的收益为零而回归风险非零。已在 `backend-inventory.md §4.1` 登记为"低危、写法待统一"。
+
+**顺手修复的两个发布阻塞（非本次审计范围，但它们让所有人都起不来）**
+
+1. **`tools/check-stale-classes.py` 的 GBK 编码 bug**：脚本输出含 emoji（✅/❌/⚠️），Windows 控制台默认 GBK 时 `print` 抛 `UnicodeEncodeError` 并以非 0 退出 —— 被 `build-backend.sh` 误判成「产物里有 ECJ 残缺类，拒绝启动」。**实测崩在成功分支**（`print("✅ 未发现 ECJ 残缺类")`），即产物本来是干净的。已加 `sys.stdout/stderr.reconfigure(encoding='utf-8', errors='replace')`。
+2. **`V11.513.0__Fix_MasterData_MenuLevel_And_Grant_Permissions.sql`（并行会话新增）的两处 SQL 语法错误**：`IN (...)` 列表**尾随逗号**（第 109、148 行），报 `语法错误 在 ")" 或附近` ⇒ **整个应用无法启动**。已删逗号；并清理了该迁移首次失败时已提交的 **128 行残留**（`DELETE FROM sys_role_permission WHERE id BETWEEN 9800000 AND 9899999` —— 即该迁移注释里自带的回滚语句），否则重跑必然主键冲突。
+
+**回归**：`ANALYTICS_ONLY="采购分析,业绩提成中心,业务草稿,待审批单据,查费用,回款统计" node tools/e2e-analytics.cjs` → **通过 98 / 失败 0 / 未改造 0**。
+
+### 第三轮修复记录（2026-09-27，分析码补授给「租户超管」）
+
+> 口径确认：本系统的「租户超管」= **`SYSTEM_ADMIN`（系统管理员）**。
+> 佐证：`tools/e2e-hr-user.sql` 里 `e2e_hr_ta` 的昵称即「**租户管理员**验收账号」，其角色正是 SYSTEM_ADMIN。
+> **不含 `DEPT_ADMIN`**（部门管理员权限面应更窄，是否授分析码属单独决策）。
+
+**迁移**：`V11.515.0__Grant_Analytics_Permissions_To_System_Admin.sql`（`sql` 见 §8.4）
+
+**授予 14 个码**（此前**仅 SUPER_ADMIN 持有**）：
+
+| 类别 | 权限码 |
+|---|---|
+| 分析模块自有（9） | `doc:docquery:list` · `erp:expense:statistics:list` · `finance:analytics-collection-stats:list` · `finance:analytics-collection-stats:view` · `finance:analytics-invoice-stats:list` · `finance:analytics-partner-balance:reconcile` · `finance:partner-balance:view` · `purchase:analytics:list` · `sale:pre-order-analysis:list` |
+| 销售分析组（2） | `sale:analysis:list` · `sale:analysis-promotion-funnel:list` |
+| **分析页跨域依赖（3）** | `finance:collection-stats:view`（回款统计） · `finance:report:view`（查应收） · `mall:trade-analysis:view`（交易分析） |
+
+> 为什么要带上最后 3 个非 analytics 命名空间的码：分析页的取数是**跨域调用**，权限码按"被调接口所属域"命名 —— 只授 analytics 自身的码，这几个页面仍会 403。这 3 个都是租户内的只读/分析能力，给租户超管不越界。
+> `tenant_id` 取**角色自身的 tenant_id**（`r.tenant_id`），不硬编码 1（本仓曾有 `sys_role_permission` 租户标记不一致的 16 行实证）。
+
+**验证**（`node tools/verify-analytics-authz.cjs`，账号 `e2e_hr_ta` = tenant 1 + SYSTEM_ADMIN）：
+
+| | 授权前 | 授权后 |
+|---|---|---|
+| 18 个代表接口中被拒 | **15** | **0** ✅ |
+
+**附带修正**：该脚本的探针原写 `/erp/marketing/commission/analytics/overview` —— 该端点**不存在**（属探针自身错误，会误报 404），已改为前端真实调用的 `/erp/marketing/commission/analytics/rider-matrix/page`。
+
 ---
+
+
 
 ## 一、已确认可用的部分（正面结论）
 
@@ -168,7 +219,7 @@ const res = await request.get(`/menu/user/mega/${CLIENT_TYPE}`, { userId, tenant
 > 全库 `menu_level` 分布：`0→252 / 1→43 / 3→124 / 4→3`（**没有 2**，却有一个前端菜单管理页不支持的 **3**；`mega-menu-redesign.md` 的字段注释也只承认 `0=租户级 / 1=系统级`）。
 > 开发与验收一直用 `admin`（**系统租户 + 超管**，走 `:259` 早退分支不受 `menu_level` 限制）⇒ 从未暴露。**与财务模块审计（`FINANCE_MODULE_AUDIT_20260923.md` §3.1）完全同构**。
 
-### 2.3 非超管下 15/18 分析接口 403【实测】
+### 2.3 非超管下 15/18 分析接口 403【实测】—— ✅ 已修（2026-09-27，见「第三轮修复记录」）
 
 `tools/verify-analytics-authz.cjs`，账号 `e2e_hr_ta`（tenant 1，SYSTEM_ADMIN，持 222 个权限）：
 
@@ -597,18 +648,18 @@ double value = getDoubleValue(rows.get(dataIndex % rows.size()).get(field));   /
 4. ~~29 条菜单 `menu_level` 由 3 改回 0~~ → ✅ **已完成**（同迁移；tenant 2 实测可见 29 条，原为 0）—— §2.2
 5. ~~修 `DocQueryService` 的 EXPENSE 分支~~ → ✅ **已完成**（补 `tenant_id = ?::text AND deleted = false`，注意该表 tenant_id 是 varchar）—— §2.5
 
-**第二批（P1，缺陷明确、需拍板的只有授权范围与产品策略）**
+**第二批（P1）** —— 明确缺陷**已于 2026-09-26 执行完毕**（详见「第二轮修复记录」）；带 ⏸ 的需产品拍板，本轮未动
 
-6. **权限码补授给功能角色**：13 个分析码当前仅超管持有，需按角色定位（租户管理员/财务/业务主管）授权；**补授权前先定菜单码与权限码的对应规则** —— §3.1
-7. **修 EXPENSE 动作分发**（`docActions.ts:26` 加 `kind` 判断），并复核各域「能力矩阵 vs 实际端点」—— §3.2
-8. **评估是否需要行级数据权限**：至少「销售业绩 / 业务员提成 / 查应收应付」建议按职员/部门隔离 —— §3.3（属产品决策）
-9. **修「业绩提成中心」页面配置联动**（补 `isQueryVisible`）—— §3.4
-10. **决定提成链路走向**：接《业务员提成》落库（补生产者 + `rule_id`），或下线提成页 —— §3.5
-11. **处置两处死岛**：`ReportAnalyticsController`（9 端点 + 编造趋势）、旧 `CollectionStatsController` —— §3.6 / §3.7 / §3.11
-12. 修「业务草稿删除按钮」与「待审批批量能力」的矩阵一致性 —— §3.8
-13. **统一租户解析失败的错误处置**：按本仓口径一律报「请重新登录」，消除「静默回落租户 1」（9 端点）与「静默返回空表」（5 处）并存 —— §3.10
-14. **修 `ExpenseAnalyticsServiceImpl:51` 的 join**（补 `tenant_id` + 软删条件），并给 `finance_account_subject.subject_code` 补租户内唯一约束 —— §4.4 #1
-15. 补其余 4 处手写 SQL 的租户条件（`codeExpr` 子查询、`bp2` 分类子查询、明细表 join 等）并统一写法 —— `backend-inventory.md §4.1`
+6. ~~权限码补授给功能角色~~ → ✅ **已完成**（2026-09-27，`V11.515.0` 把 14 个码授给 **SYSTEM_ADMIN = 租户超管**；实测被拒接口 **15 → 0**）。菜单码与权限码的对应规则（§3.1）仍未定 —— 但那是**菜单可见性**的事，与本次授权无关 —— §3.1
+7. ~~修 EXPENSE 动作分发~~ → ✅ **已完成**（`docActions.ts` 加 `kind` 判断）—— §3.2
+8. ⏸ **评估是否需要行级数据权限**：至少「销售业绩 / 业务员提成 / 查应收应付」建议按职员/部门隔离 —— §3.3（**属产品决策**）
+9. ~~修「业绩提成中心」页面配置联动~~ → ✅ **已完成**（补 `isQueryVisible`）—— §3.4
+10. ⏸ **决定提成链路走向**：接《业务员提成》落库（补生产者 + `rule_id`），或下线提成页 —— §3.5（**属产品决策**）
+11. ⏸ **处置两处死岛**：`ReportAnalyticsController`（9 端点 + 编造趋势）、旧 `CollectionStatsController` —— §3.6 / §3.7 / §3.11（**需确认是否下线**）
+12. ~~修「业务草稿删除按钮」与「待审批批量能力」的矩阵一致性~~ → ✅ **已完成** —— §3.8
+13. ~~统一租户解析失败的错误处置~~ → ✅ **已完成**（6 处统一为「请重新登录」）—— §3.10
+14. ~~修 `ExpenseAnalyticsServiceImpl:51` 的 join~~ → ✅ **已完成**（补 `tenant_id` + 软删）。`finance_account_subject.subject_code` 的租户内唯一约束**未加**（需先清测试脏数据，见 §4.3）—— §4.4 #1
+15. ~~补其余手写 SQL 的租户条件~~ → ✅ **部分完成**：`codeExpr` 子查询、`bp2` 分类子查询**已补**；`biz_party_category`/`biz_party_contact` 与库存明细的 13 段 join 经复核为**按主键 id 关联**（不产生跨租户行），**有意不改** —— `backend-inventory.md §4.1`
 
 **第三批（P2 + 收尾）**
 

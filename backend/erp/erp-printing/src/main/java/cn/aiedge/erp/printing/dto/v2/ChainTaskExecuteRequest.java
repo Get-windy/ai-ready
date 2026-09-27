@@ -11,7 +11,13 @@ public class ChainTaskExecuteRequest {
     @NotNull(message = "chainId 不能为空")
     private Long chainId;
 
-    @NotNull(message = "单据数据不能为空")
+    /**
+     * 单据打印数据。
+     *
+     * <p>可以不给：给了 {@link #pageCode} + {@link #documentId} 时，服务端会走
+     * {@code PrintDataProvider} 自己装配（与「单据打印」同一条取数路径）。
+     * 两者都没有时按空数据建任务（与改造前一致）。</p>
+     */
     private Map<String, Object> dataJson;
 
     private String pageCode;

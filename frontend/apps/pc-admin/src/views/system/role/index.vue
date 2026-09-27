@@ -919,6 +919,7 @@ import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue
 import RoleFieldPermissionTab from './components/RoleFieldPermissionTab.vue'
 import RoleDataScopeTab from './components/RoleDataScopeTab.vue'
 import RoleRecordRuleTab from './components/RoleRecordRuleTab.vue'
+import { isWriteFailed } from '@/utils/writeResult'
 
 const userStore = useUserStore()
 const lastUpdateTime = ref('')
@@ -971,11 +972,11 @@ const roleTypeOptions = ref<{ label: string; value: number }[]>([])
 async function loadRoleTypeOptions() {
   try {
     const res = await dictItemApi.getByDictCode('ROLE_TYPE')
-    if (res.data) {
-      roleTypeOptions.value = res.data
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
-    }
+    // ⚠️ 响应拦截器已拆包：res 即数组本体，旧写法 `if (res.data)` 恒 false → 角色类型下拉恒空
+    const items = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as Array<{ sortOrder: number; itemText: string; itemValue: string }>
+    roleTypeOptions.value = items
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
   } catch (err) {
     console.warn('[角色管理] 加载角色类型失败', err)
   }
@@ -1052,6 +1053,18 @@ const permPool = ref<Array<{ id: string; code: string; name: string }>>([])
 const permCheckedIds = ref<Set<string>>(new Set())
 /** 打开弹窗时的原始授权集合：保存前据此算出「本次新增/移除」明细，让改动可见 */
 const permOriginalIds = ref<Set<string>>(new Set())
+
+/**
+ * 三个维度的「回显是否成功」标记 —— 回显失败的维度**禁止提交**。
+ *
+ * 原因：`POST /role/{id}/permissions`、`/menus`、`/bill-types` 都是**全量覆盖**语义，
+ * 后端收到空数组即执行 delete 清空（见 SysRoleServiceImpl.assignPermissions 的空列表分支）。
+ * 若回显失败后仍允许保存，就会把该角色「已有的授权」当成「用户取消勾选」提交上去，
+ * 静默清空权限，而界面上看不出删了什么。
+ */
+const permTabLoaded = ref(false)
+const menuTabLoaded = ref(false)
+const billTypeTabLoaded = ref(false)
 
 // ── 权限生效性（「勾了到底管不管用」） ───────────────────────────────
 /**
@@ -1225,7 +1238,13 @@ const handleDeleteConfirm = (record: RoleInfo) => {
   Modal.confirm({
     title: '确认删除', content: `确定要删除角色 "${record.roleName}" 吗？此操作不可撤销。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
-      try { await roleApi.delete(record.id); message.success('删除成功'); fetchData() } catch (error: any) { message.error(error.message || '删除失败') }
+      try {
+        const delRes = await roleApi.delete(record.id)
+        // 后端可能以 false / {success:false} 表达「没删成」（角色已分配给用户等）
+        if (isWriteFailed(delRes)) { message.error('删除失败：角色不存在或已分配给用户，不允许删除'); return }
+        message.success('删除成功')
+        fetchData()
+      } catch (error: any) { message.error(error.message || '删除失败') }
     }
   })
 }
@@ -1519,9 +1538,12 @@ async function loadPermissionMatrixData(record: RoleInfo) {
     permPool.value = pool.filter(p => !!p.code)
     if (!permPool.value.length) message.warning('未取到任何权限码，请检查权限表数据')
     const res = await roleApi.getPermissions(record.id)
-    const authorized = (res?.data || []) as unknown as Array<string | number>
-    permCheckedIds.value = new Set(authorized.map(id => String(id)))
+    // ⚠️ 响应拦截器已把 Result 拆成 data 本体（utils/request.ts），旧写法读 `res.data` 恒 undefined
+    //    → 勾选集合恒为空 → 保存时向「全量覆盖」接口提交空数组 → 静默清空该角色全部权限。
+    const authorized = normalizeIdList(unwrap<unknown[]>(res))
+    permCheckedIds.value = new Set(authorized)
     permOriginalIds.value = new Set(permCheckedIds.value)
+    permTabLoaded.value = true
     // 默认展开第一个域并选中它的第一个模块（ql361 是左树展开状态）
     const first = filteredDomains.value[0]
     const firstModule = first?.modules?.[0]
@@ -1531,6 +1553,10 @@ async function loadPermissionMatrixData(record: RoleInfo) {
   } catch (err) {
     console.warn('[角色管理] 加载权限矩阵失败', err)
     message.error('功能权限数据加载失败')
+    // 回显失败必须清空并标记：否则会残留「上一个角色」的勾选，或把空集合误当成用户的取消勾选提交
+    permCheckedIds.value = new Set()
+    permOriginalIds.value = new Set()
+    permTabLoaded.value = false
   }
 }
 
@@ -1546,10 +1572,14 @@ async function loadMenuAssignData(record: RoleInfo) {
   }
   try {
     const res = await roleApi.getMenus(record.id)
-    checkedMenuKeys.value = res.data || []
+    // 同上：拦截器已拆包，`res.data` 恒 undefined ⇒ 菜单勾选恒空 ⇒ 保存时全量覆盖清空
+    checkedMenuKeys.value = normalizeIdList(unwrap<unknown[]>(res)).map(Number)
+    menuTabLoaded.value = true
   } catch (err) {
     console.warn('[系统管理] 获取菜单列表失败', err)
+    message.error('菜单权限数据加载失败')
     checkedMenuKeys.value = []
+    menuTabLoaded.value = false
   }
 }
 
@@ -1557,11 +1587,13 @@ async function loadMenuAssignData(record: RoleInfo) {
 async function loadBillTypeAssignData(record: RoleInfo) {
   try {
     const res = await roleBillTypeApi.getRoleBillTypes(record.id)
-    billTypeData.value = res.data || []
+    billTypeData.value = unwrap<BillTypeDetail[]>(res) || []
+    billTypeTabLoaded.value = true
   } catch (err) {
     console.warn('[系统管理] 加载单据类型权限失败', err)
     message.error('单据类型权限数据加载失败')
     billTypeData.value = []
+    billTypeTabLoaded.value = false
   }
 }
 
@@ -1569,6 +1601,9 @@ async function loadBillTypeAssignData(record: RoleInfo) {
  * 打开「角色权限设置」弹窗（唯一授权入口）：
  * 一次性并发加载三个维度（功能权限 / 菜单权限 / 单据类型权限）。
  * 用 allSettled + 各自 try/catch：任一维度失败只提示，弹窗照常打开、其它 Tab 照常可用。
+ *
+ * ⚠️ 加载失败的维度会被标成「未加载」并**禁止保存**（见 savePermissionMatrix 的提交前守卫）：
+ * 三个 assign* 接口都是全量覆盖语义，未加载成功 = 空集合，提交上去等于清空该维度已有授权。
  */
 const handlePermission = async (record: RoleInfo) => {
   permMatrixRoleId.value = String(record.id)
@@ -1583,6 +1618,10 @@ const handlePermission = async (record: RoleInfo) => {
   menuTree.value = []
   checkedMenuKeys.value = []
   billTypeData.value = []
+  // 重置「已加载」标记：上一次成功不代表这一次也成功
+  permTabLoaded.value = false
+  menuTabLoaded.value = false
+  billTypeTabLoaded.value = false
   try {
     await Promise.allSettled([
       loadPermissionMatrixData(record),
@@ -1735,6 +1774,19 @@ const handlePermSave = async () => {
     const confirmed = await confirmPermDiff(added, removed)
     if (!confirmed) return
   }
+  // ── 提交前守卫：回显失败的维度一律不提交 ────────────────────────────
+  // assign* 三个接口都是「全量覆盖」语义，拿一份没加载成功（=空）的集合去提交，
+  // 等于把该维度已有授权全部删掉。宁可拒绝保存，也不能静默清空。
+  const notLoaded = [
+    permTabLoaded.value ? '' : '功能权限',
+    menuTabLoaded.value ? '' : '菜单权限',
+    billTypeTabLoaded.value ? '' : '单据类型权限',
+  ].filter(Boolean)
+  if (notLoaded.length) {
+    message.error(`${notLoaded.join('、')}未能成功加载，已禁止保存（避免把该角色已有授权清空）。请关闭弹窗后重试。`)
+    return
+  }
+
   permMatrixSaving.value = true
   const failedDimensions: string[] = []
   // 单据类型权限：0-无权限的不提交（与后端约定一致）

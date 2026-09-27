@@ -73,7 +73,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/partner/detail': () => import('@/views/erp/partner/detail.vue'),
   'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
   'crm/customer/index': () => import('@/views/crm/customer/index.vue'),
-  'crm/invoice/index': () => import('@/views/crm/invoice/index.vue'),
+  'finance/invoice/index': () => import('@/views/finance/invoice/index.vue'),
   'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
   'crm/opportunity/index': () => import('@/views/crm/opportunity/index.vue'),
   'crm/quotation/index': () => import('@/views/crm/quotation/index.vue'),
@@ -310,7 +310,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wms/ship': () => import('@/views/wh/shipping-order/index.vue'),
   'wms/move': () => import('@/views/wh/move-order/index.vue'),
   'crm/quotation': () => import('@/views/crm/quotation/index.vue'),
-  'crm/invoice': () => import('@/views/crm/invoice/index.vue'),
+  'finance/invoice': () => import('@/views/finance/invoice/index.vue'),
   'crm/customer': () => import('@/views/crm/customer/index.vue'),
   'crm/lead': () => import('@/views/crm/lead/index.vue'),
   'crm/opportunity': () => import('@/views/crm/opportunity/index.vue'),
@@ -393,6 +393,12 @@ const componentMap: Record<string, () => Promise<any>> = {
   'purchase/detail-query/index': () => import('@/views/purchase/detail-query/index.vue'),
   'purchase/price-track': () => import('@/views/purchase/price-track/index.vue'),
   'purchase/price-track/index': () => import('@/views/purchase/price-track/index.vue'),
+  // 采购询价：此前只挂了静态路由 erp/purchase/inquiry，从未登记进 componentMap，
+  // 所以新加的菜单（path=purchase/inquiry）能注册路由却解析不到组件，页面渲染成
+  // 「页面组件未找到: purchase/inquiry/index」。
+  'purchase/inquiry': () => import('@/views/purchase/inquiry/index.vue'),
+  'purchase/inquiry/index': () => import('@/views/purchase/inquiry/index.vue'),
+  'purchase/inquiry/form': () => import('@/views/purchase/inquiry/form.vue'),
 
   // 配送模块
   'dispatch/query': () => import('@/views/dispatch/query/index.vue'),
@@ -580,7 +586,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/opportunity/form': () => import('@/views/crm/opportunity/form.vue'),
   'crm/contract/form': () => import('@/views/crm/contract/form.vue'),
   'crm/quotation/form': () => import('@/views/crm/quotation/form.vue'),
-  'crm/invoice/form': () => import('@/views/crm/invoice/form.vue'),
+  'finance/invoice/form': () => import('@/views/finance/invoice/form.vue'),
   'md/product/form': () => import('@/views/erp/product/form.vue'),
   'md/product': () => import('@/views/erp/product/index.vue'),
   'md/customer/form': () => import('@/views/md/customer/form.vue'),
@@ -1875,7 +1881,7 @@ const MODULE_ROUTE_MAP: Record<string, string[]> = {
   'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake',
                 'erp/shipment', 'erp/batch', 'erp/serial', 'erp/stock-bom',
                 'erp/stock-assemble', 'erp/stock-split', 'wms', 'wh'],
-  'finance': ['finance', 'erp/finance', 'budget', 'fixed-asset'],
+  'finance': ['finance', 'erp/finance', 'budget', 'fixed-asset', 'finance/invoice'],
   'crm': ['crm'],   // ← 原为 'customer'（库中无此码），按实际模块码修正
 }
 

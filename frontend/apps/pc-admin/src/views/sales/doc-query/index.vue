@@ -278,6 +278,7 @@
     <PrintDialog
       ref="printDialogRef"
       :page-code="printPageCode"
+      :document-id="printData.id"
       :print-data="printData"
       :always-last-template="printConfig.alwaysLastTemplate"
       @print-success="handlePrintSuccess"
@@ -1066,9 +1067,14 @@ async function handleExportMenu({ key }: { key: string | number }) {
 }
 
 // ═══ 打印（F8）：接入通用打印组件（打印模板渲染 → 本地打印 / 远程打印链） ═══
-/** 单据类型 → 打印模板所属页面编码 */
+/**
+ * 单据类型 → 打印模板所属页面编码。
+ * ⚠️ 必须与各页 `<PrintDialog page-code>` 逐字一致：
+ * 原来写的是 `'sale-order'`（销售订单页用的是 `'sale'`）—— 那个编码全站只存在于这一行，
+ * 既没有模板也没有装配器，点打印必然报「还没有已发布的打印模板」。
+ */
 const PRINT_PAGE_CODE: Record<string, string> = {
-  SALE_ORDER: 'sale-order',
+  SALE_ORDER: 'sale',
   OUTBOUND: 'sale-outbound',
   RETURN: 'sale-return-doc',
   EXCHANGE: 'sale-exchange'

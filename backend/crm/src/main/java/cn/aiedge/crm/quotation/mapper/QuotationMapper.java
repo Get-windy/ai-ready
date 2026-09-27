@@ -65,8 +65,4 @@ public interface QuotationMapper extends BaseMapper<Quotation> {
     void insertSaleOrderItem(@Param("id") long id, @Param("orderId") long orderId,
         @Param("lineNo") int lineNo, @Param("item") cn.aiedge.crm.quotation.entity.QuotationItem item,
         @Param("tenantId") Long tenantId, @Param("createBy") Long createBy);
-
-    /** 当日已有的最大销售订单号（用于生成「当日序号」，替代原先对毫秒 ID 取模 10000 的写法） */
-    @Select("SELECT MAX(order_no) FROM erp_sale_order WHERE order_no LIKE #{prefix} || '%'")
-    String selectMaxSaleOrderNo(@Param("prefix") String prefix);
 }

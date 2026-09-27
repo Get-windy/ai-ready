@@ -118,27 +118,12 @@ export const opportunityApi = {
   update(id: number, data: Partial<Opportunity>): Promise<ApiResponse<Opportunity>> {
     return request.put(`/crm/opportunity/${id}`, data)
   },
-  delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/crm/opportunity/${id}`)
-  },
   updateStage(id: number, stage: number | string): Promise<ApiResponse<Opportunity>> {
     return request.put(`/crm/opportunity/${id}/stage`, null, { params: { stage } })
-  },
-  advanceStage(id: number): Promise<ApiResponse<Opportunity>> {
-    return request.post(`/crm/opportunity/${id}/advance`)
-  },
-  win(id: number, actualAmount: number): Promise<ApiResponse<Opportunity>> {
-    return request.post(`/crm/opportunity/${id}/win`, null, { params: { actualAmount } })
   },
   lose(id: number, loseReason: string): Promise<ApiResponse<Opportunity>> {
     return request.post(`/crm/opportunity/${id}/lose`, null, { params: { loseReason } })
   },
-  getStatistics(salesPersonId?: number): Promise<ApiResponse<any>> {
-    return request.get('/crm/opportunity/statistics', { salesPersonId })
-  },
-  listByCustomer(customerId: number): Promise<ApiResponse<Opportunity[]>> {
-    return request.get(`/crm/opportunity/customer/${customerId}`)
-  }
 }
 
 // ── 合同 ──────────────────────────────────────────
@@ -191,72 +176,12 @@ export const contractApi = {
   approve(id: number, note?: string): Promise<ApiResponse<ContractItem>> {
     return request.post(`/crm/contract/${id}/approve`, null, { params: { note } })
   },
-  reject(id: number, reason: string): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/crm/contract/${id}/reject`, null, { params: { reason } })
-  },
   sign(id: number, signMethod: string, location?: string): Promise<ApiResponse<ContractItem>> {
     return request.post(`/crm/contract/${id}/sign`, null, { params: { signMethod, location } })
   },
   terminate(id: number, reason: string): Promise<ApiResponse<ContractItem>> {
     return request.post(`/crm/contract/${id}/terminate`, null, { params: { reason } })
   },
-  getStatistics(): Promise<ApiResponse<any>> {
-    return request.get('/crm/contract/statistics')
-  }
-}
-
-// ── 发票 ──────────────────────────────────────────
-export interface InvoiceItem {
-  id: number
-  invoiceNo?: string
-  invoiceType?: string
-  customerId?: number
-  customerName: string
-  invoiceDate: string
-  amount: number
-  taxAmount?: number
-  totalAmount?: number
-  status?: string
-  issuer?: string
-  remark?: string
-  createTime: string
-}
-
-export interface InvoiceQuery {
-  keyword?: string
-  customerId?: number
-  status?: string
-  startDate?: string
-  endDate?: string
-  pageNum?: number
-  pageSize?: number
-}
-
-export const invoiceApi = {
-  page(params: InvoiceQuery): Promise<any> {
-    return request.get('/erp/invoice/page', params)
-  },
-  getById(id: number): Promise<ApiResponse<InvoiceItem>> {
-    return request.get(`/erp/invoice/${id}`)
-  },
-  create(data: Partial<InvoiceItem>): Promise<ApiResponse<InvoiceItem>> {
-    return request.post('/erp/invoice/create-from-application', data)
-  },
-  update(id: number, data: Partial<InvoiceItem>): Promise<ApiResponse<InvoiceItem>> {
-    return request.put(`/erp/invoice/${id}`, data)
-  },
-  updateStatus(id: number, newStatus: string, notes?: string): Promise<ApiResponse<boolean>> {
-    return request.put(`/erp/invoice/${id}/status`, null, { params: { newStatus, notes } })
-  },
-  voidInvoice(id: number, reason: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/erp/invoice/${id}/void`, null, { params: { reason } })
-  },
-  sendInvoice(id: number, sendMethod: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/erp/invoice/${id}/send`, null, { params: { sendMethod } })
-  },
-  getStatistics(startDate?: string, endDate?: string): Promise<ApiResponse<any>> {
-    return request.get('/erp/invoice/statistics', { startDate, endDate })
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -386,7 +311,7 @@ export const followUpApi = {
   }
 }
 
-// ── 客户（分级/分析，对接 /api/customer） ──────────────────────────
+// ── 客户（分级/分析，对接 /api/crm/customer） ──────────────────────────
 
 /** CRM 客户（与后端 Customer 实体一致） */
 export interface CrmCustomer {
@@ -435,19 +360,19 @@ export interface CrmCustomerQuery {
 export const crmCustomerApi = {
   /** 分页查询客户（裸 Page：records/total） */
   page(params: CrmCustomerQuery): Promise<PageResponse<CrmCustomer>> {
-    return request.get('/customer/page', params)
+    return request.get('/crm/customer/page', params)
   },
   /** 客户全量列表（裸 List，供统计/图表前端聚合） */
   exportList(params?: Omit<CrmCustomerQuery, 'pageNum' | 'pageSize'>): Promise<CrmCustomer[]> {
-    return request.get('/customer/export', params)
+    return request.get('/crm/customer/export', params)
   },
   /** 客户下拉选项（裸 List<{id, name}>，仅启用客户，上限200） */
   dropdown(keyword?: string): Promise<{ id: number; name: string }[]> {
-    return request.get('/customer/dropdown', { keyword })
+    return request.get('/crm/customer/dropdown', { keyword })
   },
   /** 更新客户（裸实体响应；MyBatis-Plus updateById 仅更新非空字段） */
   update(id: number, data: Partial<CrmCustomer>): Promise<CrmCustomer> {
-    return putRaw(`/api/customer/${id}`, data)
+    return putRaw(`/api/crm/customer/${id}`, data)
   }
 }
 
@@ -482,9 +407,6 @@ export const leadConvertApi = {
     return request.get('/crm/lead/export', params)
   },
   /** 转化线索为客户（裸实体响应；已转化后端抛 400"线索已转化"） */
-  convert(id: number): Promise<CrmCustomer> {
-    return postRaw(`${CRM_BASE}/lead/${id}/convert`)
-  }
 }
 
 // ── 商机阶段（/api/crm/opportunity） ───────────────────────────────
@@ -771,24 +693,9 @@ export const customerPoolApi = {
     return request.get('/crm/customer-pool/page', params)
   },
   /** 可领取客户列表（裸 List） */
-  listAvailable(): Promise<CustomerPoolItem[]> {
-    return request.get('/crm/customer-pool/available')
-  },
   /** 我领取的客户（裸 List） */
-  listMyClaimed(): Promise<CustomerPoolItem[]> {
-    return request.get('/crm/customer-pool/my-claimed')
-  },
   /** 我放入公海的客户（裸 List） */
-  listMyReturned(): Promise<CustomerPoolItem[]> {
-    return request.get('/crm/customer-pool/my-returned')
-  },
   /** 放入公海池（裸实体） */
-  put(customerId: number, poolReason: number, remark?: string): Promise<CustomerPoolItem> {
-    return postRaw(`${CRM_BASE}/customer-pool/put/${customerId}`, null, {
-      poolReason,
-      remark
-    })
-  },
   /** 领取（裸实体） */
   claim(poolId: number): Promise<CustomerPoolItem> {
     return postRaw(`${CRM_BASE}/customer-pool/claim/${poolId}`)

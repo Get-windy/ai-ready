@@ -55,9 +55,16 @@ export interface PaymentChannelParam {
   //   · POST /api/payment/callback/{channel} 直接调渠道实现的 handleCallback，
   //     而 Alipay/Wechat/UnionPay/Cash 四个渠道实现都是 `record.setStatus(2)`
   //     的无条件成功桩 ⇒ **当前行为恰恰是「不验签当成功」**。
-  // 因此这些字段目前**配了也不生效**。修法（接线验签器）涉及「回调失败如何回滚状态」
-  // 的口径，需先拍板，故未在本次改动中接线。
+  // ⚠️ 2026-09-26 更新：验签器**已经接线**（core-payment 的回调改为 fail-closed，
+  //    由 PaymentCallbackVerifier 分发；未配置凭据/验签失败一律拒绝改单）。
+  //    故下面这些字段**配了就生效**；不配则对应的渠道回调会被拒绝（而不是"不验签当成功"）。
 
+  // ⚠️ 2026-09-26 补「签名」凭据：只有公钥能**验**，没有私钥就**签不了** ——
+  //    真接支付宝/银联后，下单/查单/退款都必须用应用（商户）私钥签名。
+  /** 【签名·支付宝】应用私钥（PKCS8、Base64，可带 PEM 头尾） */
+  alipayPrivateKey?: string
+  /** 【可选·支付宝】网关地址（沙箱可覆盖，默认 openapi.alipay.com/gateway.do） */
+  alipayGateway?: string
   /** 【验签·支付宝】支付宝公钥（Base64，可带 PEM 头尾） */
   alipayPublicKey?: string
   /** 【验签·微信】APIv3 密钥（32 位） */
@@ -74,6 +81,12 @@ export interface PaymentChannelParam {
    * 银联回调报文带 `certId` 指明用哪张证书验签；证书换发时新旧并存，故同样是「表」。
    */
   unionPayCerts?: string
+  /** 【签名·银联】商户私钥（PKCS8、Base64，可带 PEM 头尾） */
+  unionPayMerchantPrivateKey?: string
+  /** 【签名·银联】证书 ID（certId，随签名一起上送） */
+  unionPayCertId?: string
+  /** 【可选·银联】网关地址（默认银联全渠道正式网关） */
+  unionPayGateway?: string
 }
 
 /** 「支付方式」Tab 的一行：渠道（来自后端渠道 Bean）+ 已保存的参数 */

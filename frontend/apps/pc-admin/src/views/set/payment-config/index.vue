@@ -492,6 +492,17 @@
                按渠道条件展示：支付宝只要一个公钥；微信要 APIv3 密钥 + 平台证书表。 -->
           <a-form-item
             v-if="isAlipayChannel"
+            label="应用私钥（下单/退款签名用）"
+            help="PKCS8、Base64，可带 -----BEGIN PRIVATE KEY----- 头尾；没有它无法下单"
+          >
+            <a-textarea
+              v-model:value="paramForm.alipayPrivateKey"
+              :rows="5"
+              placeholder="支付宝应用私钥（注意：不是支付宝公钥）"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isAlipayChannel"
             label="支付宝公钥（回调验签用）"
           >
             <a-textarea
@@ -519,6 +530,27 @@
               v-model:value="paramForm.wechatPlatformCerts"
               :rows="6"
               :placeholder="CERTS_PLACEHOLDER"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isUnionPayChannel"
+            label="商户私钥（下单/退款签名用）"
+            help="PKCS8、Base64，可带 -----BEGIN PRIVATE KEY----- 头尾；没有它无法下单"
+          >
+            <a-textarea
+              v-model:value="paramForm.unionPayMerchantPrivateKey"
+              :rows="5"
+              placeholder="银联商户私钥"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isUnionPayChannel"
+            label="证书 ID（certId）"
+            help="银联签名报文中随 signature 一起上送"
+          >
+            <a-input
+              v-model:value="paramForm.unionPayCertId"
+              placeholder="如 1234ABCD5678"
             />
           </a-form-item>
           <a-form-item
@@ -1004,11 +1036,18 @@ const paramForm = reactive<Required<PaymentChannelParam>>({
   appSecret: '',
   notifyUrl: '',
   enabled: true,
+  // 签名凭据（2026-09-26）：只有公钥能验、没有私钥签不了
+  alipayPrivateKey: '',
+  alipayGateway: '',
   // 回调验签凭据（2026-09-21）
   alipayPublicKey: '',
   wechatApiV3Key: '',
   wechatPlatformCerts: '',
   unionPayCerts: '',
+  // 签名凭据（2026-09-26）
+  unionPayMerchantPrivateKey: '',
+  unionPayCertId: '',
+  unionPayGateway: '',
 })
 
 /** 在线渠道必须填商户号与密钥；线下渠道（BANK/CASH）无需填（与后端 confirmOfflinePayment 的口径一致） */
@@ -1087,10 +1126,15 @@ async function openParamDrawer(record: PaymentChannelConfigVO) {
   paramForm.appSecret = ''
   paramForm.notifyUrl = ''
   paramForm.enabled = true
+  paramForm.alipayPrivateKey = ''
+  paramForm.alipayGateway = ''
   paramForm.alipayPublicKey = ''
   paramForm.wechatApiV3Key = ''
   paramForm.wechatPlatformCerts = ''
   paramForm.unionPayCerts = ''
+  paramForm.unionPayMerchantPrivateKey = ''
+  paramForm.unionPayCertId = ''
+  paramForm.unionPayGateway = ''
   paramVisible.value = true
   paramLoading.value = true
   try {
@@ -1101,11 +1145,16 @@ async function openParamDrawer(record: PaymentChannelConfigVO) {
       paramForm.appSecret = saved.appSecret || ''
       paramForm.notifyUrl = saved.notifyUrl || ''
       paramForm.enabled = saved.enabled !== false
-      // 回调验签凭据：后端按 String 存（证书表本身是一段 JSON 文本），原样回显
+      // 签名/验签凭据：后端按 String 存（证书表本身是一段 JSON 文本），原样回显
+      paramForm.alipayPrivateKey = saved.alipayPrivateKey || ''
+      paramForm.alipayGateway = saved.alipayGateway || ''
       paramForm.alipayPublicKey = saved.alipayPublicKey || ''
       paramForm.wechatApiV3Key = saved.wechatApiV3Key || ''
       paramForm.wechatPlatformCerts = saved.wechatPlatformCerts || ''
       paramForm.unionPayCerts = saved.unionPayCerts || ''
+      paramForm.unionPayMerchantPrivateKey = saved.unionPayMerchantPrivateKey || ''
+      paramForm.unionPayCertId = saved.unionPayCertId || ''
+      paramForm.unionPayGateway = saved.unionPayGateway || ''
     }
     await nextTick()
     paramFormRef.value?.clearValidate?.()

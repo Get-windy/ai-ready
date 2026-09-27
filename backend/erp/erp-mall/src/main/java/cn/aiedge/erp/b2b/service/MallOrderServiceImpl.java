@@ -309,7 +309,10 @@ public class MallOrderServiceImpl implements MallOrderService {
             if (addr != null) {
                 order.setConsignee(addr.getConsignee());
                 order.setConsigneePhone(addr.getPhone());
-                String fullAddr = addr.getProvince() + addr.getCity() + addr.getDistrict() + " " + addr.getDetailAddress();
+                // 表结构是 region（省市区一个串）+ address（详细），拼装时都要判空，
+                // 否则会拼出「nullnullnull」这种地址
+                String fullAddr = ((addr.getRegion() == null ? "" : addr.getRegion()) + " "
+                        + (addr.getAddress() == null ? "" : addr.getAddress())).trim();
                 order.setConsigneeAddress(fullAddr);
                 order.setShippingAddress(fullAddr);
             }
@@ -353,18 +356,8 @@ public class MallOrderServiceImpl implements MallOrderService {
             queryPartyId = userId;
         }
 
-        // 根据激活身份类型确定订单来源过滤
-        int expectedOrderSource = ORDER_SOURCE_MEMBER_MALL;
-        if (activePartyId != null) {
-            try {
-                Party activeParty = partyService.getById(activePartyId);
-                if (activeParty != null && !"MEMBER".equals(activeParty.getPartyLevel())) {
-                    expectedOrderSource = ORDER_SOURCE_B2B_MALL;
-                }
-            } catch (Exception ignored) {}
-        } else if (currentUser != null && "ENTERPRISE".equals(currentUser.getUserType())) {
-            expectedOrderSource = ORDER_SOURCE_B2B_MALL;
-        }
+        // 订单来源（企业商城 / 个人会员）——与计数接口共用同一判定，避免两边漂移
+        int expectedOrderSource = resolveExpectedOrderSource(activePartyId, currentUser);
 
         LambdaQueryWrapper<ErpSaleOrderMall> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ErpSaleOrderMall::getCustomerId, queryPartyId);
@@ -437,6 +430,87 @@ public class MallOrderServiceImpl implements MallOrderService {
             throw BusinessException.forbidden("无权访问该订单");
         }
         return order;
+    }
+
+    /**
+     * 当前身份对应的**订单来源**（企业商城 2 / 个人会员 3）。
+     *
+     * <p>抽出来是因为 {@code listOrders} 与 {@code orderStatusCounts} 必须用同一口径 ——
+     * 否则会出现"列表里有、角标里没有"这类对不上。</p>
+     */
+    private int resolveExpectedOrderSource(Long activePartyId, ShopUser currentUser) {
+        if (activePartyId != null) {
+            try {
+                Party activeParty = partyService.getById(activePartyId);
+                if (activeParty != null && !"MEMBER".equals(activeParty.getPartyLevel())) {
+                    return ORDER_SOURCE_B2B_MALL;
+                }
+                return ORDER_SOURCE_MEMBER_MALL;
+            } catch (Exception ignored) {
+                // 取不到按会员身份处理（与改造前一致）
+            }
+        }
+        if (currentUser != null && "ENTERPRISE".equals(currentUser.getUserType())) {
+            return ORDER_SOURCE_B2B_MALL;
+        }
+        return ORDER_SOURCE_MEMBER_MALL;
+    }
+
+    @Override
+    public Map<String, Integer> orderStatusCounts() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        Object activeObj = StpUtil.getSession().get("activePartyId");
+        Long activePartyId = activeObj instanceof Number ? ((Number) activeObj).longValue() : null;
+        ShopUser currentUser = shopUserMapper.selectById(userId);
+        int orderSource = resolveExpectedOrderSource(activePartyId, currentUser);
+        Long callerPartyId = currentCallerPartyId();
+
+        List<ErpSaleOrderMall> orders = erpSaleOrderMapper.selectList(
+                new LambdaQueryWrapper<ErpSaleOrderMall>()
+                        .eq(ErpSaleOrderMall::getCustomerId, callerPartyId)
+                        .eq(ErpSaleOrderMall::getTenantId, getTenantId())
+                        .eq(ErpSaleOrderMall::getOrderSource, orderSource)
+                        .eq(ErpSaleOrderMall::getDeleted, 0)
+                        .select(ErpSaleOrderMall::getStatus));
+
+        Map<String, Integer> out = new LinkedHashMap<>();
+        out.put("pendingPayment", 0);
+        out.put("pendingShip", 0);
+        out.put("pendingReceive", 0);
+        out.put("completed", 0);
+        out.put("afterSales", 0);
+        for (ErpSaleOrderMall o : orders) {
+            Integer st = o.getStatus() == null ? 0 : o.getStatus();
+            // erp_sale_order.status 口径：0 草稿 / 1 待审批 / 2 已审批 / 3 部分出库 / 4 完成 / 5 交易完成 / 6 已取消
+            switch (st) {
+                case 0 -> out.merge("pendingPayment", 1, Integer::sum);
+                case 1, 2 -> out.merge("pendingShip", 1, Integer::sum);
+                case 3 -> out.merge("pendingReceive", 1, Integer::sum);
+                case 4, 5 -> out.merge("completed", 1, Integer::sum);
+                default -> { /* 6 已取消：不计入任何待办，也不计入已完成 */ }
+            }
+        }
+        // 售后：需关联销售域的退货申请（跨模块），本轮**不臆造为其它数字**，如实留 0 并注明
+        return out;
+    }
+
+    @Override
+    public Map<String, Object> orderLogistics(Long id) {
+        ErpSaleOrderMall order = requireMyOrder(id);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("orderNo", order.getOrderNo());
+        out.put("logisticsCompany", order.getLogisticsCompany());
+        out.put("trackingNo", order.getTrackingNo());
+        out.put("deliveryStatus", order.getDeliveryStatus());
+        out.put("consignee", order.getConsignee());
+        out.put("consigneePhone", order.getConsigneePhone());
+        // 轨迹节点：需对接承运商接口（无数据源），恒为空数组，前端据此显示"暂无轨迹"，
+        // 而不是把"有运单号"伪装成"有轨迹"。
+        out.put("traces", Collections.emptyList());
+        out.put("traceTip", order.getTrackingNo() == null || order.getTrackingNo().isBlank()
+                ? "商家还未录入运单号"
+                : "已发货，轨迹需承运商接口支持（暂未接入）");
+        return out;
     }
 
     @Override

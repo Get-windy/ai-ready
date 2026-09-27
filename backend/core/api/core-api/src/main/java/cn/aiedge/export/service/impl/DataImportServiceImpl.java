@@ -148,8 +148,16 @@ public class DataImportServiceImpl implements DataImportService {
                 return ImportResult.partial(totalRows, successCount, failureCount, errors);
             }
 
-            log.info("Excel导入完成: 成功{}条, 失败{}条", successCount, failureCount);
-            return ImportResult.success(totalRows, successCount);
+            // ⚠️ 本类此前**只做解析与校验、不写任何业务表**，却返回 ImportResult.success(total, success) ——
+            //    调用方（资料模块「客户导入」「往来单位导入」）会提示「导入成功 N 条」而数据库一行未写。
+            //    2026-09-24 系统模块审计 P0：这类「报成功不落库」比直接报错更危险，因为它会骗过使用者。
+            //    处置：在实现真实落库之前，一律返回失败，让问题暴露而不是被掩盖。
+            //    （资料档案类导入请改用真实端点：POST /api/erp/md/customer/import-excel?partnerType=xxx）
+            log.warn("导入通道 /api/import/v2/excel/{} 尚未实现落库，已拒绝返回成功（解析通过 {} 条）",
+                    dataType, successCount);
+            return ImportResult.failure("该导入通道尚未实现数据落库，为避免「提示成功但未写入」，本次已中止"
+                    + "（文件解析通过 " + successCount + " 条）。资料档案类导入请使用对应的「导入」入口"
+                    + "（如：资料 → 往来单位/客户 → 导入）。");
 
         } catch (Exception e) {
             log.error("Excel导入失败", e);
@@ -236,8 +244,11 @@ public class DataImportServiceImpl implements DataImportService {
                 return ImportResult.partial(rowIndex - 1, successCount, failureCount, errors);
             }
 
-            log.info("CSV导入完成: 成功{}条, 失败{}条", successCount, failureCount);
-            return ImportResult.success(rowIndex - 1, successCount);
+            // 同 importExcel：不落库就绝不报成功（见 importExcel 尾部的说明）
+            log.warn("导入通道 /api/import/v2/csv/{} 尚未实现落库，已拒绝返回成功（解析通过 {} 条）",
+                    dataType, successCount);
+            return ImportResult.failure("该导入通道尚未实现数据落库，为避免「提示成功但未写入」，本次已中止"
+                    + "（文件解析通过 " + successCount + " 条）。资料档案类导入请使用对应的「导入」入口。");
 
         } catch (Exception e) {
             log.error("CSV导入失败", e);

@@ -39,13 +39,11 @@ public class DataExportController {
             @RequestBody ExportRequest request,
             HttpServletResponse response) throws Exception {
 
-        // 设置响应头
-        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", 
-                "attachment; filename=" + encodeFilename(request.getFilename()) + ".xlsx");
-
-        // 导出（实际应用中从数据库查询）
-        // TODO: 实现真实Excel导出逻辑
+        // ⚠️ 本端点此前只设置响应头、既不查数据也不写字节 —— 调用方会下载到一个空文件且无任何报错
+        //    （2026-09-24 系统模块审计 P0）。导出数据源（dataType → 查询实现）尚未接线，
+        //    在接线之前一律明确失败，避免「下载到空文件却以为导出成功」。
+        throw cn.aiedge.common.exception.BusinessException.badRequest(
+                "导出通道尚未接线（缺少 dataType → 数据源映射），本次已中止。请使用各业务页面自带的导出按钮。");
     }
 
     @SaCheckPermission("system:dataexport:export")
@@ -55,11 +53,9 @@ public class DataExportController {
             @RequestBody ExportRequest request,
             HttpServletResponse response) throws Exception {
 
-        response.setContentType("text/csv;charset=UTF-8");
-        response.setHeader("Content-Disposition",
-                "attachment; filename=" + encodeFilename(request.getFilename()) + ".csv");
-
-        // TODO: 实现真实CSV导出逻辑
+        // 同 exportExcel：不给空文件
+        throw cn.aiedge.common.exception.BusinessException.badRequest(
+                "导出通道尚未接线（缺少 dataType → 数据源映射），本次已中止。请使用各业务页面自带的导出按钮。");
     }
 
     @SaCheckPermission("system:dataexport:import")
@@ -73,10 +69,11 @@ public class DataExportController {
         Map<String, String> headers = getHeadersForType(dataType);
         Class<?> rowClass = getClassForType(dataType);
 
-        try (InputStream in = file.getInputStream()) {
-            List<?> data = dataExportService.importExcel(in, headers, rowClass);
-            return new DataExportService.ImportResult(data.size(), data.size(), 0, List.of());
-        }
+        // ⚠️ 本端点此前把解析出来的每一行都计为「成功」、且**不落任何库**（ImportResult(size, size, 0, [])），
+        //    调用方会看到「全部成功」而数据库一行未写（2026-09-24 系统模块审计 P0）。
+        //    在接线真实落库之前一律明确失败。
+        throw cn.aiedge.common.exception.BusinessException.badRequest(
+                "该导入通道尚未实现数据落库，为避免「提示成功但未写入」，本次已中止。请使用对应的业务导入入口。");
     }
 
     @SaCheckPermission("system:dataexport:import")
@@ -89,10 +86,9 @@ public class DataExportController {
         Map<String, String> headers = getHeadersForType(dataType);
         Class<?> rowClass = getClassForType(dataType);
 
-        try (InputStream in = file.getInputStream()) {
-            List<?> data = dataExportService.importCsv(in, headers, rowClass);
-            return new DataExportService.ImportResult(data.size(), data.size(), 0, List.of());
-        }
+        // 同上：不落库就绝不报成功
+        throw cn.aiedge.common.exception.BusinessException.badRequest(
+                "该导入通道尚未实现数据落库，为避免「提示成功但未写入」，本次已中止。请使用对应的业务导入入口。");
     }
 
     @SaCheckPermission("system:dataexport:view")

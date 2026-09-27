@@ -753,3 +753,276 @@ freezeCredit · unfreezeCredit · isCreditFrozen · batchUpdateDebt
 4. **租户角色的 `crm:*` 授码**（§9.1 的行为变化前提）。
 5. **历史脏数据**：`erp_sale_order#1827624375412493`（`customer_id=1` 指向「散客（零售默认）」而 `customer_name` 是 CRM 客户名）—— 属一条真实脏数据，需人工确认后订正或作废；本轮**未动**（改业务数据不在审计范围内）。
 
+---
+
+## 十、执行记录（2026-09-26 第三轮：四项拍板后的落地）
+
+> 用户口径：① 信用归属归 ERP，CRM 可以调用；② 12 张表唯一索引 / 号段并发全部改为新算法；
+> ③ CRM 发票页搬回财务，CRM 只是调用；④ 那条脏数据直接删除；⑤ 租户角色的 `crm:*` 授码自己排版。
+
+### 10.1 信用归属迁到 ERP（`erp-partner`）
+
+**新增**（`backend/erp/erp-partner/.../party/`）：
+
+| 文件 | 作用 |
+|---|---|
+| `service/PartyCreditService.java` | 信用服务接口（额度 / 欠款 / 可用 / 放行判定 / 状态 / 预警 / 超额清单 / 统计 / 重算） |
+| `service/impl/PartyCreditServiceImpl.java` | 实现，操作对象由 `crm_customer` 换成 **`biz_party`** |
+| `mapper/PartyCreditMapper.java` | 欠款汇总（对 `finance_receivable.remaining_amount` 的**只读 SUM**）+ 回写 `biz_party.current_debt` |
+
+**关键订正**：
+
+| 迁走前的缺陷 | 现在 |
+|---|---|
+| `erp-sales` 用**往来单位 ID** 调 CRM 的服务，而服务按 `crm_customer.id` 取数 | 服务的对象就是 `biz_party`，`outbound.getCustomerId()` 直接是主键，**ID 域一致** |
+| `calculateTotalDebt` 恒返回 `BigDecimal.ZERO`（桩） | 按应收余额真实汇总 |
+| 叠加 `@Scheduled` 每天把客户欠款**清零** | 定时任务保留但语义正确：按应收余额**重算**；跨租户重算所需的两条 SQL 标了 `@InterceptorIgnore(tenantLine = "true")` |
+| `getCreditStatus` 的 `overdue` 分支不可达（≥100 也满足 ≥80） | 改为先判 `overdue` 再判 `warning` |
+| CRM 侧 14 个方法中 8 个零调用（冻结/预警清单等） | 冻结/解冻**未迁移** —— 原实现绑的是 `Customer.status == 4`，而 `biz_party.status` 只有 0/1 语义、无冻结位；凭空造一个状态码不如不迁（这两条方法原本也没有任何调用方与入口） |
+
+**调用方改造**：`SaleOutboundServiceImpl` 由注入 `crm.CustomerCreditService` 改为注入 `erp.party.PartyCreditService`（6 个调用点同名迁移，`updateCustomerDebt` → `recalcPartyDebt`）。
+
+**CRM 侧"可以调用"的落地**：`crm/pom.xml` 新增 `erp-partner` 依赖；`CustomerServiceImpl` 在 `pageList` / `exportList` / `getById` 上把客户的「信用额度 / 当前欠款」按 **`md_partner_id`** 替换为 ERP 往来单位的值（未关联往来单位时保留 CRM 侧原值，因为该客户在 ERP 里还不存在）。CRM 客户表上的这两列自此只是历史登记位，不再是事实源。
+
+**顺带修掉一条模块边界违规**：`erp-sales` 对 `crm` 的依赖**整条移除**（改完后 `grep cn.aiedge.crm erp/erp-sales/` 为 0 处引用）。
+
+### 10.2 号段统一 + 唯一索引改部分唯一（迁移 `V11.507.0`）
+
+**算法侧**：CRM 域的 9 个取号点 + 1 个销售订单号，全部改为复用 core-base 的
+`BizNumberGeneratorService`（`biz_number_sequence` 上的 `SELECT ... FOR UPDATE` + `UPDATE`，跨进程原子、按日重置）：
+
+| 位置 | 原 bizType 风格 | 现 bizType |
+|---|---|---|
+| 客户 / 线索 / 商机 / 跟进 / 拜访计划 | `CrmDocNo`（查当日最大号 +1） | `CRM_CUSTOMER` / `CRM_LEAD` / `CRM_OPPORTUNITY` / `CRM_FOLLOWUP` / `CRM_VISITPLAN` |
+| 合同 / 报价单 / 报价模板 / 营销活动 | 4 份内联「查最大号 +1」 | `CRM_CONTRACT` / `CRM_QUOTATION` / `CRM_QUOTTPL` / `CRM_CAMPAIGN` |
+| CRM 转出的销售订单 | 自写 `QO+日期+orderId%10000` | 直接复用 `nextSaleOrderNo()`（与 ERP 自建订单同一号段） |
+
+`CrmDocNo` 整个类、以及 6 个 Mapper 上已无用的 `selectMaxXxxCode` 方法一并删除。
+**格式变化（用户可见）**：新号为 `PREFIX-yyyyMMdd-NNNN`，如 `CUS-20260926-0001`（原为 `CUS-202609180001`）；存量单号不动。
+
+**索引侧**：12 个 `uk_crm_*` 由「全表唯一」改为**部分唯一索引 `WHERE deleted = 0`** —— 唯一性只约束活着的行，逻辑删除的行不再占号也不再与新建行冲突。
+
+同时给租户 1 种下 9 条 CRM 号段（`V11.507.0`），其余租户首次使用时由既有的 `seedMissingSequence` 自愈。
+
+### 10.3 发票搬回财务（迁移 `V11.508.0`）
+
+| 层面 | 动作 |
+|---|---|
+| 前端页面 | `views/crm/invoice/{form,index}.vue` → **`views/finance/invoice/`**（`git mv`，import 全是 `@/` 绝对路径，无需改引用） |
+| API 归属 | 新建 `api/finance/invoice.ts`，把 `api/crm.ts` 的 `invoiceApi` 与两个页面里的内联 `invoiceOps`/直连 `request` **合并收敛**成一套；从 `api/crm.ts` 移除发票类型与 API；`api/analytics.ts` 的再导出改指财务 |
+| 客户下拉 | 由 CRM 公海客户（`crmCustomerApi`）改为 **ERP 往来单位**（`/erp/md/customer/list?partnerType=CUSTOMER`）—— 发票是财务单据，客户主体必须是 `biz_party`；该端点不支持关键词参数，故搜索改为对已加载列表做前端过滤 |
+| 权限码 | 前端 7 个 `crm:invoice:*` 全部换成后端真正守卫的 `invoice:*`（新增→`create`、查看→`view`、编辑/开具→`update`、发送/作废→`create`、明细刷新→`detail`） |
+| 菜单 | 删除 CRM 下的 `60706 发票管理` + `70350 发票`（`sys_role_menu`/`sys_tenant_menu` 引用均为 0，已核）；在财务 `60006` 下新增 `60610 发票管理` 分组 + `80152 发票` 双入口叶子（`path=finance/invoice/form`、`list_path=finance/invoice/index`、`tag=[历史]`、`menu_code=invoice`） |
+| 路由 | `dynamicRoutes.ts` 组件映射键 `crm/invoice*` → `finance/invoice*`；`MODULE_ROUTE_MAP.finance` 加入 `finance/invoice`（此前只买 CRM 的租户能看到菜单、接口却被 `finance` 权益门拒） |
+| 打印模板 | `views/printing/seed-templates.ts` 的 `pageCodes` 由 `crm/invoice` 改为 `finance/invoice` |
+| 权限码清理 | 7 条 `crm:invoice:*` 连同其角色关联一并删除（后端零消费） |
+| E2E 脚本 | `tools/e2e-crm.cjs` 移除发票的菜单/UI/端点断言（CRM 由 17 页变 16 页） |
+
+> 核对了「不是重复实现」：全库此前**只有** CRM 下的发票菜单，财务模块没有发票入口（`analytics/invoice-stats` 是统计页，不冲突），所以这是**归位**而非合并。
+
+### 10.4 租户角色授码（迁移 `V11.509.0`）
+
+| 角色 | 授予 | 口径 |
+|---|---|---|
+| `SYSTEM_ADMIN`（租户系统管理员） | 全部 `crm:*`（80 条）+ 全部 `invoice:*`（14 条，含既有） | 业务全权 |
+| `DEPT_ADMIN`（部门管理员） | 36 条：客户 查看/新建/编辑/导入/跟进、公海 查看/领取/退回、跟进记录全量、线索 查看/新建/编辑/转化/导入导出、商机 查看/新建/编辑/导出、报价 查看/新建/编辑/发送/下载、合同 **只读**、外勤拜访全量 | **职责分离**：能录入与跟进，**不含**删除 / 审批 / 转订单 / 续签 / 批量刷新 |
+| `E2E_T2_ADMIN` | **刻意不动**（保持 2 条） | `tools/verify-module-authz.cjs` 用它当"无码非超管"探针验证「注解已生效 ⇒ 403」，授码会让该断言失效 |
+
+### 10.5 脏数据删除
+
+`erp_sale_order#1827624375412493`（及其 2 行明细）物理删除，删除后核对 `残留订单=0 / 残留明细=0 / 全库 QO 单=0`。
+
+### 10.6 验证结果
+
+**迁移应用**：Flyway 一次性应用 7 个迁移（含并发会话的 11.503.0~11.506.0）→ `Successfully applied 7 migrations, now at version v11.509.0`。
+
+**库内核对**：
+
+```
+① CRM 号段种子=9          ② 非部分唯一索引残留=0（期望 0）
+③ CRM 发票菜单残留=0      ④ 财务发票菜单=2（60610 分组 + 80152 叶子）
+⑤ crm:invoice 残留=0
+授码：SUPER_ADMIN=80 / SYSTEM_ADMIN=80 / DEPT_ADMIN=36 / E2E_T2_ADMIN=2（未动）
+```
+
+**真机复测**（新 jar 起在 5690，复测后关闭）：
+
+| 项 | 结果 |
+|---|---|
+| 菜单树（超管） | CRM 叶子 **16 页**（发票已移出）；财务下 `#80152 发票 finance/invoice/form` |
+| 号段 | 新建客户返回 `customerCode = CUS-20260926-0001`（统一号段格式生效）；验证后已物理清场（`crm_customer 残留=0`） |
+| 发票接口 | `GET /erp/invoice/query` → **200** |
+| 销售出库（信用新依赖） | `GET /erp/sale/outbound/page` → **200**（`PartyCreditService` Bean 注入成功） |
+| 编译 | `crm -am compile`、`erp/erp-sales -am compile`、`core-api -am package` 全部 **BUILD SUCCESS** |
+
+**前端 lint**：搬移后的 `views/finance/invoice` + `api/finance/invoice.ts` + CRM 侧 → **0 errors**（639 warnings，构成不变：绝大多数是 `no-explicit-any`）。
+
+### 10.7 迁移版本号顺延（排查备查）
+
+本轮三个迁移原定为 `V11.501/502/503.0`，启动时报
+`Found more than one migration with version 11.501.0` —— **并发会话**的 DMS/HR/客户等级三个审计任务同时占用了 501/502/503。
+已顺延为 **`V11.507.0` / `V11.508.0` / `V11.509.0`**，并同步了文件内与 `tools/e2e-crm.cjs` 的交叉引用。
+⇒ 收尾期多会话并行时，**先 `ls db/migration | sort -V | tail` 再定版本号**，不要按"上一版 +1"取。
+
+### 10.8 本轮之后仍未闭环
+
+1. **信用冻结/解冻**未迁移（见 §10.1 的理由）——若将来要做，需先定义 `biz_party` 侧的「信用冻结」表达方式。
+2. `biz_party.current_debt` 的重算依赖每日定时任务；若要有实时性，应在应收/收款核销处主动触发 `recalcPartyDebt`（属财务侧接线）。
+3. 发票的**新建仍必失败**（后端只提供 `create-from-application`，要求 `applicationId`，而系统无发票申请页）——本轮只是把它搬回了正确的模块，这条后端缺口仍在。
+4. 12 张表的**唯一索引已改部分唯一**，但「部分唯一索引」不参与 MyBatis-Plus 的逻辑删除自动处理，无需额外代码配合（已实测新建/删除正常）。
+
+---
+
+## 十一、执行记录（2026-09-26 第四轮：权限一致性与死代码收尾）
+
+### 11.1 「假门」系统排查与对齐（前端门码 ≠ 后端守卫码）
+
+**为什么这轮必须做**：第三轮的授码方案按职责分离只给了 DEPT_ADMIN `crm:customer:update`，而客户列表的「编辑」按钮挂的是 `crm:customer:edit`
+⇒ **该角色看不到自己有权限做的操作**。这类"前端门与后端守卫不一致"的缺陷，授码之后才真正显形。
+
+排查方法：把 CRM 全部 `v-permission` 码与后端 `@SaCheckPermission` 码求差集，再逐个确认按钮背后的 handler 调的是哪个接口。
+
+**对齐 9 处**（前端改用后端真正守卫的码）：
+
+| 位置 | 原码 | 改为 | 依据 |
+|---|---|---|---|
+| `customer/index.vue:431` 编辑 | `crm:customer:edit` | `crm:customer:update` | → `PUT /crm/customer/{id}`，守 `update` |
+| `customer/index.vue:74` 批量分配 | `crm:customer:batchassign` | `crm:customer:update` | → 循环 `PUT /crm/customer/{id}` |
+| `customer/index.vue:511` 新增该等级客户 | `crm:customer:addtolevel` | `crm:customer:create` | → 新增弹窗，`POST /crm/customer` |
+| `lead/index.vue:320/48` 分配 / 批量分配 | `crm:lead:assign` / `batchassign` | `crm:lead:edit` | → 循环 `PUT /crm/lead/{id}` |
+| `opportunity/index.vue:328` 移动阶段 | `crm:opportunity:move` | `crm:opportunity:edit` | → `PUT /crm/opportunity/{id}/stage` |
+| `quotation/index.vue:38` 批量发送 | `crm:quotation:batchsend` | `crm:quotation:send` | → 循环 `POST /{id}/send` |
+| `quotation/index.vue:645` 详情内发送 | `crm:quotation:sendfromdetail` | `crm:quotation:send` | 同上 |
+| `quotation/index.vue:660` 详情内转订单 | `crm:quotation:convertfromdetail` | `crm:quotation:convert` | → `POST /{id}/convert` |
+
+**复核结果**：对齐后前端仍在使用、而后端注解里没有的码只剩 5 个，
+且它们**背后都没有任何接口调用**（不是假门，是纯前端门）：
+`crm:customer:refresh`、`crm:contract:detailrefresh`、`crm:quotation:detailrefresh`（刷新按钮）、
+`crm:lead:import`（占位按钮，点击提示"后端未提供"）、`crm:opportunity:convert`（纯说明弹窗）。这 5 个保留。
+
+被换下来的 8 个专用码（`addtolevel` / `batchassign` / `assign` / `move` / `batchsend` / `sendfromdetail` / `convertfromdetail`）**保留在库中**，
+登记为「待拆独立端点」—— 它们是文档定义的独立业务动作，只是当前复用粗粒度端点；拆分端点后即可真正独立管控。
+
+### 11.2 删除重复权限码 `crm:customer:edit`（迁移 `V11.511.0`）
+
+它与 `crm:customer:update` 是**同一个动作的两个名字**（同端点、同语义，`api_path` 为空、后端从未使用），
+不存在将来分家的可能，留着只会再次产生假门。全仓引用为 0 后删除。
+
+### 11.3 客户控制器前缀统一为 `/api/crm/customer`（迁移 `V11.511.0`）
+
+`CustomerController` 此前是 CRM 里**唯一**不守 `/api/crm/*` 约定的控制器（另外 9 个都在 `/api/crm/` 下）。
+真正的问题不是"不好看"，而是它会**破坏权限码生成器**：`tools/gen-module-permission-seed.py` 按 URL 推导资源名，
+`/api/customer` 会推出 `party:customer:*` 而不是库中的 `crm:customer:*` —— 该生成器的注释里就记着这个坑（`:361`）。
+
+同步改动（全部核对过，共 5 类）：
+
+| 层 | 位置 | 改动 |
+|---|---|---|
+| 后端 | `CustomerController` | `@RequestMapping("/api/customer")` → `"/api/crm/customer"` |
+| 后端 | `PermissionInitializationConfig:276-279` | 4 条权限模板的 `apiPath` 同步 |
+| 后端 | `ApiPerformanceConfig:97` | 慢请求白名单路径同步 |
+| 后端 | `GatewayConfig:35` | 移除已失效的 `customer-service` 路由（`/api/customer/**` 已不存在，由 `crm-service` 接管） |
+| 前端 | `api/customer.ts`(13) + `api/crm.ts`(4) | 调用路径同步（含模板字符串写法） |
+| 前端 | 2 个 .vue 的说明性注释 | 同步 |
+| 工具 | `tools/e2e-crm.cjs`(3) + `verify-authz-batch2.cjs`(3) | 断言路径同步 |
+| 工具 | `tools/gen-module-permission-seed.py` | 新增 `'crm:customer'` 资源覆盖与 `/api/crm/customer` 端点覆盖（**保留**历史键，便于旧分支重新生成） |
+| 数据库 | `sys_permission.api_path`（4 条） | `REPLACE('/api/customer' → '/api/crm/customer')` |
+
+**真机复测**（新前缀 9 个端点全 200；旧前缀全 404）：
+
+```
+200 /crm/customer/page  /export  /dropdown  /list  /code/__none__
+    /salesPerson/1  /level/1  /1/follows  /1/orders
+404 /customer/page  /customer/export  /customer/dropdown  /customer/1
+```
+
+### 11.4 删除前端死 API 18 个
+
+对每个待删函数做**对象限定**的反查（排除定义文件自身），确认外部引用为 0 后删除：
+
+| 文件 | 删除的函数 |
+|---|---|
+| `api/crm.ts` | `opportunityApi.{delete, advanceStage, win, getStatistics, listByCustomer}`、`contractApi.{reject, getStatistics}`、`leadConvertApi.convert`、`customerPoolApi.{put, listAvailable, listMyClaimed, listMyReturned}` |
+| `api/customer.ts` | `customerApi.{updateStatus, export, getFollowRecords, getOrderRecords, getOptions}` |
+
+> 其中 `customerPoolApi.put`（放入公海）的删除登记为：**后端 `POST /crm/customer-pool/put/{customerId}` 仍在，但前端没有入口**；
+> 将来补 UI 时重建这个 3 行封装即可。
+
+**lint 复核**：`src/api/crm.ts` + `src/api/customer.ts` + `src/views/crm` → **0 errors**，warnings 由 650 降至 **520**。
+
+### 11.5 本轮仍未做（登记，不做）
+
+**前端 `formatAmount`(×10) / `escapeHtml`(×6) / `handlePrint`(×6) / CSV(×3) 的抽取**。
+
+理由：这是纯 DRY 重构，要动 10 个**当前可正常工作**的页面，而收益只是可维护性。在无法逐个页面点验（本机没有起前端 dev server + 浏览器）的前提下，收尾期做这种改动**回归风险高于收益**。
+建议单独立项，并配一次 UI 遍历验证（现有 `tools/e2e-crm.cjs` 的 §5 已能覆盖 16 页的骨架与 console error，可直接复用）。
+
+---
+
+## 十二、未做项复核（2026-09-26 收尾复查）
+
+对报告里所有"未做 / 未闭环 / 待处理"逐条重跑验证命令后的**准确清单**。同时本轮复查**新发现并修复了 1 个真缺陷**（见 12.1）。
+
+### 12.1 复查新发现（已修）
+
+#### ① `crm:contract:refresh` 权限行被软删 ⇒ 该端点对非超管**永久 403**
+
+| 项 | 内容 |
+|---|---|
+| 症状 | `ContractController#markExpiredContracts`（`POST /api/crm/contract/mark-expired`，`ContractController:236`）标着 `@SaCheckPermission("crm:contract:refresh")`，但该码在库里只剩一行 `deleted = 1` ⇒ 用户永远拿不到 ⇒ **除超管（通配符 `*`）外一律 403**，本地用超管调试完全看不出来 |
+| 根因 | `V11.379.0` 播种 → `V11.452.0__Remove_Zombie_Core_And_Crm_Permissions` 当僵尸码**软删**（当时确实无人引用）→ E-01 补注解后 `V11.458.0` 想重新播种，但守卫写的是 `WHERE NOT EXISTS (SELECT 1 FROM sys_permission p WHERE p.permission_code = v.code)`，**没带 `deleted = 0`** ⇒ 被软删行判定为"已存在"，**静默跳过**。一次"看起来补了、其实没补"的迁移 |
+| 修复 | 迁移 `V11.512.0`：就地恢复该行（`deleted=0` + 补 `api_path`/`method` + 订正名称为「CRM合同标记到期」），并授给 `SUPER_ADMIN`/`SYSTEM_ADMIN` |
+| 验证 | 行已恢复（`id=91059, deleted=0, api_path=/api/crm/contract/mark-expired`），两角色各 1 条授权；`tools/audit-permission-codes.py` 的「代码引用了但库中没有」由 2 → 0 |
+
+> 顺带订正了迁移里**主键写死基数**的写法：`9800000` 已被其它迁移占用（首跑撞 `sys_role_permission_pkey`），改为以「当前最大 id」顺延。
+
+#### ② 审计工具 `tools/audit-permission-codes.py` 会扫到注释里的示例代码
+
+`SetMenuConfigController` 的**类注释**里写了 `{@code @SaCheckPermission("set:menu-config:view|update")}`，被工具当成真实注解上报。
+已修：扫描前先用等长空白剔除 `//` 与 `/* */`（保行号不变）。修后工具报 **0 个缺失**，可信。
+另注：这个工具**早就报出过 ①**，是我前几轮自己写 SQL 复核（没过滤 `deleted`）而漏掉它 —— 教训是**优先跑仓库既有对账工具，而不是另写一份查询**。
+
+#### ③ 同类隐患的量化（未改，只登记）
+
+58 个含 `NOT EXISTS (SELECT 1 FROM sys_permission ...)` 的种子迁移中，**大量未带 `deleted = 0` 条件**：
+
+```
+V11.24.0 / V11.362.0 / V11.380.0 / V11.386.0 / V11.394.0 / V11.395.0 / V11.396.0 / V11.398.0
+V11.399.0 / V11.400.0 / V11.401.0 / V11.402.0 / V11.403.0 / V11.404.0 / V11.405.0 / V11.407.0
+V11.417.0 / V11.418.0 / V11.419.0 / V11.423.0 …（共 20+ 个，清单见本节复核命令）
+```
+
+**含义**：只要某个码"先被软删、之后又被重新引用并想补种"，那次补种就会静默失效 —— 与 ① 完全同源。
+**不建议改历史迁移**（已应用、且改动会破坏 Flyway 校验和）。正确做法是**让检测常态化**：把
+`python tools/audit-permission-codes.py` 接进发布前检查（当前 `.github/workflows/` 里**没有任何**脚本引用它）。
+现状是**已知缺口为 0**（工具已复核），属"有检测、无拦截"。
+
+### 12.2 确认仍「未做」的清单（每条都重跑过验证）
+
+| # | 项 | 复核证据 | 性质 |
+|---|---|---|---|
+| 1 | **报价模板** 15 端点 / 2 张表前端零入口 | `grep -rl "quotation-template\|QuotationTemplate" src/` → **0 命中** | 能力闲置 |
+| 2 | **营销活动** 27 端点无 CRUD 页 | `views/` 下仅 `analytics/mkt-activity-analysis`、`mkt-promote-analysis` 两个**只读**页 | 能力闲置 |
+| 3 | `GET /crm/customer/{id}/orders` 仍是 `return List.of()` 桩 | `CustomerController:200` | 功能桩 |
+| 4 | `createFromTemplate` 忽略入参，生成空报价单 | `QuotationServiceImpl:151-153`（`createQuotation(new Quotation(), null)`） | 功能桩 |
+| 5 | `crm_erp_customer_mapping` 仍未接线 | 全后端 grep → **0 处** | **红线**（§5.1） |
+| 6 | `crm_customer` 双审计列仍在（8 列并存） | `information_schema` 实测 = 8 | 规范 |
+| 7 | 5 张表 `created_by/updated_by` 是 `varchar`（其余表为 bigint） | 实测 = 5 张 | 规范 |
+| 8 | `crm_erp_customer_mapping` 除 pkey 外**无任何唯一约束** | 实测 = 0 | 规范 |
+| 9 | **13 张** crm 表无 `tenant_id` 索引 | 实测 = 13（比首轮的 10 张更多，因统计口径含子表） | 性能 |
+| 10 | 合同 `effective/complete/terminate/cancel/progress` 仍全归 `crm:contract:edit` | `ContractController:175/183/191/200/243` 逐行实测 | 权限粒度 |
+| 11 | **拜访三页目录错位**：仍在 `views/sales/visit-*` | `ls views/sales \| grep visit` → 3 个 | 归属 |
+| 12 | 拜访三页**不受模块权益管辖**：`MODULE_ROUTE_MAP` 无 `sales/visit-*` | `dynamicRoutes.ts` 实测 | 权益 |
+| 13 | **E2E 覆盖缺 5 个 .vue**：`customer/form`、`lead/form`、`opportunity/form`、`contract/form`、`quotation/index` | `UI_PAGES` 16 条 vs 现有 18 个 .vue | 验收 |
+| 14 | 菜单 `component` 短式/全式混用（4 个 `crm/xxx/index` vs 10 个 `views/...`） | SQL 实测 | 规范 |
+| 15 | 审计列 `created_by/updated_by` 恒 NULL（全仓 `MetaObjectHandler` 共性） | 实测 | 规范 |
+| 16 | 前端重复块：`formatAmount`×10 / `escapeHtml`×6 / `handlePrint`×6 / CSV×3 | 见 §3.6 | 可维护性 |
+| 17 | 11 处 `eqeqeq` + 520 条 lint warning（绝大多数 `no-explicit-any`） | eslint 实测 | 技术债 |
+| 18 | 信用**冻结/解冻**未迁移；发票**新建**仍必失败；`biz_party.current_debt` 依赖每日重算 | 见 §10.8 | 功能 |
+| 19 | 「放入公海」后端端点在、**前端无入口**（`customerPoolApi.put` 已按死代码删除） | 见 §11.4 | 功能 |
+
+> 排在前面的 #1~#5 建议按「要么补页面、要么裁剪后端」二选一处理；
+> #5（红线映射）是唯一带合规性质的，建议优先；
+> #11/#12 是一处改动能同时解决的两个问题（把三页搬进 `views/crm/` 并把 `sales/visit-*` 纳入 `crm` 模块映射）。
+
+

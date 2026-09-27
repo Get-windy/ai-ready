@@ -24,7 +24,13 @@ import java.util.Map;
 
 /**
  * 日志管理控制器
- * 
+ *
+ * <p><b>⚠️ 本项目零调用方</b>：2026-09-18 的裁定（见 {@code cn.aiedge.audit.controller.SysLogStubController}
+ * 的类注释）已说明「保留本类为平行实现、不接线」；2026-09-26 系统模块审计复核确认：全仓仅 javadoc 提及本类，
+ * <b>无任何 Java 代码引用、前端 0 处调用</b>（前缀 {@code /api/system/log}）。
+ * 在用的日志后端是 {@code SysLogStubController}（{@code /api/log}）。
+ * <b>改日志逻辑前请先确认改的是不是本类 —— 改在这里不会对任何现有页面生效。</b></p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */

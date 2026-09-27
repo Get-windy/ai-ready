@@ -1,0 +1,352 @@
+[
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 19,
+  "code": "system:dev:scheduler:create",
+  "src": "PERM.CREATE",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 34,
+  "code": "system:dev:scheduler:list",
+  "src": "PERM.LIST",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 178,
+  "code": "system:dev:scheduler:execute",
+  "src": "PERM.EXECUTE",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 186,
+  "code": "system:dev:scheduler:list",
+  "src": "PERM.LIST",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 194,
+  "code": "system:dev:scheduler:update",
+  "src": "PERM.UPDATE",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/admin/dev/scheduler/index.vue",
+  "line": 206,
+  "code": "system:dev:scheduler:delete",
+  "src": "PERM.DELETE",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/config/index.vue",
+  "line": 31,
+  "code": "system:config:list",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/config/index.vue",
+  "line": 140,
+  "code": "system:config:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/config/index.vue",
+  "line": 201,
+  "code": "system:config:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/config/index.vue",
+  "line": 209,
+  "code": "system:config:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 131,
+  "code": "system:dict:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 175,
+  "code": "system:dict:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 183,
+  "code": "system:dict:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 199,
+  "code": "system:dict:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 232,
+  "code": "system:dict:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/dict/index.vue",
+  "line": 240,
+  "code": "system:dict:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/log/index.vue",
+  "line": 42,
+  "code": "log:oper:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 19,
+  "code": "system:menu:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 225,
+  "code": "system:menu:update-status",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 285,
+  "code": "system:menu:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 295,
+  "code": "system:menu:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 311,
+  "code": "tenant-admin:role:assign-menu",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/menu/index.vue",
+  "line": 321,
+  "code": "system:menu:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 45,
+  "code": "tenant-admin:permission:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 56,
+  "code": "tenant-admin:permission:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 209,
+  "code": "tenant-admin:permission:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 297,
+  "code": "tenant-admin:permission:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 305,
+  "code": "tenant-admin:permission:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/index.vue",
+  "line": 313,
+  "code": "tenant-admin:permission:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/components/SodRulePanel.vue",
+  "line": 19,
+  "code": "tenant-admin:sod-rule:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/components/SodRulePanel.vue",
+  "line": 69,
+  "code": "tenant-admin:sod-rule:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/permission/components/SodRulePanel.vue",
+  "line": 77,
+  "code": "tenant-admin:sod-rule:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/position/index.vue",
+  "line": 183,
+  "code": "tenant-admin:position:edit",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/position/index.vue",
+  "line": 191,
+  "code": "tenant-admin:position:edit",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/position/index.vue",
+  "line": 208,
+  "code": "tenant-admin:position:edit",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/position/index.vue",
+  "line": 215,
+  "code": "tenant-admin:position:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 166,
+  "code": "tenant-admin:role:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 176,
+  "code": "tenant-admin:permission:assign",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 184,
+  "code": "tenant-admin:role:delete",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 1012,
+  "code": "tenant-admin:field-permission:assign",
+  "src": "hasPermission",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 1013,
+  "code": "tenant-admin:data-scope:assign",
+  "src": "hasPermission",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/role/index.vue",
+  "line": 1015,
+  "code": "tenant-admin:record-rule:update",
+  "src": "hasPermission",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 35,
+  "code": "tenant-admin:user:list",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 134,
+  "code": "tenant-admin:user:create",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 212,
+  "code": "tenant-admin:user:update",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 220,
+  "code": "tenant-admin:user:assign-role",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 237,
+  "code": "tenant-admin:user:reset-password",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 244,
+  "code": "system:simulate",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 250,
+  "code": "tenant-admin:user:update-status",
+  "src": "literal",
+  "in_db": true
+ },
+ {
+  "file": "frontend/apps/pc-admin/src/views/system/user/index.vue",
+  "line": 257,
+  "code": "tenant-admin:user:delete",
+  "src": "literal",
+  "in_db": true
+ }
+]

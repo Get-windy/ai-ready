@@ -1238,8 +1238,10 @@ async function promotionEngineSuite() {
       `SELECT id, code, status FROM erp_loyalty_coupon WHERE template_id = $1 AND deleted = 0`, [tplId]))[0]
     check('券已发放（UNUSED）', coupon && coupon.status === 'UNUSED', JSON.stringify(coupon))
 
+    // 单据日期必须**不早于券的领取日**：引擎按「领取日 = 生效日」校验，回填历史日期会被判
+    // 「尚未到生效日」并整单拒绝（产品规则，非缺陷）。用当天日期才验得到 coupon_amount。
     const orderRes2 = await api('POST', '/erp/sale/order', {
-      customerId: cust[0].id, orderDate: '2026-09-18', saleType: 1, couponIds: [coupon.id],
+      customerId: cust[0].id, orderDate: new Date().toISOString().slice(0, 10), saleType: 1, couponIds: [coupon.id],
       items: [{ lineNo: 1, productId: prod[0].id, quantity: 1, unitPrice: 100, calculatedPrice: 100 }],
     })
     orderId2 = (data(orderRes2) && data(orderRes2).id) || data(orderRes2)
@@ -1274,9 +1276,12 @@ async function promotionEngineSuite() {
     for (const id of ids) {
       if (id) await api('DELETE', '/erp/marketing/promotion-activity/' + id)
     }
+    // 只统计**本轮**造的活动：不加 STAMP 会把历史跑（失败时没清干净）留下的同名残留也算进来，
+    // 变成永远绿的假失败（2026-09-26 实测：库里有 4 条 09-18 遗留的 draft 特价活动）。
     const left = await dbQuery(
-      `SELECT count(*)::int AS c FROM erp_promotion_activity WHERE name LIKE 'E2E%' AND deleted = 0`)
-    check('促销引擎造数已清理（活动无残留）', left[0].c === 0, String(left[0].c))
+      `SELECT count(*)::int AS c FROM erp_promotion_activity
+        WHERE name LIKE 'E2E%' AND name LIKE '%' || $1 AND deleted = 0`, [STAMP])
+    check('促销引擎造数已清理（本轮活动无残留）', left[0].c === 0, String(left[0].c))
   }
 }
 
@@ -1886,7 +1891,10 @@ async function closedLoopSuite() {
 
   // ── 22.4 手机号掩码：列表类只读台账不明文出手机号 ──
   const rid = String(Date.now()) + '75'
-  const mobile = '137' + STAMP + '9'
+  // 必须是**11 位**真实手机号形态：掩码口径是「前 3 + 中间掩掉 + 后 4」，11 位得 4 颗星。
+  // 造 10 位号码只会掩 3 位，与断言里的 `****` 对不上 —— 那是 fixture 缺陷，不是产品缺陷
+  //（2026-09-26 定位：DesensitizeUtils.mobile 对 11 位号码输出 137****XXXX，实现正确）。
+  const mobile = '137' + STAMP + '99'
   try {
     await dbQuery(`INSERT INTO mkt_sms_record (id, tenant_id, deleted, create_time, receiver_name, mobile, content,
                                                sign_name, sms_type, handler_name, batch_no)
@@ -1919,15 +1927,16 @@ async function cleanup() {
   if (GROUP_ID) {
     await api('PUT', `/erp/marketing/group-buy/${GROUP_ID}/status?status=CANCELLED`).catch(() => {})
   }
+  // 同上一处：全部按**本轮 STAMP** 过滤，避免把历史残留算作本轮未清理
   const leftovers = await dbQuery(`
     SELECT
-      (SELECT count(*)::int FROM mkt_coupon_template WHERE coupon_name LIKE 'E2E%' AND deleted = 0) AS coupon,
-      (SELECT count(*)::int FROM erp_promotion_activity WHERE name LIKE 'E2E%' AND deleted = 0) AS promo,
+      (SELECT count(*)::int FROM mkt_coupon_template WHERE coupon_name LIKE 'E2E%' || $1 AND deleted = 0) AS coupon,
+      (SELECT count(*)::int FROM erp_promotion_activity WHERE name LIKE 'E2E%' || $1 AND deleted = 0) AS promo,
       (SELECT count(*)::int FROM mkt_points_exchange_product WHERE remark = 'E2E造数' AND deleted = 0) AS exchange,
-      (SELECT count(*)::int FROM mall_popup_ad WHERE title LIKE 'E2E%' AND deleted = 0) AS popup,
-      (SELECT count(*)::int FROM mkt_addon_rule WHERE rule_name LIKE 'E2E%' AND deleted = 0) AS addon,
-      (SELECT count(*)::int FROM mall_keyword WHERE keyword LIKE 'E2E%' AND deleted = 0) AS keyword
-  `)
+      (SELECT count(*)::int FROM mall_popup_ad WHERE title LIKE 'E2E%' || $1 AND deleted = 0) AS popup,
+      (SELECT count(*)::int FROM mkt_addon_rule WHERE rule_name LIKE 'E2E%' || $1 AND deleted = 0) AS addon,
+      (SELECT count(*)::int FROM mall_keyword WHERE keyword LIKE 'E2E%' || $1 AND deleted = 0) AS keyword
+  `, [STAMP])
   const l = leftovers[0]
   check('列表页造数均已清理（优惠券/促销/弹窗广告/加价购/热词）',
     l.coupon === 0 && l.promo === 0 && l.popup === 0 && l.addon === 0 && l.keyword === 0, JSON.stringify(l))

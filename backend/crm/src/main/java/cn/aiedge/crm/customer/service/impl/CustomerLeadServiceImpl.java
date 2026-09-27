@@ -1,7 +1,7 @@
 package cn.aiedge.crm.customer.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
-import cn.aiedge.crm.common.CrmDocNo;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerLead;
 import cn.aiedge.crm.customer.mapper.CustomerLeadMapper;
@@ -32,6 +32,9 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
     private final CustomerMapper customerMapper;
     private final CustomerService customerService;
     private final TransactionTemplate transactionTemplate;
+
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public CustomerLead getByLeadCode(String leadCode) {
@@ -178,7 +181,7 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
     public String generateLeadCode() {
         // 按当日已有单号的最大值顺延（含已逻辑删除行），而非 selectCount+1：
         // 后者在「删掉最新一条再新建」时会撞 uk_crm_lead_code 唯一约束（500）。
-        String prefix = CrmDocNo.prefixOf("LEAD-");
-        return CrmDocNo.next(prefix, baseMapper.selectMaxLeadCode(prefix), 4);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），不再「查最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_LEAD");
     }
 }

@@ -71,7 +71,7 @@
           </a-button>
           <a-button
             v-if="selectedRows.length > 0"
-            v-permission="'crm:customer:batchassign'"
+            v-permission="'crm:customer:update'"
             size="small"
             type="primary"
             ghost
@@ -428,7 +428,7 @@
                       placement="bottom"
                     >
                       <a-button
-                        v-permission="'crm:customer:edit'"
+                        v-permission="'crm:customer:update'"
                         type="link"
                         size="small"
                         @click="handleEdit(record)"
@@ -508,7 +508,7 @@
                   </span>
                   <span class="kanban-column-count">{{ getCustomersByLevel(level.value).length }} 个</span>
                   <a-button
-                    v-permission="'crm:customer:addtolevel'"
+                    v-permission="'crm:customer:create'"
                     type="link"
                     size="small"
                     title="新增该等级客户"
@@ -819,7 +819,7 @@
         </a-form>
       </FullScreenDetail>
 
-      <!-- ═══ 添加跟进记录弹窗（真实接口 POST /api/customer/{id}/follow） ═══ -->
+      <!-- ═══ 添加跟进记录弹窗（真实接口 POST /api/crm/customer/{id}/follow） ═══ -->
       <a-modal
         v-model:open="followModalVisible"
         title="添加跟进记录"
@@ -896,7 +896,7 @@
         </a-form>
       </a-modal>
 
-      <!-- ═══ CSV 导入弹窗（真实落库 POST /api/customer/import） ═══ -->
+      <!-- ═══ CSV 导入弹窗（真实落库 POST /api/crm/customer/import） ═══ -->
       <a-modal
         v-model:open="importVisible"
         title="导入客户"
@@ -1134,7 +1134,7 @@ function handleLevelSelect(keys: (string | number)[]) {
   fetchData()
 }
 
-// ═══ 查询条件（后端 GET /api/customer/page 支持的参数） ═══
+// ═══ 查询条件（后端 GET /api/crm/customer/page 支持的参数） ═══
 const searchForm = reactive({
   keyword: '',
   customerLevel: undefined as number | undefined,
@@ -1338,7 +1338,7 @@ function handleActionMenuClick(key: string, record: any) {
       openFollowRecords(record)
       break
     case 'orders':
-      // 后端 GET /api/customer/{id}/orders 是固定返回 List.of() 的桩 —— 不造假数据，明确提示
+      // 后端 GET /api/crm/customer/{id}/orders 是固定返回 List.of() 的桩 —— 不造假数据，明确提示
       message.info(`「${record.customerName}」暂无订单记录：后端 /customer/{id}/orders 为固定空返回，订单能力未开放`)
       break
     case 'contracts':

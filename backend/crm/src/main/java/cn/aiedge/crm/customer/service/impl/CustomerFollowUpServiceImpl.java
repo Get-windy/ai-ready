@@ -1,6 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
-import cn.aiedge.crm.common.CrmDocNo;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.customer.dto.CustomerFollowUpQuery;
 import cn.aiedge.crm.customer.entity.CustomerFollowUp;
 import cn.aiedge.crm.customer.mapper.CustomerFollowUpMapper;
@@ -18,6 +18,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CustomerFollowUpServiceImpl extends ServiceImpl<CustomerFollowUpMapper, CustomerFollowUp> implements CustomerFollowUpService {
+
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public CustomerFollowUp getByFollowUpCode(String followUpCode) {
@@ -107,7 +110,7 @@ public class CustomerFollowUpServiceImpl extends ServiceImpl<CustomerFollowUpMap
 
     @Override
     public String generateFollowUpCode() {
-        String prefix = CrmDocNo.prefixOf("FUP-");
-        return CrmDocNo.next(prefix, baseMapper.selectMaxFollowUpCode(prefix), 4);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），不再「查最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_FOLLOWUP");
     }
 }

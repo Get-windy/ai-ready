@@ -24,6 +24,7 @@ import java.util.Base64;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -163,30 +164,15 @@ public class UnionPayCallbackVerifier implements PaymentCallbackVerifier {
     /**
      * 构造待验签串：剔除 {@code signature} 与空值，按参数名 ASCII 升序，
      * **value 做 URL 编码**（UTF-8），以 {@code k=v&…} 拼接。
+     *
+     * <p>2026-09-26：实现改为委托 {@link cn.aiedge.payment.crypto.Rsa2#buildSignContent} ——
+     * 通道侧（{@code UnionPayChannel}）**签名**时用的是同一份实现与同一个编码口径，
+     * 两边不可能再漂移。⚠️「值要不要 URL 编码」以银联文档为准；现状两侧一致，
+     * 若文档要求用原值，应两侧同步修改。</p>
      */
     static String buildSignContent(Map<String, String> params) {
-        Map<String, String> sorted = new TreeMap<>(params);
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, String> e : sorted.entrySet()) {
-            String key = e.getKey();
-            String value = e.getValue();
-            if (FIELD_SIGNATURE.equals(key) || !hasText(value)) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append('&');
-            }
-            sb.append(key).append('=').append(urlEncode(value));
-        }
-        return sb.toString();
-    }
-
-    private static String urlEncode(String v) {
-        try {
-            return URLEncoder.encode(v, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new PaymentCallbackVerificationException("待验签串 URL 编码失败：" + e.getMessage(), e);
-        }
+        return cn.aiedge.payment.crypto.Rsa2.buildSignContent(
+                params, Set.of(FIELD_SIGNATURE), cn.aiedge.payment.crypto.Rsa2::urlEncode);
     }
 
     static Map<String, String> parseFormUrlEncoded(String raw) {
@@ -228,19 +214,14 @@ public class UnionPayCallbackVerifier implements PaymentCallbackVerifier {
     }
 
     static boolean verifyRsa(String content, String signBase64, String publicKeyPem, String algorithm) {
-        try {
-            byte[] keyBytes = Base64.getDecoder()
-                    .decode(publicKeyPem.replaceAll("-----[A-Z ]+-----", "").replaceAll("\\s", ""));
-            PublicKey publicKey = KeyFactory.getInstance("RSA")
-                    .generatePublic(new X509EncodedKeySpec(keyBytes));
-            Signature signature = Signature.getInstance(algorithm);
-            signature.initVerify(publicKey);
-            signature.update(content.getBytes(StandardCharsets.UTF_8));
-            return signature.verify(Base64.getDecoder().decode(signBase64));
-        } catch (Exception e) {
-            log.warn("银联验签异常，按不通过处理：{}", e.getMessage());
+        // 2026-09-26：委托 Rsa2（同一份实现也供通道签名时使用）。
+        // ⚠️ algorithm 参数保留：银联允许 signMethod=01(SHA1) / 11(SHA256)，
+        //    目前 Rsa2 只实现 SHA256；若收到 SHA1 报文，这里**按不支持处理**（返回 false ⇒ fail-closed）。
+        if (algorithm != null && !"SHA256withRSA".equals(algorithm)) {
+            log.warn("银联回调使用了未支持的签名算法 {}，按验签不通过处理", algorithm);
             return false;
         }
+        return cn.aiedge.payment.crypto.Rsa2.verify(content, signBase64, publicKeyPem);
     }
 
     /** 按租户读取渠道参数。**严格本租户**，绝不回落平台行（凭据是身份，不是默认值）。 */

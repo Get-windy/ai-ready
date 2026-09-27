@@ -3,6 +3,16 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from 'vant'
 
+const props = withDefaults(defineProps<{
+  /** 占位文案：首页传热词库的首条热词（mall_keyword），见设计文档 §4.1 */
+  placeholder?: string
+  /** 底色：默认跟随店铺主题色（--mall-primary，由后台 theme_color 下发） */
+  background?: string
+}>(), {
+  placeholder: '搜索商品',
+  background: 'var(--mall-primary, #1988fa)'
+})
+
 const emit = defineEmits<{
   search: [keyword: string]
 }>()
@@ -29,8 +39,8 @@ const handleSearch = (keyword: string) => {
     <Search
       v-model="searchValue"
       shape="round"
-      placeholder="搜索商品"
-      background="#1988fa"
+      :placeholder="props.placeholder"
+      :background="props.background"
       input-background="#fff"
       show-action
       action-text="搜索"

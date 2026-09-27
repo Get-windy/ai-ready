@@ -2077,7 +2077,24 @@ function tabLabel(key: string): string {
 }
 
 const printDialogRef = ref<any>(null)
+
+/**
+ * 打印用的列：当前 Tab 表格实际在用那套（逐 Tab 各有一套），剔掉序号/操作/槽位与无标题列。
+ * 引擎按 `items.columnsFrom: "columns"` 动态画表头 ⇒ 列改了不用改模板。
+ */
+const printColumns = computed(() =>
+  currentColumns.value
+    .filter((c: any) => c.title
+      && !['rowNo', 'checkbox', 'action', 'slot'].includes(c.type)
+      && !['rowNo', 'checkbox', 'action'].includes(c.key))
+    .map((c: any) => ({ key: c.field || c.key, title: c.title, width: c.width, align: c.align })),
+)
+
 const printData = computed<Record<string, any>>(() => ({
+  // 结果集打印的约定形状：title / columns / rows（原有键一并保留，保持兼容）
+  title: `实名认证 - ${tabLabel(activeTab.value)}`,
+  columns: printColumns.value,
+  totalText: `共 ${pagination.total} 条`,
   pageTitle: `实名认证 - ${tabLabel(activeTab.value)}`,
   rows: (selectedRows.value.length ? selectedRows.value : tableData.value),
   total: pagination.total,

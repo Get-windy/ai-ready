@@ -108,9 +108,11 @@ public class DataExportControllerExt {
     }
 
     private List<?> fetchData(String dataType, Map<String, Object> filters, int page, int size) {
-        // 实际应用中应调用对应的Service进行分页查询
-        // 这里返回空列表作为示例
-        return List.of();
+        // ⚠️ 本方法此前恒返回空列表 → 批量导出 Excel / PDF 出来的文件只有表头、没有数据行，且不报错
+        //    （2026-09-24 系统模块审计 P0）。dataType → 数据源映射尚未接线，在接线之前明确失败。
+        throw cn.aiedge.common.exception.BusinessException.badRequest(
+                "批量导出尚未接线（缺少 dataType → 数据源映射，dataType=" + dataType + "），本次已中止。"
+                        + "请使用各业务页面自带的导出按钮。");
     }
 
     private Map<String, String> getHeadersForType(String dataType) {

@@ -35,7 +35,7 @@
               tooltip="打印转移记录"
             />
             <a-button
-              v-permission="'erp:fixed-asset:transfer:list'"
+              v-permission="'fixed-asset:transfer:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)()"
@@ -202,7 +202,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'erp:fixed-asset:transfer:update'"
+                  v-permission="'fixed-asset:transfer:update'"
                   type="link"
                   size="small"
                   @click="editRecord(record)"
@@ -236,14 +236,14 @@
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="approve"
-                      v-permission="'erp:fixed-asset:transfer:approve'"
+                      v-permission="'fixed-asset:transfer:approve'"
                     >
                       <CheckCircleOutlined /> 审批通过
                     </a-menu-item>
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="reject"
-                      v-permission="'erp:fixed-asset:transfer:approve'"
+                      v-permission="'fixed-asset:transfer:approve'"
                     >
                       <CloseCircleOutlined /> 审批拒绝
                     </a-menu-item>

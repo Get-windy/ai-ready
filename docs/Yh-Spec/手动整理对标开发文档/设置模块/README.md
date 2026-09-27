@@ -787,3 +787,49 @@ docs/Yh-Spec/手动整理对标开发文档/设置模块/
 - `views/purchase/exchange/index.vue.bak` 是历史备份文件（含同样的旧绑定），非 `.vue`、不参与构建，未删。
 - `views/sales/outbound/index.vue` 存在且 `componentMap` 有映射，但 `sys_menu` 只有 `sales/outbound/form` → `/sales/outbound/index` **无路由可达**（同「流程分析」症的孤儿页）。已在 `tools/e2e-billdetailtable-regression.cjs` 的失败项里暴露，建议销售模块侧按同一口径处置。
 - `tools/e2e-billdetailtable-regression.cjs` **15/16**（唯一失败项就是上面那条 `/sales/outbound/index` 期望路径过期，与本改动无关）。
+
+---
+
+## 12. 三度收口：全栈审计与修复（2026-09-26）
+
+> 审计报告：**`SETTINGS_MODULE_AUDIT_20260924.md`**（项目根，全栈只读审计 + 本轮修复记录）。
+> 本节只记**必须回写进本文档集**的事实订正与处置，细节与证据以报告为准。
+
+### 12.1 ⚠️ 本文档集的多处快照已失效（以 devdb 实测为准）
+
+| 位置 | 原文快照 | 实测（2026-09-24/26） |
+|---|---|---|
+| §2.1 | 7 个分组 / 18 个页面项 | **8 个分组 / 26 个叶子**；新增 `80626 外链同步`、`80146 辅助核算`、`81000-81003` 打印×4、`81016 协议列表`，以及新分组 `61208 协议契约` |
+| §2.1 结构问题 #1 | `61205 打印管理` 是空分组 | **已消失**（现有 5 个子菜单）。此条原文亦已标注「已落地」 |
+| §2.1 结构问题 #2 | `61201` 的 `sort=3` 空缺 | **已消失**（由 `80626` 占位） |
+| §10.5-3 / §11.7 | printing 5 页菜单「`sys_menu` 0 行」 | **81000-81003 已挂出**（`61205` 下，status/visible 均 1），仅 `designer` 仍无菜单 |
+| §11.1 | `GET /behavior`「无权限注解」 | 与代码**相反**（曾带 `set:print-config:view`）→ **已修**，见 §12.2-4 |
+| §7.1 P0-16 / §10.3 | `workflow:*` **13 个**码 / `sys_permission` **264** 行 | **19 个码 / 1922 行**（另 5 个来自 `V11.464.0`） |
+| §10.5-17 | 「退回只把目标节点写进备注，真正回退未实现」 | **过期**：`WorkflowServiceImpl.returnTask` 已实现真实节点回退，仅在无可回退节点时降级为驳回 |
+| §7.3 | 跨页事件 `workflow:create`「全组 3 页监听」 | 现仅 **1 页**监听（`process-analysis.vue`），仍无派发方 |
+| §7.3 | `80610 path` 无前导斜杠属异常 | **记反了**：无前导斜杠是本项目主流写法（全库 301 条有值 path 中仅 5 条带前导斜杠，即 801/802/803/804/80611），`80610` 无须改 |
+
+### 12.2 本轮已修（迁移 `V11.510.0` + 4 个源码文件）
+
+1. **10 条设置菜单 `menu_level` 3 → 0**（`80610/80620/80621/80622/80623/80624/80625/80626/80630/80930`）。
+   `getUserMegaMenus` 对「非系统租户且非超管」强制 `wrapper.eq(SysMenu::getMenuLevel, 0)`（`SysMenuServiceImpl.java:275-278`）⇒ 这 10 页对**普通租户**无论授什么码都不下发。同型问题已在 `V11.499.0`（分析 29 条）/`V11.500.0`（CRM）/`V11.501.0`（配送 20 条）/`V11.502.0`（HR 4 条）逐模块处理，**设置模块是漏网的一组**；dev 的 admin 命中「系统租户 + 超管」双豁免，本地永远看不出来。
+2. **给租户角色补授设置域权限码**：`SYSTEM_ADMIN` 115 条、`DEPT_ADMIN` 13 条（`set:` / `workflow:` / `system:config:` / `payment:config:` / `log:{oper,login,audit}:` / `finance:auxiliary:` / `print:`）。授权口径对齐 `V11.509.0`（CRM/发票）的职责分离：
+   - 刻意**不给** `set:rebuild:execute`（系统重建 = 清空本租户业务数据，危险操作保留超管）；
+   - 刻意**不给** `workflow:callback-log:%`（`tenant_id=0` 的平台侧监控码）；
+   - 刻意**不动** `E2E_T2_ADMIN`（它是「无码非超管」探针，见 `tools/verify-module-authz.cjs`）。
+3. **会计期间「新增期间」404 修复**：前端发 `POST /erp/finance/period/`（带尾斜杠），而后端是类级 `@RequestMapping("/api/erp/finance/period")` + 方法级 `@PostMapping`（无 value），Spring Boot 3 默认不做尾斜杠匹配 ⇒ 请求落到静态资源处理器、**永远 404**。已去尾斜杠并订正原注释里「后端 `@PostMapping("/")`，需带尾部斜杠」的错误说明。
+4. **`GET /api/set/print-config/behavior` 去掉 `@SaCheckPermission("set:print-config:view")`**：该端点的 Javadoc、前端 `printBehavior.ts`、`api/set/print-config.ts` 三处都写明「免管理权限」，与实际注解相反 ⇒ 非超管 403、前端静默降级为 `null`，**5 项打印行为配置对其整体不生效**，且每 5 分钟（缓存 TTL）弹一次「拒绝访问」。
+5. **流程实例时间线补 `return` 动作词**：`instance-monitor.vue` 的 `RECORD_ACTION_MAP` 缺 `return`，而后端 `WorkflowConverter.taskActionToString(8) = "return"` ⇒ 该动作在详情时间线渲染英文原文。
+6. 数据一致性订正：`61203` 内 `sort` 重号（`80630 操作日志` 2 → 4）；`804 我的已办` 的 `component` 去掉 `.vue` 后缀（与同组 802/803 一致）。
+
+### 12.3 本轮登记但未执行（附理由）
+
+- **跨模块消费缺口**（企业信息档案 16 列、财务期初、`sys_config`、支付配置多数键**无任何消费方**）：属功能开发，需产品口径与排期。
+- **`agreement:*`（27 条）仍只授超管** ⇒ `81016 协议列表` 对本租户管理员不可见；属**协议模块**自身范围（其主子树 `62506 平台协议` 同样受影响），建议协议模块一并处理。
+- **会签（`approveMode`）不生效**：`WorkflowEngineImpl:134` 把它塞进执行上下文后**无人消费**（全仓 0 处读取），`WorkflowServiceImpl.approve()` 在 `completeUserTask` 后直接推进、**不检查同节点剩余 PENDING 任务** ⇒ 实际恒为「或签」。属审批核心逻辑的功能开发，宜单独排期并配 E2E。
+- **平行实现收敛**（配置中心 ×2、日志实现 ×5、打印 v1/v2、任务控制器 ×2）与**死代码清理**（工作流 `workflowDefinitionApi` 整对象、4 个死枚举、`process-analysis.vue.test` 孤儿文件等）：按项目纪律「处置重复实现前必须先查开发文档裁定」，宜另起专项。
+
+### 12.4 稳定基线（本轮复核通过的正面结论，勿回退）
+
+设置 13 页接口 **0 断链**（除已修的尾斜杠）；26 个叶子 `component` **全部解析到真实 `.vue`**、空分组 0；在用控制器**写端点 `@SaCheckPermission` 100% 覆盖**；代码 `@TableName` 456 张表**无缺表**；13+4 页**无 TODO/mock/假数据**；横向自适应查询网格恰 8 页齐备。
+文档 §10.3/§11 声称的 P0 修复**逐条核实基本为真**（DB 实测：`sys_config=173` 行、`sys_tenant_profile` 3 行/24 列、`sys_tenant_module=28` 行、`set_print_config=1` 行）。

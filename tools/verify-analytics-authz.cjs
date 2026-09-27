@@ -64,7 +64,9 @@ const PROBES = [
   ['查库存', 'GET', '/erp/stock/page?pageNum=1&pageSize=1'],
   ['库存明细', 'GET', '/erp/stock/flow/page?page=1&size=1'],
   ['业务员提成', 'GET', '/erp/marketing/commission/staff-summary/page?page=1&size=1'],
-  ['业绩提成中心', 'GET', '/erp/marketing/commission/analytics/overview'],
+  // 注：原探针写的 `/erp/marketing/commission/analytics/overview` 端点**不存在**（误报 404）；
+  //     前端「业绩提成中心」实际调用的是下面这个（见 api/analytics-finance.ts 的 riderMatrix）。
+  ['业绩提成中心', 'GET', '/erp/marketing/commission/analytics/rider-matrix/page?page=1&size=1'],
   ['回款统计', 'GET', '/erp/finance/collection-stats'],
   ['发票统计', 'GET', '/erp/invoice/date-range?startDate=2026-01-01&endDate=2026-12-31'],
   ['往来余额表', 'GET', '/erp/finance/partner-balance/page?pageNum=1&pageSize=1'],

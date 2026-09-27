@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, Card, Button, Cell, CellGroup, AddressList, RadioGroup, Radio, showToast, showLoadingToast, closeToast, Dialog } from 'vant'
+import { NavBar, Button, Cell, CellGroup, AddressList, RadioGroup, Radio, showToast, showLoadingToast, closeToast, Dialog } from 'vant'
 import { api, type AddressItem } from '@/api'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
@@ -137,11 +137,13 @@ const handleSelectPayment = (method: string) => {
       <AddressList
         v-else
         :list="addresses.map(a => ({
-          id: a.id,
-          name: a.name,
-          tel: a.phone,
-          address: `${a.province}${a.city}${a.district}${a.detail}`,
-          isDefault: a.isDefault
+          // Vant 的 AddressListAddress 要求 id/tel/name/address 都是确定类型，
+          // 而 AddressItem 全部可选 ⇒ 在这里收敛（否则会拼出 'undefined'）
+          id: String(a.id),
+          name: a.consignee ?? '',
+          tel: a.phone ?? '',
+          address: `${a.region ?? ''} ${a.address ?? ''}`.trim(),
+          isDefault: a.isDefault ?? false
         }))"
         :switchable="true"
         default-tag-text="默认"

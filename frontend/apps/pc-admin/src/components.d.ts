@@ -110,6 +110,7 @@ declare module 'vue' {
     EnhancedSearch: typeof import('./components/erp/purchase-payment/EnhancedSearch.vue')['default']
     ErrorBoundary: typeof import('./components/ErrorBoundary/ErrorBoundary.vue')['default']
     FlowNode: typeof import('./components/Workflow/Canvas/FlowNode.vue')['default']
+    FormPageConfigModal: typeof import('./components/BillFormPage/FormPageConfigModal.vue')['default']
     FormSection: typeof import('./components/FormSection/index.vue')['default']
     FullScreenDetail: typeof import('./components/FullScreenDetail/FullScreenDetail.vue')['default']
     GlobalErrorFallback: typeof import('./components/ErrorBoundary/GlobalErrorFallback.vue')['default']

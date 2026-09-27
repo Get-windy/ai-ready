@@ -1,6 +1,8 @@
 package cn.aiedge.payment.service.impl;
 
+import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.common.result.PageResult;
+import cn.aiedge.payment.channel.ChannelPayResult;
 import cn.aiedge.payment.channel.PaymentChannel;
 import cn.aiedge.payment.entity.PaymentRequest;
 import cn.aiedge.payment.entity.PaymentRecord;
@@ -11,6 +13,7 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
@@ -75,11 +79,15 @@ public class PaymentServiceImpl implements PaymentService {
 
         requestMapper.insert(request);
 
-        // 调用渠道创建订单
-        String channelOrderNo = paymentChannel.createPayment(request);
-        request.setChannelOrderNo(channelOrderNo);
+        // 调用渠道下单：拿「渠道订单标识」+「客户端付款地址」
+        ChannelPayResult payResult = paymentChannel.createPayment(request);
+        // 渠道订单标识 = 提交给渠道的商户单号（支付宝/银联的 out_trade_no 口径），
+        // 后续查单/关单/退款都以它为键
+        request.setChannelOrderNo(payResult.channelOrderNo());
         request.setStatus(1); // 支付中
         requestMapper.updateById(request);
+        // 付款地址**不落库**（见 PaymentRequest#payUrl 注释），只随本次响应回给前端
+        request.setPayUrl(payResult.payUrl());
 
         return request;
     }
@@ -132,30 +140,66 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentRecord handleCallback(String channel, String callbackData) {
-        PaymentChannel paymentChannel = getChannelMap().get(channel);
-        if (paymentChannel == null) {
-            throw new IllegalArgumentException("不支持的支付渠道: " + channel);
+    public PaymentRecord handleVerifiedCallback(Long tenantId, String channel, PaymentCallbackResult result) {
+        // 只接受**已验签**的结果（调用方 PaymentController 在调本方法前已完成验签）。
+        // 早先这里的入参是原始报文、并转交渠道实现的桩方法，那个桩无条件 setStatus(2) ——
+        // 等于"不验签当成功"（审计 P0-2）。
+        if (result == null || !result.success()) {
+            throw new IllegalArgumentException("回调结果未通过验签或支付未成功，拒绝入账");
         }
 
-        PaymentRecord record = paymentChannel.handleCallback(callbackData);
-        record.setChannel(channel);
+        // 先关联我方支付请求：先用渠道单号匹配，其次用商户单号（out_trade_no = 我们的业务单号）。
+        // ⚠️ 必须**先查再插**：支付记录要写 request_id 指回支付请求 ——
+        //    原先先 insert 再查询，结果 payment_record.request_id 恒为 null，
+        //    支付记录与支付请求**脱钩**（对账时按 request_id 关联会一行都查不到；
+        //    真机侧表现为"清理测试数据时按 request_id 删不掉，留下残留"）。
+        PaymentRequest request = null;
+        if (result.channelOrderNo() != null) {
+            request = requestMapper.selectOne(new LambdaQueryWrapper<PaymentRequest>()
+                    .eq(PaymentRequest::getChannelOrderNo, result.channelOrderNo())
+                    .last("LIMIT 1"));
+        }
+        if (request == null && result.merchantOrderNo() != null) {
+            request = requestMapper.selectOne(new LambdaQueryWrapper<PaymentRequest>()
+                    .eq(PaymentRequest::getBizNo, result.merchantOrderNo())
+                    .last("LIMIT 1"));
+        }
+        if (request == null) {
+            // 找不到对应支付请求：不入账（记录会带着 request_id=null 落库留痕，便于排查是谁在回调）
+            log.warn("支付回调找不到对应的支付请求，仅留痕不入账：merchantOrderNo={}, channelOrderNo={}",
+                    result.merchantOrderNo(), result.channelOrderNo());
+        }
+
+        PaymentRecord record = new PaymentRecord();
+        // ⚠️ **必须显式写租户**：本方法由回调驱动，而回调是匿名的（无 Sa-Token 会话），
+        //    BaseEntity 的 @TableField(fill = INSERT) 自动填充拿不到租户 ⇒ tenant_id 落 null ⇒
+        //    payment_record.tenant_id NOT NULL 违约 ⇒ 回调业务失败（真机实测：
+        //    "null value in column tenant_id of relation payment_record violates not-null constraint"）。
+        //    这与会话内下单不同：那条路径有租户上下文，自动填充才有效。
+        record.setTenantId(tenantId);
+        record.setRequestId(request == null ? null : request.getId());
+        record.setChannel(channel);   // 渠道码由控制器从路径传入（PaymentCallbackResult 里没有该字段）
+        record.setChannelOrderNo(result.channelOrderNo());
+        record.setChannelTradeNo(result.channelOrderNo());
+        record.setAmount(result.paidAmount());
+        record.setStatus(2);
         record.setCallbackTime(LocalDateTime.now());
+        record.setCallbackData(result.rawPayload());
         recordMapper.insert(record);
 
-        // 更新支付请求状态
-        if (record.getStatus() == 2) {
-            LambdaQueryWrapper<PaymentRequest> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(PaymentRequest::getChannelOrderNo, record.getChannelOrderNo());
-            PaymentRequest request = requestMapper.selectOne(wrapper);
-            if (request != null) {
-                request.setStatus(2);
-                request.setChannelTradeNo(record.getChannelTradeNo());
-                request.setPaidTime(LocalDateTime.now());
-                requestMapper.updateById(request);
-            }
+        if (request == null) {
+            // 没有对应支付请求：记录已留痕，但状态无从更新 —— 明确抛出让渠道重推（网关会再发）
+            throw new IllegalArgumentException("回调找不到对应的支付请求：merchantOrderNo="
+                    + result.merchantOrderNo() + ", channelOrderNo=" + result.channelOrderNo());
         }
-
+        if (request.getStatus() != null && request.getStatus() != 2) {
+            request.setStatus(2);
+            request.setChannelTradeNo(result.channelOrderNo());
+            request.setPaidTime(LocalDateTime.now());
+            requestMapper.updateById(request);
+        }
+        log.info("支付回调入账成功：tenantId={}, bizNo={}, amount={}", tenantId,
+                request.getBizNo(), result.paidAmount());
         return record;
     }
 

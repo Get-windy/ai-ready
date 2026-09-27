@@ -162,13 +162,13 @@ public class UserDataScopeServiceImpl implements UserDataScopeService {
                 sql += " ORDER BY t.sort_no NULLS LAST, t.id";
                 break;
             case "customer_level":
-                // erp_customer_level 无逻辑删列
-                sql = "SELECT t.id AS id, t.level_name AS name, t.level_code AS code,"
+                // 客户级别全站唯一数据源 = biz_customer_grade（2026-09-26 收敛，原 erp_customer_level 已下线）
+                sql = "SELECT t.id AS id, t.grade_name AS name, t.grade_code AS code,"
                         + " NULL AS \"categoryId\", NULL AS \"categoryName\""
-                        + " FROM erp_customer_level t"
-                        + " WHERE t.tenant_id = ?";
-                sql += likeClause(kw, args, "t.level_name", "t.level_code");
-                sql += " ORDER BY t.sort_weight NULLS LAST, t.id";
+                        + " FROM biz_customer_grade t"
+                        + " WHERE t.deleted = 0 AND t.tenant_id = ?";
+                sql += likeClause(kw, args, "t.grade_name", "t.grade_code");
+                sql += " ORDER BY t.sort_order NULLS LAST, t.id";
                 break;
             default:
                 return List.of();

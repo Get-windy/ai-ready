@@ -37,6 +37,10 @@
               </a-tag>
             </a-select-option>
           </a-select>
+          <!-- 空态说明：此前列表是空的、打印按钮是灰的，用户看不出「为什么不能打印」 -->
+          <div v-if="!loadingTemplates && !templates.length" class="option-hint">
+            该页面还没有已发布的打印模板，请到「设置 → 打印管理 → 打印模板」配置并发布后再打印。
+          </div>
         </div>
 
         <div class="option-group">
@@ -152,10 +156,16 @@
           <FileTextOutlined style="font-size: 48px; color: #d9d9d9;" />
           <p>点击"预览"查看打印效果</p>
         </div>
-        <div
+        <!--
+          用 iframe(srcdoc) 而不是 v-html：渲染结果是**完整 HTML 文档**，v-html 会把其中的
+          <style> 提到当前页面里生效 —— 模板的 body/table 样式会污染整个后台界面，
+          而预览本身又丢了 <head> 里的设置，所见与所打不一致。iframe 天然隔离样式，且保真。
+        -->
+        <iframe
           v-else
           class="preview-content"
-          v-html="previewHtml"
+          :srcdoc="previewHtml"
+          title="打印预览"
         />
       </div>
     </div>
@@ -171,7 +181,7 @@ import {
   EditOutlined,
   FileTextOutlined,
 } from '@ant-design/icons-vue'
-import { printingApi, type PrintTemplateVO } from '@/api/printing'
+import { printingApi, type DocumentTemplatesVO } from '@/api/printing'
 import { useRouter } from 'vue-router'
 import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
@@ -189,8 +199,17 @@ defineOptions({ name: 'PrintDialog' })
 const props = defineProps<{
   /** 页面编码，用于筛选对应页面的模板，如 'sale', 'purchase', 'receipt' */
   pageCode: string
-  /** 打印数据，会传递给模板渲染接口 */
-  printData: Record<string, any>
+  /**
+   * 单据主键。**给了它就走后端装配数据的系统级路径**：取数、挑模板、打印设置加工全在服务端，
+   * 页面不必准备 printData。该页面在后端注册了 PrintDataProvider 时才生效
+   * （以 `GET /v2/print/documents/{pageCode}/templates` 返回的 supported 为准）。
+   */
+  documentId?: number | string | null
+  /**
+   * 打印数据（兼容路径：页面自己准备数据，前端调渲染接口）。
+   * 与 documentId 二选一；两者都给时优先 documentId。
+   */
+  printData?: Record<string, any>
   /** 页面打印设置：默认打印模板ID（未指定时用模板自身的默认标记） */
   defaultTemplateId?: number | null
   /** 页面打印设置：默认打印份数 */
@@ -214,7 +233,10 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const visible = ref(false)
-const templates = ref<PrintTemplateVO[]>([])
+const templates = ref<DocumentTemplatesVO['templates']>([])
+
+/** 后端是否已为该页面注册数据装配器（true 才能只给单据主键就打印） */
+const backendAssemble = ref(false)
 const selectedTemplateId = ref<number | null>(null)
 const printMode = ref<'local' | 'remote'>('local')
 const copies = ref(1)
@@ -271,7 +293,10 @@ const appliedHints = computed(() => {
 async function open() {
   printBehavior.value = await loadPrintBehaviorConfig()
 
-  if (printBehavior.value?.allowDraftPrint === false && isDraftDocument(props.printData, props.isDraft)) {
+  // 走后端装配（只给 documentId）时前端拿不到单据字段，草稿判定只能靠调用方显式传 :is-draft，
+  // 否则这一关不生效（与改造前「配置读不到就不拦」同一降级口径）
+  if (printBehavior.value?.allowDraftPrint === false
+    && isDraftDocument(props.printData || {}, props.isDraft)) {
     message.warning(
       '当前单据为草稿状态。「打印设置」中已关闭「允许打印草稿」，不允许打印；'
       + '请先保存/审核生效，或由管理员在「设置 → 打印管理 → 打印设置」中开启该选项。',
@@ -304,33 +329,36 @@ function writeLastTemplateId(id: number | null) {
   try { localStorage.setItem(lastTemplateKey.value, String(id)) } catch { /* 忽略写入失败 */ }
 }
 
-/** 加载当前 pageCode 的模板列表 */
+/**
+ * 加载当前 pageCode 的**已发布**模板。
+ *
+ * 「只有已发布才能打印」这条规则由服务端定（`GET /v2/print/documents/{pageCode}/templates`），
+ * 前端不再自己拼 status —— 早先前端发 `status: 1`（数字）、后端列是 varchar 存 'PUBLISHED'，
+ * 查询恒不命中，模板下拉永远空白。
+ */
 async function loadTemplates() {
   loadingTemplates.value = true
   try {
-    const res = await printingApi.getTemplates({
-      page: 1,
-      size: 50,
-      pageCode: props.pageCode,
-      status: 1, // 已发布
-    })
-    const records = res?.data?.records || res?.records || []
-    templates.value = records
+    const res: any = await printingApi.getDocumentTemplates(props.pageCode)
+    const body = res?.data || res || {}
+    templates.value = body.templates || []
+    backendAssemble.value = body.supported === true
     // 优先级：页面打印设置指定模板 > 「始终使用最后一次打印的模板」 > 模板默认标记 > 第一个
     const lastUsedId = readLastTemplateId()
     const bySetting = props.defaultTemplateId
-      ? records.find((t: PrintTemplateVO) => t.templateId === props.defaultTemplateId)
+      ? templates.value.find(t => t.templateId === props.defaultTemplateId)
       : undefined
     const byLastUsed = (props.alwaysLastTemplate && lastUsedId)
-      ? records.find((t: PrintTemplateVO) => t.templateId === lastUsedId)
+      ? templates.value.find(t => t.templateId === lastUsedId)
       : undefined
-    const byDefault = records.find((t: PrintTemplateVO) => t.isDefault)
-    const picked = bySetting || byLastUsed || byDefault || records[0]
+    const byDefault = templates.value.find(t => t.isDefault)
+    const picked = bySetting || byLastUsed || byDefault || templates.value[0]
     selectedTemplateId.value = picked?.templateId || null
     copies.value = props.defaultCopies && props.defaultCopies > 0 ? props.defaultCopies : 1
   } catch (e) {
     templates.value = []
     selectedTemplateId.value = null
+    backendAssemble.value = false
   } finally {
     loadingTemplates.value = false
   }
@@ -341,24 +369,45 @@ function handleTemplateChange() {
   previewHtml.value = ''
 }
 
-/** 预览模板 */
+/**
+ * 渲染预览。
+ *
+ * 两条路径：
+ * ① **后端装配**（给了 documentId 且该页面已注册 PrintDataProvider）——
+ *    服务端自己取数、挑模板、应用打印设置，页面什么都不用准备；
+ * ② **兼容路径**（页面自己给 printData）—— 模板正文按需单独取（列表接口不再回传 templateJson），
+ *    打印设置仍由前端加工（这份口径已在服务端另有一份实现，供路径 ① 使用）。
+ */
 async function handlePreview() {
   if (!selectedTemplateId.value) {
     message.warning('请先选择打印模板')
     return
   }
-  const tpl = templates.value.find(t => t.templateId === selectedTemplateId.value)
-  if (!tpl) {
-    message.error('模板不存在')
-    return
-  }
   rendering.value = true
   try {
+    const docId = props.documentId
+    if (docId !== null && docId !== undefined && docId !== '' && backendAssemble.value) {
+      const res: any = await printingApi.renderDocument(
+        props.pageCode, docId, selectedTemplateId.value,
+      )
+      previewHtml.value = res?.data?.html || res?.html || '<p>渲染结果为空</p>'
+      return
+    }
+
+    const tpl = templates.value.find(t => t.templateId === selectedTemplateId.value)
+    if (!tpl?.templateJson) {
+      message.error('模板不存在')
+      return
+    }
+    // 模板正文可能是 JSON 串（实体列）也可能是对象，两种都兜住
+    const templateJson = typeof tpl.templateJson === 'string'
+      ? tpl.templateJson
+      : JSON.stringify(tpl.templateJson)
     // 打印设置在此处**真正作用于打印内容**：小数位格式化 + 「打印内容」派生的 batchEffectiveText
-    // （配置读不到时 applyPrintBehavior 原样返回，即改造前的行为）
-    const renderData = applyPrintBehavior(props.printData, printBehavior.value)
+    // （配置读不到时 applyPrintBehavior 原样返回）
+    const renderData = applyPrintBehavior(props.printData || {}, printBehavior.value)
     const res = await printingApi.renderTemplate({
-      templateJson: tpl.templateJson,
+      templateJson,
       dataJson: JSON.stringify(renderData),
     })
     previewHtml.value = res?.data?.html || res?.html || '<p>渲染结果为空</p>'
@@ -404,18 +453,27 @@ async function submitRemotePrint(): Promise<boolean> {
       return false
     }
 
-    // dataJson 是**对象**（后端 ChainTaskExecuteRequest.dataJson 为 Map）、userId 走请求头
-    // （打印任务接口要求 tenantId/userId 两个请求头；tenantId 由 request 拦截器统一注入）
-    const renderData = applyPrintBehavior(props.printData, printBehavior.value)
+    // 两条取数路径与「预览」一致（见 handlePreview 的说明）：
+    //  · 后端装配（只给 documentId）→ dataJson 留空，服务端按 pageCode + documentId 自己取；
+    //  · 兼容路径（页面给 printData）→ 前端加工后随请求发出。
+    const docId = props.documentId
+    const useBackend = docId !== null && docId !== undefined && docId !== '' && backendAssemble.value
+    const renderData = useBackend
+      ? {}
+      : applyPrintBehavior(props.printData || {}, printBehavior.value)
     await request.post(
       '/v2/print/tasks/by-chain',
       {
         chainId: chain.chainId,
+        // dataJson 是**对象**（后端 ChainTaskExecuteRequest.dataJson 为 Map）
         dataJson: renderData,
         pageCode: props.pageCode,
         documentType: props.documentType || props.pageCode,
-        documentNo: resolveDocumentNo(renderData),
+        documentId: useBackend ? docId : undefined,
+        // 后端装配模式下 renderData 是空的，单号仍从页面给的 printData 里取（拿不到就留空）
+        documentNo: resolveDocumentNo(useBackend ? (props.printData || {}) : renderData),
       },
+      // userId 走请求头（打印任务接口要求 tenantId/userId 两个请求头；tenantId 由 request 拦截器统一注入）
       { headers: { userId: String(userStore.userId || 0) } },
     )
     message.success(`已提交远程打印任务（链路：${chain.chainName || chain.chainId}）`)
@@ -429,6 +487,33 @@ async function submitRemotePrint(): Promise<boolean> {
 }
 
 /** 执行打印 */
+/**
+ * 打印兜底样式：只补模板自身通常不声明的部分。
+ *
+ * ⚠️ 必须放在模板自己的 `<style>` **之前** —— 模板要覆盖就能覆盖。
+ * 尤其**不要**在这里写 `td,th{border:…}`：无边框模板会被强行加上边框，
+ * 打出来和设计器里看到的不是一个东西。
+ */
+const PRINT_FALLBACK_STYLE =
+  '<style>body{margin:0;font-family:SimSun,serif;font-size:12px;}</style>'
+
+/**
+ * 把渲染结果包成可直接 `doc.write` 的完整文档。
+ *
+ * 渲染接口返回的本来就是完整 HTML（含模板的 `<style>` 与 `@page`），
+ * 旧实现把它塞进 `<body>` 再外套一层 `<html>` —— 文档套文档，内层 `<head>`/`<style>`
+ * 会被浏览器丢弃或错位，模板的字体与纸张尺寸设置随之失效。已是完整文档就直接写。
+ */
+function buildPrintDocument(html: string): string {
+  if (/<html[\s>]/i.test(html)) {
+    return html.includes('<head>')
+      ? html.replace('<head>', `<head>${PRINT_FALLBACK_STYLE}`)
+      : PRINT_FALLBACK_STYLE + html
+  }
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>打印</title>`
+    + `${PRINT_FALLBACK_STYLE}</head><body>${html}</body></html>`
+}
+
 async function handlePrint() {
   // 「打印设置 → 助手打印」开启后跳过预览直接打印（ql361 原文：开启助手打印，将跳过预览直接打印）
   if (!previewHtml.value && printMode.value === 'local' && printBehavior.value?.assistantEnabled === true) {
@@ -471,14 +556,7 @@ async function handlePrint() {
       return
     }
     doc.open()
-    doc.write(`<!DOCTYPE html><html><head><title>打印</title>
-        <style>
-          body { margin: 0; padding: 8mm; font-family: SimSun, serif; font-size: 12px; }
-          table { border-collapse: collapse; width: 100%; }
-          td, th { border: 1px solid #333; padding: 4px 6px; }
-          @media print { @page { size: auto; margin: 8mm; } }
-        </style>
-      </head><body>${previewHtml.value}</body></html>`)
+    doc.write(buildPrintDocument(previewHtml.value))
     doc.close()
 
     // 等待内容加载
@@ -552,6 +630,17 @@ defineExpose({ open, appliedBehavior: () => printBehavior.value })
   color: #262626;
 }
 
+.option-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d46b08;
+  background: #fff7e6;
+  border: 1px solid #ffe7ba;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
 .option-actions {
   display: flex;
   flex-direction: column;
@@ -602,21 +691,18 @@ defineExpose({ open, appliedBehavior: () => printBehavior.value })
   margin: 0;
 }
 
+/*
+ * 预览是一个 srcdoc iframe：样式由模板自己带（渲染结果里含完整 <style>）。
+ * 这里**不要**再补 table/td 的边框样式 —— 那会盖掉模板自己的选择（如无边框模板），
+ * 让预览看到的边框和真正打出来的不一样。之前用 v-html 时那几条 :deep 规则就是干这个的。
+ */
 .preview-content {
-  padding: 16px;
-  background: #fff;
-  min-height: 400px;
-}
-
-.preview-content :deep(table) {
-  border-collapse: collapse;
+  display: block;
   width: 100%;
-}
-
-.preview-content :deep(td),
-.preview-content :deep(th) {
-  border: 1px solid #333;
-  padding: 4px 6px;
+  height: 60vh;
+  min-height: 400px;
+  border: 0;
+  background: #fff;
 }
 </style>
 

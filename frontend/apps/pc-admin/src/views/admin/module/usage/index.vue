@@ -200,6 +200,21 @@ const windowDays = ref(30)
 const windowStart = ref('')
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+/** 全量模块统计（后端 /module/usage 不接收分页参数，返回的就是全部） */
+const allRows = ref<any[]>([])
+
+/**
+ * 按当前页码把全量数据切成本页数据写进 tableData。
+ *
+ * 后端 `GET /module/usage?days=` 返回**全量**统计（total = records.length，无分页参数），
+ * 分页必须在前端完成；此前 handlePageChange 只改页码、表格仍绑全量数组，
+ * 表现为「翻页只有页码高亮变化、表格行不变」的假分页。
+ */
+function applyPage() {
+  const start = (pagination.current - 1) * pagination.pageSize
+  tableData.value = allRows.value.slice(start, start + pagination.pageSize)
+}
 const searchForm = reactive({ days: 30 })
 
 const windowTip = computed(() =>
@@ -248,14 +263,16 @@ async function fetchData() {
   loading.value = true
   try {
     const res: any = await moduleApi.usage(searchForm.days)
-    tableData.value = res?.records || []
+    allRows.value = res?.records || []
     pagination.total = Number(res?.total) || 0
+    applyPage()
     summary.value = res?.summary || {}
     windowDays.value = Number(res?.windowDays) || searchForm.days
     windowStart.value = res?.windowStart || ''
   } catch (error: any) {
     console.error('[使用统计] 加载失败', error)
     message.error(error?.message || '加载使用统计失败')
+    allRows.value = []
     tableData.value = []
     pagination.total = 0
     summary.value = {}
@@ -279,6 +296,7 @@ function handleRefresh() {
 function handlePageChange(page: number, pageSize: number) {
   pagination.current = page
   pagination.pageSize = pageSize
+  applyPage()
 }
 
 /** 下钻：跳到「模块列表」并带上模块名称/编码关键字过滤 */

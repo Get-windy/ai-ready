@@ -110,7 +110,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'printing:template:edit'"
+                v-permission="'print:template:update'"
                 type="link"
                 size="small"
                 @click="handleEdit(record)"
@@ -118,8 +118,8 @@
                 编辑
               </a-button>
               <a-button
-                v-if="record.status === 0"
-                v-permission="'printing:template:publish'"
+                v-if="record.status === 'DRAFT'"
+                v-permission="'print:template:publish'"
                 type="link"
                 size="small"
                 :style="{ color: '#52c41a' }"
@@ -128,7 +128,7 @@
                 发布
               </a-button>
               <a-button
-                v-permission="'printing:template:copy'"
+                v-permission="'print:template:copy'"
                 type="link"
                 size="small"
                 @click="handleCopy(record)"
@@ -136,7 +136,7 @@
                 复制
               </a-button>
               <a-button
-                v-permission="'printing:template:deleteconfirm'"
+                v-permission="'print:template:delete'"
                 type="link"
                 size="small"
                 danger
@@ -355,19 +355,23 @@ import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 // 常量定义
 // ═══════════════════════════════════════════════════════════════
 
-/** 状态枚举映射 */
-const STATUS_MAP: Record<number, { label: string; color: string }> = {
-  0: { label: '草稿', color: 'orange' },
-  1: { label: '已发布', color: 'green' },
-  2: { label: '已禁用', color: 'red' },
+/**
+ * 状态枚举映射。
+ * ⚠️ 必须与后端 `SysPrintTemplate.status` 一致：该列是 varchar，
+ * 后端写入 'DRAFT'（新建）/ 'PUBLISHED'（发布），**不是数字**。
+ * 早先这里按 0/1/2 数字比对，导致状态列恒显示「未知」、发布按钮永不出现。
+ */
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  DRAFT: { label: '草稿', color: 'orange' },
+  PUBLISHED: { label: '已发布', color: 'green' },
+  DISABLED: { label: '已禁用', color: 'red' },
 }
 
-const statusLabelMap: Record<number, string> = {}
-const statusColorMap: Record<number, string> = {}
+const statusLabelMap: Record<string, string> = {}
+const statusColorMap: Record<string, string> = {}
 for (const [key, val] of Object.entries(STATUS_MAP)) {
-  const k = Number(key)
-  statusLabelMap[k] = val.label
-  statusColorMap[k] = val.color
+  statusLabelMap[key] = val.label
+  statusColorMap[key] = val.color
 }
 
 /** 纸张大小选项 */
@@ -382,7 +386,7 @@ const statusFilterOptions = computed(() => [
   { label: '全部', value: undefined },
   ...Object.entries(STATUS_MAP).map(([key, val]) => ({
     label: val.label,
-    value: Number(key),
+    value: key,
   })),
 ])
 
@@ -399,7 +403,7 @@ const PAPER_DIMENSIONS: Record<string, { width: number; height: number }> = {
 // 搜索表单
 const searchForm = reactive({
   pageCode: undefined as string | undefined,
-  status: undefined as number | undefined,
+  status: undefined as string | undefined,
 })
 
 // 表格数据

@@ -35,7 +35,7 @@
 
 | # | 级别 | 问题 | 影响 |
 |---|------|------|------|
-| P0-1 | 阻断 | 配送域 **146 个权限码只授予超级管理员**，其余 4 个角色零授权 | 非超管能看见菜单、点进去全部 403（§4.1）<br>✅ **已修**：自有域 126 码已授系统管理员(126)/部门管理员(68) —— §11.2 |
+| P0-1 | 阻断 | 配送功能对非超管不可用。**根因不是「平台没授权」，而是两层授权链路的第二层未启用**：模块门已开（租户 1/2 均开 `dms`），但除超管外**没有任何角色持有 `tenant-admin:role:*`** ⇒ 租户管理员无法自助配权限 | 非超管看得见菜单、点进去全部 403（§4.1，**2026-09-26 定性修正**）<br>临时手段：自有域 126 码已授系统管理员(126)/部门管理员(68) —— §11.2 |
 | P0-2 | 阻断 | **司机端 App 的登录页 + 3 个 Tab 指向不存在的后端端点** | 默认首页 `/order`、地图 Tab、我的→历史/统计 全部空态或 TypeError（§3.1） |
 | P0-3 | 阻断 | **20 条配送自建菜单 `menu_level=3`（非法值）**，非系统租户的非超管**整块看不到 DMS 自建体系** | 与 P0-1 叠加 = 看不见 + 调不了（§4.6）<br>✅ **已修**：`V11.501.0` + devdb 手工执行（20 条 3→0） —— §11.2 |
 | P1-1 | 高 | 配送域前端 **`v-permission` 用量 = 0**（全站 380 处） | 无权限的用户看见所有按钮，点击才 403（§4.3） |
@@ -173,7 +173,13 @@
 
 ## 4. 权限配置
 
-### 4.1 P0：配送权限只授超级管理员
+### 4.1 P0：配送权限的完整链路 —— **模块门已开，缺的是租户侧自助配置能力**
+
+> **⚠️ 2026-09-26 定性修正**：本条初版写成「146 个权限码只授超管 ⇒ 非超管不可用」，**定性不完整**。
+> 本仓授权是**两层**（见 `ModuleEntitlementService` 类注释）：
+> **① 模块授权**（平台方决定某租户**有没有**这个模块，`sys_tenant_module`）
+> **② 权限**（租户内管理员决定某角色**能不能做**某件事，`sys_role_permission`）
+> 逐层核验后，真正的缺口在**第 ② 层的配置能力**上，而不是"平台忘了授权"。
 
 ```sql
 -- 角色 × 配送域权限码（dms:* / dispatch:* / delivery:* / md:route* / trade:*）
@@ -198,6 +204,20 @@ GROUP BY r.role_name;
 -- 角色 × 配送菜单（38 条）授权数：全部为 0（含超管 —— 超管走通配 ["*"] 全量下发）
 ```
 
+#### 4.1.1 第一层（模块门）：**配送模块已给租户开通**
+
+```
+sys_module            : dms「配送」status=1（已注册）
+sys_module_permission : dms → 'dms:'      （调度 / 派单 / 骑手车辆 / 履约核销 / 结算）
+                        dms → 'delivery:' （配送路线单执行单，与 dms:route:* 分开登记）
+sys_tenant_module     : tenant 1 = dms、tenant 2 = dms，**均 status=0（0=正常，1=停用）**
+```
+
+`ModuleEntitlementInterceptor` 对每次请求做「接口所需权限码 → 归属模块 → 该模块须已给本租户开通」的判定；**租户 1、2 均已开通 dms，这一层不构成阻断**。
+
+> 口径说明：`SysTenantModule.status` = **0=正常 / 1=停用**（实体注释），与 `sys_menu` 的「1=启用」**相反** —— 又一处「status 逐表不同」。
+> `dispatch:*`（7 条菜单码）**未登记**在 `sys_module_permission`：它只作菜单码用（`dispatch:` 开头的权限码为 0 条），不参与模块门判定。
+
 **用户侧分布**：47 个用户中 **43 个是超级管理员**，非超管仅 4 个（系统管理员 2 / E2E租户2管理员 1 / 其他 1）。
 
 **传导链**：
@@ -207,6 +227,32 @@ GROUP BY r.role_name;
 4. **净效果：非超管用户看得见配送菜单，点进去每个接口都 403。**
 
 > 与 `PURCHASE_AUDIT_REPORT_20260922.md`（采购）、`STORAGE_MODULE_AUDIT_20260923.md`（仓储）**完全同源**，是跨模块的系统性问题，不是配送模块独有缺陷。但配送是本系列第三个确认的模块，建议**一次性出全局授权方案**，不要再逐模块打补丁。
+
+#### 4.1.2 第二层（租户侧配置能力）：**当前除超管外无人持有**
+
+| 角色 | 权限码总数 | `tenant-admin:` 角色/权限管理类 |
+|------|:---:|---|
+| 超级管理员 | 通配符 `*` | 全部 |
+| 系统管理员 | 724 | **仅 2 个**（`tenant-admin:user:detail` / `:list`） |
+| 部门管理员 | 281 | **0** |
+| E2E租户2管理员 | **4** | **0**（仅 `crm:contract:view/create` + `user:detail/list`） |
+
+能「给角色分配权限」的接口（`POST /api/role/{id}/permissions` 需 `tenant-admin:role:update`；可分配清单 `GET /api/permission/tree` 需 `tenant-admin:permission:list`）—— **除超管外没有任何角色可用**。
+
+**完整链条**：
+
+```
+租户已开通 dms 模块 ✓
+  └─ 但租户管理员角色（E2E_T2_ADMIN）没有 tenant-admin:role:update / permission:list
+       └─ 无法自助给本租户角色勾选 dms: 权限码
+            └─ 该租户下所有角色都拿不到 dms 权限码
+                 └─ 接口 403（@SaCheckPermission）
+```
+
+**因此本条的正确定性是**：「**平台开模块 → 租户自助配权限**」这条两层设计链路，**第二层目前处于未启用状态**（能配置的角色不存在）。这是**全站性问题**（不止配送），`SETTINGS_MODULE_AUDIT_20260924` / `SYSTEM_MODULE_AUDIT_20260924` 均有同型记录（「SYSTEM_ADMIN 角色名不副实」）。
+
+> **正确修法（修订版）**：不是继续给业务角色硬编码授权（那只是绕过第二层），而是**给平台/租户管理员角色补齐 `tenant-admin:role:*` / `tenant-admin:permission:*`**，让设计链路真正跑起来。
+> §11.2-3 已执行的那次授权是**临时手段**（让系统租户管理员在链路打通前可用），不改变上述判断。
 
 ### 4.2 P1：14 个叶子菜单的 `menu_code` 与权限码命名体系断裂
 
@@ -281,7 +327,13 @@ if (!isSystemTenant && !isSuperAdmin) {
 80910 配送结算 80920 收款管理
 ```
 
-**根因**：`V11.168.0` / `V11.169.0` / `V11.170.0` / `V11.201.0` 四个迁移补录菜单时把 `menu_level` 统一写成 `3`，且每条都带 `ON CONFLICT (id) DO UPDATE SET menu_level = EXCLUDED.menu_level`，**每次重放都会覆盖回 3**。
+**根因（两层）**：
+
+1. **源头 = `V6.22.0__Fill_Mega_Menu_All_Columns.sql`** —— 这是一个**批量占位迁移**，用 `views/common/placeholder/index.vue` 一次性插入大量菜单占位行，**每一条的 `menu_level` 都硬编码为 `3`**（同批的仓储 `80010/80011/80012`、销售 `80050` 同样是 3）。配送的 `80730/80740/80750/80760` 就在这一批里。
+   > 这也解释了**全库为何有 124 条** level=3 —— 它是批量脚本的产物，不是个别笔误。
+2. **沿用 = `V11.168.0` / `V11.169.0` / `V11.170.0` / `V11.201.0`** 后续补录菜单时沿用了同一写法（也写 3）；其中 `V11.169.0` 等用 `ON CONFLICT (id) DO UPDATE SET menu_level = EXCLUDED.menu_level`（**重放会覆盖回 3**），而 `V6.22.0` 用的是 `DO NOTHING`（不覆盖）。
+
+> **对其他模块的价值**：`V11.499.0` 注释列出的 marketing 19 / finance 17 / mall 13 / set 10 / md 8 / crm 6 等同类条目，**根因大概率同是这个 V6.22.0 批量模板**，各模块出迁移时可一并按此追溯。
 
 **为什么历次 E2E 全绿也没发现**：dev 的 `admin` 账号**同时命中** `isSystemTenant` 与 `isSuperAdmin` → 走 `:259` 早退分支取全量，**本地永远看不出问题**。必须用一个「普通租户 + 非超管」的账号请求菜单接口才会暴露。
 
@@ -658,9 +710,148 @@ TaskController.java:282   return ApiResponse.ok(taskService.create(task));
 - `tool-results/menu_backup_before_dms_fix_20260923.json`（39 行菜单）
 - `tool-results/role_perm_backup_before_dms_grant_20260923.json`（受影响角色 321 行授权）
 
+#### 11.2.1 20 条菜单数据查重（2026-09-26）
+
+对 20 条逐项核验，**全部干净**：
+
+| 检查项 | 结果 |
+|--------|------|
+| 20 条内部 `menu_code` / `route_name` / `path` / `component` 重复 | **无** |
+| 与全库其他菜单的 `menu_code` / `path` 冲突 | **无** |
+| `path` 在 `dynamicRoutes.ts` 中另有静态注册（会互相覆盖） | **无** |
+| 字段自洽 | `menu_level=0`、`tenant_id=0`、`client_type=tenant-admin`、`visible=1`、`status=1` 全部正常 |
+
+> `route_name` **全部为空** ⇒ 前端路由名回落到 `menu_code`（规则 `route_name || menu_code`）。因 20 条 `menu_code` 互不重复、且与全库无冲突，**不存在 `erp-menu-code-route-collision` 那类静默 404**。
+> （另：全库 `menu_code` 重复仍有 3 组 —— `purchase:analytics` / `purchase:order` / `stock:replenishment`，**均不在配送域**，由 `V11.499.0` 以补 `route_name` 的方式处理。）
+
+#### 11.2.2 运行期验证（真机三账号对照）
+
+脚本 `tools/audit-dms-menu-runtime.cjs`（只读）：
+
+| 账号 | 可见「配送自建页」 | 说明 |
+|------|:---:|------|
+| `admin`（系统租户 + 超管） | **20/20** | 双豁免走 `:259` 早退分支取全量 —— **本地永远看不出问题** |
+| `e2e_hr_ta`（系统租户 + SYSTEM_ADMIN） | **20/20** | `isSystemTenant=true` ⇒ 不加 `menuLevel` 过滤 |
+| **`e2e_hr_t2`（租户2 + E2E_T2_ADMIN）** | **7/20** | ★关键：**修复前为 0/20** |
+
+**修复已生效。** `e2e_hr_t2` 能看到的 7 条（`80760/80700/80830/80840/80730/80740/80750`）正是 §4.2 里「`menu_code` 在权限码表找不到对应」的 **fail-open** 那一批；其余 13 条按权限码派生规则**正确隐藏**（该账号只持有 4 个权限码，且 `E2E_T2_ADMIN` 刻意未授权 —— 见 §11.2「刻意未做②」）。**两级过滤（menu_level 硬过滤 + 权限码派生）均按设计工作。**
+
+#### 11.2.3 代码修复：平台级权限码对租户不可见（**已改 + 编译通过，待构建生效**）
+
+**这是「租户自助配权限」链路的最后一环，也是本次追加排查的真根因。**
+
+```java
+// core-base SysPermissionServiceImpl —— 修复前
+private List<SysPermission> listAllPermissions(Long tenantId) {
+    wrapper.eq(SysPermission::getTenantId, tenantId)   // ← 只查精确 tenantId
+}
+```
+
+平台定义的全部权限码（含 `dms:*` / `delivery:*`，共 **1464 条**）`tenant_id` 恒为 **0**，
+而租户管理员传 `tenantId=2` ⇒ **可分配清单恒为空** ⇒ 即使已把 `tenant-admin:role:assign-permission`
+授给它（§11.2 已完成），打开「角色 → 分配权限」仍是**空的**，配不了任何权限。
+
+**修法**：`listAllPermissions` 与 `getChildrenPermissions` 改为「平台级(0) + 本租户」。
+（`sys_permission` 已登记在 `MyBatisPlusConfig.IGNORE_TENANT_TABLES`（"权限定义系统级"），
+故该 `eq` 是唯一过滤条件，改 `in` 即生效。**只增不减**，`tenantId=0` 时行为不变。）
+
+| 视角 | 修复前 | 修复后 |
+|------|:---:|:---:|
+| 租户 0（平台/超管） | 1464 | 1464（**不变**） |
+| 租户 1 | 356 | 1820 |
+| **租户 2** | **0** | **1464**（含 `dms:` / `delivery:` 94 个） |
+
+**验证状态：✅ 已真机验证通过（2026-09-27，5655 新构建实例）**
+
+`tools/audit-dms-tenant-flow.cjs` —— **两步授权链路的端到端闭环**（用租户管理员账号，非超管）：
+
+| 步骤 | 结果 |
+|------|------|
+| ① 赋权前 `GET /dms/vehicle/page` | **403** |
+| ② `GET /role/{id}/permissions` | **200**（租户管理员可读本租户角色权限） |
+| ③ `GET /permission/tree?tenantId=2` | **200，1465 个权限码**（含 `dms:` 80 个）← **修复前为 0** |
+| ④ `POST /role/{id}/permissions`（自助赋权） | **200** |
+| ⑤ 重登后 `GET /dms/vehicle/page` | **200**（**403 消除**） |
+
+**⇒「平台开模块 → 租户管理员自助配权限 → 模块接口可用」整条设计链路打通。**
+
+同期接口探测（`tools/audit-dms-menu-runtime.cjs`）：**超管 20/20 接口全部 200**，
+此前 13 个因 fat jar 被替换导致的 500 **全部消失**；系统管理员 19/20（唯一 403 是交易域码的 API监控，见 §11.2「刻意未做②」）。
+
+> ⚠️ **踩坑记录（2026-09-26/27）**
+> 1. **首次验证打到了错误的实例**：5655 短暂下线期间，验证脚本误指向 5671 —— 那是一个
+>    23:14 启动、跑 `core-api-verify-run.jar` 旧副本的实例 ⇒ `/permission/tree` 仍返回 0，
+>    一度误判为「改动没生效」。**判据**：先确认目标端口由**哪个 PID** 监听、该 PID 的
+>    **启动时间**与 **jar 构建时间**的先后（`netstat -ano` + `Get-CimInstance Win32_Process`）。
+> 2. **验证脚本自身的雪花 ID 精度坑**：`const T2_ROLE_ID = 2099000000000009031` 写成数字字面量，
+>    超过 `Number.MAX_SAFE_INTEGER` 被舍入为 `2099000000000009000` ⇒ 打错角色 ⇒ 500。
+>    已改字符串；权限 id 也统一 `String()` 比对。*（与 `js-bigint-precision-fix` 记忆同源。）*
+> 3. **Flyway 并发冲突**：起第二实例时与另一会话的实例同时执行 `V11.512.0`，双方都用
+>    `MAX(id)+row_number()` 算主键 ⇒ 撞 `sys_role_permission_pkey`，我的实例启动失败。
+>    与本次改动无关（该迁移随后成功）；`flyway_schema_history` 失败记录 = 0。
+>    ⇒ 新坑已记入记忆 `flyway-concurrent-migration-conflict`：**本仓同一时刻只应有一个实例跑 Flyway**。
+> 4. 观察：`V11.504/509/510/512/513/514/515` 是**其他会话并行做同类的「menuLevel + 角色授权」修复**；
+>    经核对**未覆盖配送、也未与本次授权重复**（`tenant-admin` 授权为净新增 11 条）。
+
+> ⚠️ **该轮接口探测中的 13 个 500 是环境问题，不是配送代码缺陷**（**2026-09-27 已随新构建恢复：超管 20/20 全 200**）——
+> 错误日志为 `NoClassDefFoundError: cn/aiedge/dms/...` +
+> `Zip 'Central Directory File Header Record' not found at position 1197092`；
+> fat jar mtime `20:29:48` **晚于** 进程启动 `17:00:31`（报错发生在 20:43）。
+> 即**运行中的 fat jar 被替换**（`fatjar-swap-while-running` 坑），**重启后端即愈**，与本次改动无关。7 个正常返回 200 的接口（路线单/车辆/智能调度/签收/渠道/结算/API监控）可反证代码本身无系统性缺陷。
+
 **刻意未做 ①：`menu_code` 改名（14 条）**　理由见 §10.1-1 —— `menu_code` 参与菜单可见性派生，改名会让非超管从「fail-open 可见」变成「不可见」，必须与「先授权（已完成）、后改码、再验证」的顺序绑定，并单独回归。且 `V11.499.0` 已明确记录过「刻意不改 `menu_code`」的同类理由。
 
 **刻意未做 ②：`trade:%` 的 20 个权限码授权**　属交易模块审计范围（避免与并行会话在同一批数据上冲突）。**受此影响：《API监控》页（90107，挂在配送菜单下）对非超管仍不可用** —— 待交易模块处置后一并解决。
+
+#### 11.2.4 第 3~5 项：按用户拍板执行（2026-09-27）
+
+**① 僵尸表 + 脏数据：直接删除**（用户拍板）
+
+- 迁移 `V11.517.0__Drop_Dms_Zombie_Tables_And_Clean_Scheduled_Task.sql`
+  + devdb 手工执行：**DROP 5 张表**（`dms_dispatch_record` / `dms_logistics_ship` /
+  `dms_purchase_receive` / `dms_return_receive` / `dms_ship_order`，均 0 行）
+- `scheduled_task` **删除 12 行** `job_key` 为空的演示数据（剩 4 条真任务）
+- 备份：`tool-results/scheduled_task_backup_before_clean_20260927.json`
+
+**② `menu_code` 对齐（方案 B：只改 7 条纯配送自有）**（用户拍板）
+
+- 迁移 `V11.518.0__Align_Dms_Menu_Codes_With_Permission_Prefixes.sql` + devdb 手工执行
+
+| 菜单 | `menu_code` 改为 | 同时补 `route_name` |
+|---|---|---|
+| 80730 调度任务 | `dms:task` | `DmsDispatchTask` |
+| 80740 实时跟踪 | `dms:tracking` | `DmsRealtimeTracking` |
+| 80750 配送参数 | `dms:config` | `DmsConfigParams` |
+| 80830 路线规划 | `dms:route` | `DmsRoutePlan` |
+| 80700 配送路线单 | `delivery:route` | `DmsRouteList` |
+| 80840 用车管理 | `dms:vehicle-energy`（双前缀选主） | `DmsVehicleUsage` |
+| 70530 线路 | `md:route-master` | `MdRouteMaster` |
+| 80870 配送跟踪（同码伙伴） | 不变 | `DmsTracking` |
+| 80890 配送配置（同码伙伴） | 不变 | `DmsConfig` |
+
+⚠️ 必须给 80870/80890 一并补 `route_name`：改名后与 80740/80750 **同 `menu_code`**，
+前端路由名 `route_name || menu_code` 会撞名、后者覆盖前者（`erp-menu-code-route-collision`）。
+
+**效果**：7 条**全部派生命中**；配送域 27 个叶子的派生命中数 **13 → 20**；菜单连通性 **0 回归**。
+可见性变化（按派生规则模拟）：超管 27/27、系统/部门管理员 26/27、
+**租户2管理员 7 → 8/27**（那 6 条从「fail-open 白看」变为「需租户超管配权限才可见」——正是本方案目的）。
+5 条跨域复用页 + 70150/80760 保持 fail-open 不动（方案 B）。
+备份：`tool-results/menu_backup_before_code_align_20260927.json`
+
+**③ `OpenApiController` 补齐（方案 B）**（用户拍板）
+
+| 改动 | 文件 |
+|---|---|
+| 新增 HMAC-SHA256 验签拦截器（`X-Api-Key`/`X-Timestamp`/`X-Sign` + 时间戳容差 + 恒定时间比较；`/api/open/health` 放行） | `core-base/.../trade/open/OpenApiAuthInterceptor.java`（新） |
+| 注册拦截器（`order=50`，在 Sa-Token 之后、埋点之前） | `core-base/.../trade/open/OpenApiWebConfig.java`（新） |
+| **两处**白名单加 `/api/open/**` | `SaTokenConfig.java` |
+| 按 `appId` 跨租户查密钥（`@InterceptorIgnore`，无租户上下文时租户插件会让查询恒空） | `ExternalChannelConfigMapper.selectSecretByAppId`（新） |
+| 3 个 TODO 桩 → **如实失败**（`Result.fail(501, …)`），不再 `return success()` 假装成功 | `OpenApiController` 的 `order/status`、`inventory/lock`、`inventory/release` |
+| 类注释订正：真实鉴权口径 + `signature` 参数已由 `X-Sign` 取代 | `OpenApiController` |
+
+**收益**：堵住「任何登录用户可无权限码调用开放 API（写订单 / 查任意 SKU 库存）」的越权面；
+外部平台从此**可调**（此前必然 401）。\n**当前仍不可用属运营配置**：`external_channel_config` 0 行 ⇒ 无 appId/secret ⇒ 一律 401 并给出可读原因（这是**正确**行为）。
+编译：`BUILD SUCCESS`。**待下次构建 + 重启生效。**
 
 ### 11.3 已执行：5 处文档失实订正（纯事实订正，零代码影响）
 

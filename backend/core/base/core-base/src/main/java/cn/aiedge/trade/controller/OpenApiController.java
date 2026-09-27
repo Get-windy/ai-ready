@@ -26,7 +26,20 @@ import java.util.Map;
  * 1. 高性能 - 支持缓存和批量查询
  * 2. 幂等性 - 所有接口可重复调用
  * 3. 异步处理 - 订单回调异步入库
- * 4. 安全验证 - 签名校验
+ * 4. 安全验证 - **签名校验（2026-09-27 补齐，此前是空头支票）**
+ *
+ * <p><b>⚠️ 鉴权口径（2026-09-27 审计修复）</b>：</p>
+ * <ul>
+ *   <li>本控制器**自身不加**鉴权注解：外部平台无 Sa-Token 会话，须由
+ *       {@link cn.aiedge.trade.open.OpenApiAuthInterceptor} 统一做 HMAC-SHA256 验签
+ *       （请求头 {@code X-Api-Key / X-Timestamp / X-Sign}，密钥取
+ *       {@code external_channel_config.app_secret}）。</li>
+ *   <li>该拦截器生效的前提是 `/api/open/**` 已进 {@code SaTokenConfig} 的两份白名单。</li>
+ *   <li>修复前的问题：既未放行白名单（**外部平台必然 401、功能不可用**），又无任何鉴权注解
+ *       （**任何已登录用户可无权限码调用**，含写订单、查任意 SKU 库存）；
+ *       且类注释宣称"签名校验"而 {@code signature} 参数**收下后从未使用**。</li>
+ *   <li>{@code signature} 查询参数已由请求头 {@code X-Sign} 取代，保留仅为兼容，**不再参与校验**。</li>
+ * </ul>
  */
 @Slf4j
 @Tag(name = "对外开放API", description = "订单接入、库存查询、商品同步等开放接口")
@@ -76,9 +89,13 @@ public class OpenApiController {
             @RequestParam String channelCode,
             @RequestParam String externalOrderId,
             @RequestParam String status) {
-        // TODO: 实现订单状态推送
-        log.info("推送订单状态: internal={}, external={}, status={}", internalOrderId, externalOrderId, status);
-        return Result.success();
+        // ⚠️ 2026-09-27 审计修复：原为 TODO 桩 —— 只打日志后 `return Result.success()`，
+        //    即**假装成功**（接入方收到 200 却什么都没发生）。现改为如实失败。
+        //    真实推送需要「已接入并启用的外部平台 + 其回调地址」，当前 external_channel_config
+        //    无启用记录 ⇒ 无对象可推。配置渠道后应改为委托渠道适配器按 channelCode 推送
+        //    （复用 /api/open/inventory/sync 那套 pushToChannel 能力）。
+        log.warn("订单状态推送被调用但未实现: internal={}, channel={}", internalOrderId, channelCode);
+        return Result.fail(501, "订单状态推送尚未实现：当前无已接入并启用的外部平台");
     }
 
     // ========== 库存查询接口（高频） ==========
@@ -108,21 +125,21 @@ public class OpenApiController {
             @RequestParam Integer quantity,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam String lockId) {
-        // TODO: 实现库存锁定逻辑
-        InventoryQueryResult result = inventoryService.queryInventory(skuCode, warehouseId);
-        if (result.getAvailableQuantity() < quantity) {
-            result.setSuccess(false);
-            result.setErrorMsg("库存不足");
-        }
-        return Result.success(result);
+        // ⚠️ 2026-09-27 审计修复：原为 TODO 桩 —— 只做可用量比较就返回，**并未真正锁定库存**，
+        //    调用方会误以为已锁成功。库存锁定是写操作，且涉及「ERP 轨 / WMS 轨」双写口径
+        //    （见 STORAGE_MODULE_AUDIT_20260923 §7.2），必须走 InventoryService 唯一写入口，
+        //    不能在本控制器里自行实现 ⇒ 如实失败，待与仓储模块对齐后接入。
+        log.warn("库存锁定被调用但未实现: sku={}, qty={}, lockId={}", skuCode, quantity, lockId);
+        return Result.fail(501, "库存锁定尚未实现：需接入库存服务（唯一写入口），当前不提供");
     }
 
     @Operation(summary = "库存释放", description = "释放锁定的库存")
     @PostMapping("/inventory/release")
     public Result<Void> releaseInventory(
             @RequestParam String lockId) {
-        // TODO: 实现库存释放逻辑
-        return Result.success();
+        // ⚠️ 2026-09-27 审计修复：原为 TODO 桩 —— 直接 `return Result.success()`，即假装释放成功。
+        log.warn("库存释放被调用但未实现: lockId={}", lockId);
+        return Result.fail(501, "库存释放尚未实现：需接入库存服务（唯一写入口），当前不提供");
     }
 
     // ========== 库存同步接口 ==========

@@ -217,7 +217,7 @@
                 编辑
               </a-button>
               <a-button
-                v-permission="'tenant-admin:role:assign'"
+                v-permission="'tenant-admin:user:assign-role'"
                 type="link"
                 size="small"
                 @click="handleAssignRole(record)"
@@ -234,7 +234,7 @@
                 <template #overlay>
                   <a-menu>
                     <a-menu-item
-                      v-permission="'tenant-admin:user:update'"
+                      v-permission="'tenant-admin:user:reset-password'"
                       @click="handleResetPassword(record)"
                     >
                       <KeyOutlined /> 重置密码
@@ -247,7 +247,7 @@
                       <EyeOutlined /> 以该用户身份预览
                     </a-menu-item>
                     <a-menu-item
-                      v-permission="'tenant-admin:user:update'"
+                      v-permission="'tenant-admin:user:update-status'"
                       @click="handleToggleStatus(record)"
                     >
                       <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
@@ -701,6 +701,7 @@ import { useSimulation } from '@/composables/useSimulation'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
+import { permissionApi } from '@/api/permission'
 import { dictItemApi } from '@/api/dict'
 import { departmentApi } from '@/api/department'
 import { userDataScopeApi, type DataScopeKey, type DataScopeTarget } from '@/api/userDataScope'
@@ -837,8 +838,9 @@ async function loadScopeSummary(rows: UserInfo[]) {
   await Promise.allSettled(rows.map(async (r) => {
     const uid = String(r.id)
     try {
-      const res = await userDataScopeApi.getUserScopes(uid) as unknown as { data?: Record<string, string[]> }
-      const map = res?.data || {}
+      const res = await userDataScopeApi.getUserScopes(uid)
+      // 拦截器已拆包：res 即 { 维度key: [id…] } 本体；旧写法只读 res.data 恒空 → 摘要列恒显示「未设置」
+      const map = ((res as unknown as { data?: Record<string, string[]> })?.data ?? res ?? {}) as Record<string, string[]>
       const counts: Record<string, number> = {}
       for (const [k, v] of Object.entries(map)) counts[k] = Array.isArray(v) ? v.length : 0
       next[uid] = counts
@@ -866,8 +868,9 @@ async function handleOpenScope(record: UserInfo, key: DataScopeKey) {
       userDataScopeApi.getTargets(key),
       userDataScopeApi.getUserScopes(scopeTargetUserId.value),
     ])
-    scopeTargets.value = ((targetsRes as unknown as { data?: DataScopeTarget[] })?.data) || []
-    const map = (scopesRes as unknown as { data?: Record<string, string[]> })?.data || {}
+    // 同上：拦截器已拆包，`?.data` 兜底写法必须回落到 res 本体，否则候选对象列表恒空
+    scopeTargets.value = (((targetsRes as unknown as { data?: DataScopeTarget[] })?.data ?? targetsRes ?? []) as DataScopeTarget[])
+    const map = (((scopesRes as unknown as { data?: Record<string, string[]> })?.data ?? scopesRes ?? {}) as Record<string, string[]>)
     scopeChecked.value = new Set((map?.[key] || []).map(id => String(id)))
   } catch (err) {
     console.warn('[用户管理] 加载数据权限失败', err)
@@ -921,11 +924,11 @@ const userTypeOptions = ref<{ label: string; value: number }[]>([])
 async function loadUserTypeOptions() {
   try {
     const res = await dictItemApi.getByDictCode('USER_TYPE')
-    if (res.data) {
-      userTypeOptions.value = res.data
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
-    }
+    // ⚠️ 响应拦截器已拆包：res 即数组本体，旧写法 `if (res.data)` 恒 false → 用户类型下拉恒空
+    const items = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as Array<{ sortOrder: number; itemText: string; itemValue: string }>
+    userTypeOptions.value = items
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
   } catch (err) {
     console.warn('[用户管理] 加载用户类型失败', err)
   }
@@ -944,6 +947,12 @@ const roleModalVisible = ref(false)
 const roleModalLoading = ref(false)
 const roleList = ref<{ key: string; title: string }[]>([])
 const targetRoleKeys = ref<string[]>([])
+/**
+ * 「分配角色」弹窗的回显是否成功。
+ * 回显失败（接口异常/无权限）时禁止提交 —— `POST /user/{id}/roles` 是全量覆盖语义，
+ * 后端收到空数组会清空该用户全部角色（见 SysUserServiceImpl.assignRoles 的空列表分支）。
+ */
+const roleModalLoaded = ref(false)
 const currentUserId = ref(0)
 
 // ── debounceClick ──────────────────────────────────────────
@@ -990,7 +999,7 @@ const tenantMap = computed(() => {
 })
 
 const loadTenants = async () => {
-  try { const res = await userApi.getTenants(); if (res.data) tenantList.value = res.data } catch (err) { tenantList.value = []; console.warn('[系统管理] 加载租户列表失败', err); message.error('加载租户列表失败') }
+  try { const res = await userApi.getTenants(); tenantList.value = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as TenantInfo[] } catch (err) { tenantList.value = []; console.warn('[系统管理] 加载租户列表失败', err); message.error('加载租户列表失败') }
 }
 
 const fetchData = async () => {
@@ -1168,18 +1177,35 @@ const handleToggleStatus = async (record: UserInfo) => {
 
 const handleAssignRole = async (record: UserInfo) => {
   currentUserId.value = record.id
+  roleModalLoaded.value = false
+  targetRoleKeys.value = []
   // 根据当前用户类型过滤角色 scope：系统用户看到 PLATFORM，租户用户看到 TENANT
   const scope = userStore.isSystemUser ? 'PLATFORM' : 'TENANT'
   const res = await roleApi.getPage({ tenantId: userStore.tenantId, scope, size: 100 } as any)
   if (res?.records) roleList.value = res.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
   try {
-    const userRes = await userApi.getById(record.id)
-    targetRoleKeys.value = (userRes.data as any)?.roleIds ? (userRes.data as any).roleIds.map(String) : []
-  } catch (err) { console.warn('[系统管理] 获取用户角色失败', err); targetRoleKeys.value = [] }
+    // ⚠️ 回显必须走 /permission/user/{id}/role-ids：
+    //    `GET /user/{id}` 返回 SysUser，**没有 roleIds 字段**，旧写法读 `userRes.data?.roleIds`
+    //    恒为空数组 → 弹窗全不勾 → 点确定走全量覆盖接口 → 该用户已有角色被静默清空。
+    const roleIdsRes = await permissionApi.getUserRoleIds(record.id)
+    const ids = Array.isArray(roleIdsRes) ? roleIdsRes : ((roleIdsRes as any)?.data ?? [])
+    targetRoleKeys.value = (ids as Array<string | number>).map(String)
+    roleModalLoaded.value = true
+  } catch (err) {
+    console.warn('[系统管理] 获取用户角色失败', err)
+    message.error('用户角色回显失败，已禁止保存以免清空其已有角色')
+    targetRoleKeys.value = []
+    roleModalLoaded.value = false
+  }
   roleModalVisible.value = true
 }
 
 const handleRoleModalOk = async () => {
+  // 回显失败时禁止提交：assignRoles 是全量覆盖语义，空数组 = 清空该用户全部角色
+  if (!roleModalLoaded.value) {
+    message.error('角色列表未成功加载，已禁止保存（避免清空该用户已有角色）。请关闭弹窗后重试。')
+    return
+  }
   roleModalLoading.value = true
   try { await userApi.assignRoles(currentUserId.value, targetRoleKeys.value.map(Number)); message.success('分配成功'); roleModalVisible.value = false } finally { roleModalLoading.value = false }
 }

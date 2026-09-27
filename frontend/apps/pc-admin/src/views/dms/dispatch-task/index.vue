@@ -894,6 +894,7 @@
       <PrintDialog
         ref="printDialogRef"
         page-code="dispatch-task"
+        :document-id="printData.id"
         :print-data="printData"
         @print-success="handlePrintSuccess"
       />

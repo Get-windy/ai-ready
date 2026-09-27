@@ -102,6 +102,17 @@ export const permissionApi = {
   // 权限生效性清单：ineffective 里的权限码勾了不会被任何代码检查（后端无注解、前端无指令）
   getEffectivity(): Promise<ApiResponse<PermissionEffectivity>> {
     return request.get('/permission/effectivity')
+  },
+
+  /**
+   * 用户已分配的角色 ID 列表（`GET /api/permission/user/{userId}/role-ids`）。
+   *
+   * 「用户管理 → 分配角色」弹窗的回显必须走这里：
+   * `GET /api/user/{id}` 返回的是 SysUser，**没有 roleIds 字段**，拿它回显会恒为空数组，
+   * 而保存走的是全量覆盖接口 → 会把该用户已有角色清空。
+   */
+  getUserRoleIds(userId: number | string): Promise<ApiResponse<number[]>> {
+    return request.get(`/permission/user/${userId}/role-ids`)
   }
 }
 

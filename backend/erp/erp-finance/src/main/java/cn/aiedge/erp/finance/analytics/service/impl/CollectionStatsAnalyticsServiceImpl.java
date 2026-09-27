@@ -58,13 +58,21 @@ public class CollectionStatsAnalyticsServiceImpl implements CollectionStatsAnaly
     //  维度表达式
     // ════════════════════════════════════════════════════════════════
 
-    /** 编号表达式：按名称回主数据（标量子查询，避免一码多名导致行膨胀） */
-    private static String codeExpr(boolean staff, String nameExpr) {
+    /**
+     * 编号表达式：按名称回主数据（标量子查询，避免一码多名导致行膨胀）。
+     *
+     * <p>⚠️ 2026-09-23 修复：子查询原来**没有租户条件**，命中别租户的同名职员/部门时
+     * 会取到别租户的 {@code username} / {@code dept_code}（属"串号不串数"，金额不受影响）。
+     * 这里用相关子查询绑定到外层主表别名，保证主数据与单据同租户。</p>
+     *
+     * @param alias 外层主表别名（该表必须带 tenant_id 列）
+     */
+    private static String codeExpr(boolean staff, String nameExpr, String alias) {
         if (staff) {
-            return "(SELECT u.username FROM sys_user u WHERE u.deleted = 0"
+            return "(SELECT u.username FROM sys_user u WHERE u.deleted = 0 AND u.tenant_id = " + alias + ".tenant_id"
                 + " AND (u.real_name = " + nameExpr + " OR u.nickname = " + nameExpr + ") ORDER BY u.id LIMIT 1)";
         }
-        return "(SELECT d.dept_code FROM sys_department d WHERE d.deleted = 0"
+        return "(SELECT d.dept_code FROM sys_department d WHERE d.deleted = 0 AND d.tenant_id = " + alias + ".tenant_id"
             + " AND d.dept_name = " + nameExpr + " LIMIT 1)";
     }
 
@@ -124,7 +132,7 @@ public class CollectionStatsAnalyticsServiceImpl implements CollectionStatsAnaly
         } else {
             w.like("r.department_name", q.getDeptName());
         }
-        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr) + ") AS \"c\","
+        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr, "r") + ") AS \"c\","
             + " COUNT(*) AS \"dc\", COALESCE(SUM(COALESCE(r.receipt_amount,0)),0) AS \"amt\""
             + " FROM erp_receipt r"
             + " WHERE r.deleted = 0 AND r.tenant_id = ? AND r.status >= 2 AND r.status NOT IN (3,8)"
@@ -156,7 +164,7 @@ public class CollectionStatsAnalyticsServiceImpl implements CollectionStatsAnaly
         } else {
             w.like("pr.dept_name", q.getDeptName());
         }
-        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr) + ") AS \"c\","
+        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr, "pr") + ") AS \"c\","
             + " COUNT(*) AS \"dc\","
             // 预收款金额：pre_receipt_amount 在真库中恒为 0（由明细汇总，未回写），依次回落到 amount / total_amount
             + " COALESCE(SUM(COALESCE(NULLIF(pr.pre_receipt_amount,0), NULLIF(pr.amount,0),"
@@ -189,7 +197,7 @@ public class CollectionStatsAnalyticsServiceImpl implements CollectionStatsAnaly
         } else {
             w.like("spo.dept_name", q.getDeptName());
         }
-        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr) + ") AS \"c\","
+        String sql = "SELECT " + nameExpr + " AS \"k\", MAX(" + codeExpr(staff, nameExpr, "spo") + ") AS \"c\","
             + " COUNT(*) AS \"dc\", COALESCE(SUM(COALESCE(spo.received_deposit,0)),0) AS \"amt\""
             + " FROM erp_sale_pre_order spo"
             + " WHERE spo.deleted = 0 AND spo.tenant_id = ? AND spo.status > 0 AND spo.status <> 6"

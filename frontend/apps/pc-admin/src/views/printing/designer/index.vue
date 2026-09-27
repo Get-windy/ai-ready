@@ -77,7 +77,7 @@
         <div class="toolbar-right">
           <a-space>
             <a-button
-              v-permission="'printing:designer:preview'"
+              v-permission="'print:format:view'"
               @click="handlePreview"
             >
               <template #icon>
@@ -86,13 +86,13 @@
               预览
             </a-button>
             <a-button
-              v-permission="'printing:designer:savedraft'"
+              v-permission="'print:template:update'"
               @click="handleSaveDraft"
             >
               保存草稿
             </a-button>
             <a-button
-              v-permission="'printing:designer:publish'"
+              v-permission="'print:template:publish'"
               type="primary"
               @click="handlePublish"
             >

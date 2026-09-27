@@ -96,6 +96,30 @@ public class MallGuestAccess {
     }
 
     /**
+     * 解析当前访问的店铺并做**游客准入校验**，返回该店铺配置。
+     *
+     * <p>2026-09-26 由 {@code MallProductServiceImpl#requireShop()} 上提到此处：
+     * 「店铺配置下发」「商品列表」「标签」等 C 端接口都需要**同一套**准入判定，
+     * 各写一份迟早出现"商品进不去但配置能看到"这类不一致。所有 C 端只读接口
+     * 一律走本方法。</p>
+     *
+     * <p>取不到店铺 ⇒ 明确报错（不退化查全表/tenant 0）；无配置行或未开放游客 ⇒ 拒绝。</p>
+     */
+    public ShopConfig requireShop() {
+        Long tenantId = currentShopTenantId();
+        if (tenantId == null) {
+            throw cn.aiedge.common.exception.BusinessException
+                    .badRequest("无法确定店铺：请携带 X-Tenant-Id 请求头，或先登录");
+        }
+        ShopConfig config = shopConfig(tenantId);
+        if (!guestMayBrowse(config)) {
+            throw cn.aiedge.common.exception.BusinessException
+                    .forbidden("该店铺未开放游客访问，请先登录");
+        }
+        return config;
+    }
+
+    /**
      * 游客是否有权浏览指定店铺。
      *
      * <p>已登录用户一律放行；游客需该店铺 {@code allowGuest = ALLOW}。

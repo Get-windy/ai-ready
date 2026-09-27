@@ -1101,17 +1101,30 @@ async function handleImportUpload() {
   const formData = new FormData()
   formData.append('file', file.originFileObj || file)
 
-  const dataTypeMap: Record<string, string> = {
-    customer: 'customer', supplier: 'customer', logistics: 'customer', partner: 'customer',
-  }
-  const dataType = dataTypeMap[props.partnerType] || 'customer'
+  // ⚠️ 必须走资料模块自带的**真实**导入端点 `/erp/md/customer/import-excel`：
+  //    · 它按 partnerType 落不同的 party_type，并做编码生成 + 编号查重；
+  //    · 旧代码把 supplier/logistics/partner 全部映射成 customer、调 `/import/v2/excel/customer`，
+  //      而那条链路（cn.aiedge.export）**只解析校验、完全不落库**却回执「成功 N 条」
+  //      （2026-09-24 系统模块审计 P0）；顺带旧映射还会把供应商/物流公司错落成客户类型。
+  const partnerType = props.partnerType || 'customer'
 
   importLoading.value = true
   try {
-    await request.post(`/import/v2/excel/${dataType}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    message.success('导入成功')
+    const res: any = await request.post(
+      `/erp/md/customer/import-excel?partnerType=${encodeURIComponent(partnerType)}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    const errors: string[] = Array.isArray(res?.errors) ? res.errors : []
+    const okCount = Number(res?.success) || 0
+    if (errors.length) {
+      message.warning(
+        `导入完成：成功 ${okCount} 条，失败 ${errors.length} 条。${errors.slice(0, 2).join('；')}${errors.length > 2 ? ' …' : ''}`,
+        8,
+      )
+    } else {
+      message.success(`导入成功 ${okCount} 条`)
+    }
     importModalVisible.value = false
     fetchList()
   } catch (e: any) {

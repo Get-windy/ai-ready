@@ -1,5 +1,21 @@
 # AI-Ready 文件存储模块文档
 
+> ## ⚠️ 当前状态：**未装配（整包不在 `scanBasePackages` 内）**
+>
+> 2026-09-26 系统模块审计复核：
+> - `AiReadyApplication.scanBasePackages` **不含 `cn.aiedge.storage`** ⇒ 本包的 3 个控制器
+>   （`FileStorageController` `/api/storage`、`ChunkUploadController` `/api/storage/chunk`、
+>   `FileAccessController` `/files/**`）**运行期全部 404**，共 16 个端点不可达。
+> - **本系统实际在用的上传实现是另一套**：`cn.aiedge.common.file.FileUploadController`（`/api/file/**`）
+>   —— 企业 LOGO 等上传走的是它；「平台设置 → 存储配置」页调的是
+>   `cn.aiedge.platform.StorageConfigController`（`/api/storage-config`），也已装配。
+> - 所以本包目前是**死目录**，不产生任何运行效果。包内 `LocalFileStorageService`、
+>   `ChunkUploadServiceImpl` 还留有 3 处「简化实现」注释 —— 因未装配当前不影响运行，
+>   **但一旦加进扫描路径就会立刻暴露**。
+>
+> **决策项（留给后续）**：要么把本包接进 `scanBasePackages` 并把 `/api/file/**` 收敛过来，
+> 要么整体删除。**在此之前不要把它当作可用能力。**
+
 ## 概述
 
 本模块提供统一的文件存储管理能力，支持多种存储后端（本地、MinIO、OSS、S3等）。

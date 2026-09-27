@@ -31,7 +31,7 @@
               <ReloadOutlined /> 刷新
             </a-button>
             <a-button
-              v-permission="'wms:event:process'"
+              v-permission="'wms:event:execute'"
               size="small"
               @click="handleProcessPending"
             >
@@ -184,7 +184,7 @@
                     </a-tooltip>
                     <a-tooltip title="查看详情">
                       <a-button
-                        v-permission="'wms:event:view'"
+                        v-permission="'wms:event:list'"
                         type="link"
                         size="small"
                         @click="handleView(record as any)"

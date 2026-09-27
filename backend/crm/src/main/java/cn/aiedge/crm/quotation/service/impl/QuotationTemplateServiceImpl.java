@@ -1,6 +1,7 @@
 package cn.aiedge.crm.quotation.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.quotation.entity.QuotationTemplate;
 import cn.aiedge.crm.quotation.entity.QuotationTemplateItem;
 import cn.aiedge.crm.quotation.mapper.QuotationTemplateItemMapper;
@@ -24,6 +25,8 @@ import java.util.List;
 public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateMapper, QuotationTemplate> implements QuotationTemplateService {
 
     private final QuotationTemplateItemMapper templateItemMapper;
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public QuotationTemplate getByTemplateCode(String templateCode) {
@@ -68,20 +71,8 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
 
     @Override
     public String generateTemplateCode() {
-        String prefix = "QT-TPL";
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        LambdaQueryWrapper<QuotationTemplate> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(QuotationTemplate::getTemplateCode, prefix + dateStr)
-                .eq(QuotationTemplate::getDeleted, 0)
-                .orderByDesc(QuotationTemplate::getTemplateCode)
-                .last("LIMIT 1");
-        QuotationTemplate lastTemplate = getOne(wrapper);
-        int seq = 1;
-        if (lastTemplate != null) {
-            String lastNo = lastTemplate.getTemplateCode();
-            seq = Integer.parseInt(lastNo.substring(lastNo.length() - 4)) + 1;
-        }
-        return prefix + dateStr + String.format("%04d", seq);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），替代「查当日最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_QUOTTPL");
     }
 
     @Override

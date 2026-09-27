@@ -35,7 +35,7 @@
             </a-button>
             <a-button
               v-if="isButtonEnabled('batchSend')"
-              v-permission="'crm:quotation:batchsend'"
+              v-permission="'crm:quotation:send'"
               size="small"
               :disabled="selectedIds.size === 0"
               @click="handleBatchSend"
@@ -642,7 +642,7 @@
                 </a-button>
                 <a-button
                   v-if="detailData.status === 2"
-                  v-permission="'crm:quotation:sendfromdetail'"
+                  v-permission="'crm:quotation:send'"
                   type="primary"
                   @click="openSendModal(detailData)"
                 >
@@ -657,7 +657,7 @@
                 </a-button>
                 <a-button
                   v-if="detailData.status === 4"
-                  v-permission="'crm:quotation:convertfromdetail'"
+                  v-permission="'crm:quotation:convert'"
                   type="primary"
                   @click="handleConvert(detailData)"
                 >

@@ -325,7 +325,7 @@
                     placement="bottom"
                   >
                     <a-button
-                      v-permission="'crm:opportunity:move'"
+                      v-permission="'crm:opportunity:edit'"
                       type="link"
                       size="small"
                       @click="handleMove(record)"

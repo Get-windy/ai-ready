@@ -35,6 +35,8 @@ public class AiReadyTenantLineInnerInterceptor extends TenantLineInnerIntercepto
 
     /**
      * 是否跳过租户注入。三种情形，判定顺序即优先级：
+     * <p><b>适用范围</b>：只用于 SELECT / UPDATE / DELETE（读与改的过滤口径）。
+     * <b>INSERT 不走本方法</b> —— 写路径必须盖章，见 {@link #processInsert}。</p>
      * <ol>
      *   <li><b>当前会话整体豁免</b>：平台超级管理员（`SUPER_ADMIN`）⇒ 跳过。
      *       拦截器本身不认识「超管」，不加这一条，给某张表开了自动注入后超管也会被收敛到自己的会话租户，
@@ -108,9 +110,31 @@ public class AiReadyTenantLineInnerInterceptor extends TenantLineInnerIntercepto
         super.processSelect(select, index, sql, obj);
     }
 
+    /**
+     * INSERT 的租户盖章**不享受「超管整体豁免」**。
+     *
+     * <p><b>为什么单独开一条口径（2026-09-26 实测定性）</b>：
+     * 写路径上，本仓长期存在一条错误认知 ——「tenant_id 由 `MetaObjectHandler.insertFill` 自动盖章」。
+     * 实际不成立：MyBatis 构建语句时，`BaseStatementHandler` 先 `mappedStatement.getBoundSql()`
+     * （MP 生成的 `<if test="et.tenantId != null">tenant_id,</if>` 在这一步就**定稿**），
+     * 之后才 `newParameterHandler()`；而 MP 的填充发生在 `MybatisParameterHandler` 的构造参数求值里。
+     * ⇒ **对没有标 `@TableField(fill = ...)` 的普通字段（`tenantId` 正是），insertFill 的赋值
+     * 永远进不了 SQL**。全仓只有 `mall/b2b/model/BaseEntity` 与 `ApiAccessLog` 两处给 tenantId 标了 fill，
+     * 其余 439 处能正确落租户的写入**全部是业务代码显式 `setTenantId(...)`**。
+     *
+     * <p>于是：非超管写入时，父类 `processInsert` 会兜底盖章；而超管走的是 `shouldSkip()` 的第①支
+     * （租户隔离整体豁免），**连写也一起跳过了** → 新行落到 `tenant_id` 列默认值 **0**，对自己租户不可见，
+     * 全程无报错、无日志。2026-09-18 起 `biz_party`（客户/会员建档，唯一只依赖 fill 的路径）
+     * 持续落 0，正是此因；`tools/e2e-marketing.cjs` 的前置守卫因此长期失败。
+     *
+     * <p>所以这里把「读豁免」和「写盖章」分开：读（SELECT/UPDATE/DELETE）照旧豁免，超管保留全局视野；
+     * **写（INSERT）只要有可解析的租户就必须盖章**，解析不出（未登录的种子/登录链路、无租户上下文的
+     * 调度线程）才跳过，由调用方显式指定。调用方已显式 `setTenantId` 时，
+     * 父类 `ignoreInsert` 会因列已存在而跳过，原值不会被覆盖。
+     */
     @Override
     protected void processInsert(Insert insert, int index, String sql, Object obj) {
-        if (shouldSkip()) {
+        if (MyBatisPlusConfig.getCurrentTenantIdValue() == null) {
             return;
         }
         super.processInsert(insert, index, sql, obj);

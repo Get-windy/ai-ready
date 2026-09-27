@@ -16,7 +16,7 @@
           </template>
           <template #description>
             <div>
-              数据源：<code>GET /api/customer/export</code>（全量客户），本页由前端实时聚合，
+              数据源：<code>GET /api/crm/customer/export</code>（全量客户），本页由前端实时聚合，
               <b>不含分页</b>；时段条件按<b>创建时间 createdAt</b> 过滤，参与 4 张卡片与全部图表。
             </div>
             <div>

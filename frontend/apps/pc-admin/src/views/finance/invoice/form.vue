@@ -2,7 +2,7 @@
   <ErrorBoundary @error="handleError">
     <PageContainer full-height>
       <!--
-        CRM 发票 · 单据表单页（菜单 70350 的主入口 path=crm/invoice/form）
+        财务 · 发票单据表单页（2026-09-26 由 CRM 搬入财务；菜单 80152 主入口 path=finance/invoice/form）
         · CRM 为本系统独有模块（ql361 无 CRM 域）；后端不在 crm 模块，而是 ERP 财务 InvoiceController
           （@RequestMapping("/api/erp/invoice")，纯 Spring Data JPA，实体 85 列）
         · 注意：菜单点开**直接进本页**（与客户/线索/商机/合同相反），标签「历史」才到列表页
@@ -908,7 +908,7 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import type { QueryFieldSetting, FunctionButtonSetting } from '@/components/PageConfigPanel/index.vue'
-import { invoiceApi, crmCustomerApi } from '@/api/crm'
+import { invoiceApi } from '@/api/finance/invoice'
 import { productApi } from '@/api/erp/product'
 import { supplierApi } from '@/api/supplier'
 import { useUserStore } from '@/stores/user'
@@ -1136,8 +1136,10 @@ function filterOption(input: string, option: any): boolean {
 
 async function loadCustomerOptions() {
   try {
-    const res: any = await crmCustomerApi.page({ pageNum: 1, pageSize: 200 })
-    customerOptions.value = (res?.records || []).map((c: any) => ({ label: c.customerName || c.name, value: c.id }))
+    // 发票属财务单据 ⇒ 客户主体取 ERP 往来单位（biz_party），不再取 CRM 公海客户
+    const res: any = await request.get('/erp/md/customer/list', { partnerType: 'CUSTOMER', status: 'ENABLED', pageSize: 200 })
+    const list = res?.data || res || []
+    customerOptions.value = (Array.isArray(list) ? list : []).map((c: any) => ({ label: c.partnerName || c.partyName || '', value: c.id }))
   } catch (e) {
     console.warn('[发票表单] 客户下拉加载失败', e)
     customerOptions.value = []
@@ -1146,8 +1148,11 @@ async function loadCustomerOptions() {
 async function handleCustomerSearch(keyword: string) {
   customerLoading.value = true
   try {
-    const list: any = await crmCustomerApi.dropdown(keyword || undefined)
-    const searched = (Array.isArray(list) ? list : []).map((c: any) => ({ label: c.name, value: c.id }))
+    // 后端 /erp/md/customer/list 不支持关键词参数，按已加载列表做前端过滤
+    const kw = String(keyword || '').trim().toLowerCase()
+    const searched = kw
+      ? customerOptions.value.filter((o: any) => String(o.label || '').toLowerCase().includes(kw))
+      : customerOptions.value
     // 保留当前已选项，避免远端结果里没有它时下拉退化成显示 id
     const kept = customerOptions.value.filter(o => String(o.value) === String(form.customerId))
     const merged = new Map<string, any>()
@@ -1444,18 +1449,6 @@ async function fetchData() {
   form.invoiceStatus = 'GENERATED'
   if (!form.items.length) form.items.push(createEmptyItem())
 }
-const invoiceOps = {
-  /** 开具/状态变更：newStatus 取 InvoiceStatus 枚举 name（后端无 ISSUED） */
-  updateStatus(id: any, newStatus: string, notes?: string) {
-    return request.put(`/erp/invoice/${id}/status`, null, { params: { newStatus, notes } })
-  },
-  send(id: any, sendMethod: string, sentBy: any) {
-    return request.post(`/erp/invoice/${id}/send`, null, { params: { sendMethod, sentBy } })
-  },
-  voidInvoice(id: any, reason: string, voidedBy: any) {
-    return request.post(`/erp/invoice/${id}/void`, null, { params: { reason, voidedBy } })
-  },
-}
 
 /**
  * 保存 payload：只提交 Invoice 实体真实存在的字段。
@@ -1540,7 +1533,7 @@ async function handleSave() {
     message.success('保存成功')
     if (res?.id) {
       await loadDetail(String(res.id))
-      await router.replace({ path: '/crm/invoice/form', query: { id: String(res.id) } })
+      await router.replace({ path: '/finance/invoice/form', query: { id: String(res.id) } })
     }
   } catch (e: any) {
     console.warn('[发票表单] 保存失败', e)
@@ -1570,7 +1563,7 @@ function handleFlowAction(key: string) {
       centered: true,
       onOk: async () => {
         try {
-          await invoiceOps.updateStatus(form.id, 'GENERATED', '前端开具')
+          await invoiceApi.updateStatus(form.id, 'GENERATED', '前端开具')
           message.success('发票已开具（状态：已生成）')
           await loadDetail(String(form.id))
         } catch (e) {
@@ -1603,7 +1596,7 @@ async function handleSendConfirm() {
   }
   flowLoading.value = true
   try {
-    await invoiceOps.send(form.id, sendMethod.value, sentBy)
+    await invoiceApi.sendInvoice(form.id, sendMethod.value, sentBy)
     message.success('发票已发送')
     sendVisible.value = false
     await loadDetail(String(form.id))
@@ -1627,7 +1620,7 @@ async function handleVoidConfirm() {
   }
   flowLoading.value = true
   try {
-    await invoiceOps.voidInvoice(form.id, reason, voidedBy)
+    await invoiceApi.voidInvoice(form.id, reason, voidedBy)
     message.success('发票已作废')
     voidVisible.value = false
     await loadDetail(String(form.id))
@@ -1736,11 +1729,11 @@ function handleBack() {
       okText: '离开',
       cancelText: '取消',
       centered: true,
-      onOk: () => router.push('/crm/invoice'),
+      onOk: () => router.push('/finance/invoice/index'),
     })
     return
   }
-  router.push('/crm/invoice')
+  router.push('/finance/invoice/index')
 }
 onBeforeRouteLeave((_to, _from, next) => {
   if (dirty.value) {

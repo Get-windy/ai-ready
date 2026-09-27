@@ -45,12 +45,16 @@ public interface PaymentService {
     void cancelPayment(Long id);
 
     /**
-     * 处理支付回调
-     * @param channel 渠道
-     * @param callbackData 回调数据
-     * @return 支付记录
+     * 处理**已通过验签**的支付回调结果（F-07，2026-09-26）。
+     *
+     * <p>⚠️ 入参是 {@link cn.aiedge.base.payment.PaymentCallbackResult} —— 即
+     * {@code PaymentCallbackVerifier#verify} 的产物，**不是**原始报文。
+     * 这样"改单"这件事在类型上就只能发生在验签之后：调用方拿不到原始报文，
+     * 也就无法绕过验签去改单（原先的 {@code handleCallback(channel, callbackData)}
+     * 正是这个漏洞 —— 渠道实现的桩无条件 {@code setStatus(2)}，任何登录用户
+     * POST 一下就能把支付单置为已支付，见审计 P0-2）。</p>
      */
-    PaymentRecord handleCallback(String channel, String callbackData);
+    PaymentRecord handleVerifiedCallback(Long tenantId, String channel, cn.aiedge.base.payment.PaymentCallbackResult result);
 
     /**
      * 确认线下支付

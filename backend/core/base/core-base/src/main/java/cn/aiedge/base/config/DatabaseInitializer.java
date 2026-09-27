@@ -837,13 +837,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             "deleted INTEGER DEFAULT 0, create_by BIGINT, create_time TIMESTAMP, " +
             "update_by BIGINT, update_time TIMESTAMP");
 
-        // erp_partner_grade (complete)
-        safeCreateTable("erp_partner_grade", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
-            "grade_code VARCHAR(255), grade_name VARCHAR(255), grade_type VARCHAR(255), " +
-            "grade_level INTEGER, sort_order INTEGER, " +
-            "status INTEGER DEFAULT 1, description VARCHAR(255), remark VARCHAR(500), " +
-            "deleted INTEGER DEFAULT 0, create_by BIGINT, create_time TIMESTAMP, " +
-            "update_by BIGINT, update_time TIMESTAMP");
+        // erp_partner_grade 已下线（2026-09-26 客户级别收敛到 biz_customer_grade）；
+        // 此前的 safeCreateTable 会在每次启动时把 V9.13.2 已 DROP 的表重建出来，故整段移除。
 
         // finance_ledger (complete)
         safeCreateTable("finance_ledger", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +

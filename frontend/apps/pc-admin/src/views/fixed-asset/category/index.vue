@@ -45,7 +45,7 @@
               新增分类
             </a-button>
             <a-button
-              v-permission="'erp:fixed-asset:category:list'"
+              v-permission="'fixed-asset:category:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchTree)()"
@@ -133,7 +133,7 @@
               >
                 <template #extra>
                   <a-button
-                    v-permission="'erp:fixed-asset:category:create'"
+                    v-permission="'fixed-asset:category:create'"
                     type="primary"
                     size="small"
                     @click="showAddRootModal"
@@ -185,20 +185,20 @@
                   </a-descriptions>
                   <a-space style="margin-top: 16px">
                     <a-button
-                      v-permission="'erp:fixed-asset:category:update'"
+                      v-permission="'fixed-asset:category:update'"
                       type="primary"
                       @click="showEditModal"
                     >
                       编辑
                     </a-button>
                     <a-button
-                      v-permission="'erp:fixed-asset:category:create'"
+                      v-permission="'fixed-asset:category:create'"
                       @click="showAddChildModal"
                     >
                       添加子分类
                     </a-button>
                     <a-popconfirm
-                      v-permission="'erp:fixed-asset:category:delete'"
+                      v-permission="'fixed-asset:category:delete'"
                       title="确认删除?"
                       @confirm="handleDelete"
                     >

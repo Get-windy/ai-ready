@@ -1,8 +1,10 @@
 package cn.aiedge.trade.mapper;
 
 import cn.aiedge.trade.entity.ExternalChannelConfig;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.Map;
@@ -32,4 +34,18 @@ public interface ExternalChannelConfigMapper extends BaseMapper<ExternalChannelC
             + "  OR (token_expire_time IS NOT NULL AND token_expire_time < NOW()) THEN 1 ELSE 0 END), 0)::int AS \"abnormalCount\" "
             + "FROM external_channel_config WHERE deleted = 0")
     Map<String, Object> statChannels();
+
+    /**
+     * 按 appId 查启用渠道的对接密钥（开放 API `/api/open/**` 验签用）。
+     *
+     * <p>⚠️ 必须 {@code @InterceptorIgnore(tenantLine = "true")}：外部平台调用 `/api/open/**` 时
+     * **没有登录会话、也没有租户上下文**（这正是它要被放行的原因），租户插件注入的
+     * `AND tenant_id = ?` 会让查询恒空 ⇒ 验签永远失败、开放接口全 401。</p>
+     *
+     * <p>同理必须自带 `deleted = 0`（逻辑删除只作用于 MyBatis-Plus 内置方法）。</p>
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT app_id AS \"appId\", app_secret AS \"appSecret\" FROM external_channel_config "
+            + "WHERE deleted = 0 AND status = 1 AND app_id = #{appId} LIMIT 1")
+    Map<String, Object> selectSecretByAppId(@Param("appId") String appId);
 }

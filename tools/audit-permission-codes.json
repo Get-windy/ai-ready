@@ -813,13 +813,6 @@
   "party:contacts:list",
   "party:contacts:update",
   "party:create",
-  "party:customer-level:assign",
-  "party:customer-level:create",
-  "party:customer-level:delete",
-  "party:customer-level:detail",
-  "party:customer-level:list",
-  "party:customer-level:update",
-  "party:customer-level:view",
   "party:customer-region:create",
   "party:customer-region:delete",
   "party:customer-region:detail",
@@ -1025,7 +1018,9 @@
   "purchase:contract:detail",
   "purchase:contract:export",
   "purchase:contract:list",
+  "purchase:contract:submit",
   "purchase:contract:update",
+  "purchase:contract:view",
   "purchase:cost-sharing:cancel",
   "purchase:cost-sharing:complete",
   "purchase:cost-sharing:create",
@@ -1075,7 +1070,10 @@
   "purchase:order:create",
   "purchase:order:delete",
   "purchase:order:detail",
+  "purchase:order:export",
+  "purchase:order:import",
   "purchase:order:list",
+  "purchase:order:print",
   "purchase:order:submit",
   "purchase:order:update",
   "purchase:order:view",
@@ -1239,7 +1237,6 @@
   "set:initial-stock:update",
   "set:menu-config:list",
   "set:menu-config:update",
-  "set:menu-config:view|update",
   "set:print-config:update",
   "set:print-config:view",
   "set:rebuild:execute",
@@ -1791,6 +1788,7 @@
   "crm:contract:detailrefresh",
   "crm:contract:download",
   "crm:contract:edit",
+  "crm:contract:refresh",
   "crm:contract:renewapply",
   "crm:contract:sign",
   "crm:contract:view",
@@ -1801,7 +1799,6 @@
   "crm:customer:batchassign",
   "crm:customer:create",
   "crm:customer:delete",
-  "crm:customer:edit",
   "crm:customer:follow",
   "crm:customer:import",
   "crm:customer:list",
@@ -1813,13 +1810,6 @@
   "crm:follow-up:detail",
   "crm:follow-up:list",
   "crm:follow-up:update",
-  "crm:invoice:cancelconfirm",
-  "crm:invoice:create",
-  "crm:invoice:detailrefresh",
-  "crm:invoice:edit",
-  "crm:invoice:issue",
-  "crm:invoice:send",
-  "crm:invoice:view",
   "crm:lead:assign",
   "crm:lead:batchassign",
   "crm:lead:batchconvert",
@@ -2278,6 +2268,7 @@
   "hr:leave:quota",
   "hr:leave:update",
   "hr:performance:confirm",
+  "hr:performance:delete",
   "hr:performance:list",
   "hr:performance:update",
   "hr:position:create",
@@ -2289,6 +2280,7 @@
   "hr:recruitment:list",
   "hr:recruitment:update",
   "hr:salary:confirm",
+  "hr:salary:delete",
   "hr:salary:generate",
   "hr:salary:list",
   "hr:salary:update",
@@ -2598,13 +2590,6 @@
   "party:contacts:list",
   "party:contacts:update",
   "party:create",
-  "party:customer-level:assign",
-  "party:customer-level:create",
-  "party:customer-level:delete",
-  "party:customer-level:detail",
-  "party:customer-level:list",
-  "party:customer-level:update",
-  "party:customer-level:view",
   "party:customer-region:create",
   "party:customer-region:delete",
   "party:customer-region:detail",
@@ -2930,7 +2915,6 @@
   "sale:analysis:list",
   "sale:detail-query:export",
   "sale:detail-query:list",
-  "sale:discount:edit",
   "sale:doc-query:list",
   "sale:doc-query:update",
   "sale:exchange:approve",
@@ -2950,7 +2934,6 @@
   "sale:logistics:list",
   "sale:logistics:update",
   "sale:logistics:view",
-  "sale:manage",
   "sale:order:approve",
   "sale:order:cancel",
   "sale:order:create",
@@ -3030,7 +3013,6 @@
   "sale:return:submit",
   "sale:return:update",
   "sale:return:view",
-  "sale:settle:force",
   "set:app-center:view",
   "set:company-info:save",
   "set:initial-finance:create",
@@ -3554,23 +3536,12 @@
   "workflow:task:transfer",
   "workflow:task:view"
  ],
- "missing_in_db": [
-  "crm:contract:refresh",
-  "set:menu-config:view|update"
- ],
+ "missing_in_db": [],
  "unused_in_code": [
   "crm:contract:detailrefresh",
   "crm:customer:addtolevel",
   "crm:customer:batchassign",
-  "crm:customer:edit",
   "crm:customer:refresh",
-  "crm:invoice:cancelconfirm",
-  "crm:invoice:create",
-  "crm:invoice:detailrefresh",
-  "crm:invoice:edit",
-  "crm:invoice:issue",
-  "crm:invoice:send",
-  "crm:invoice:view",
   "crm:lead:assign",
   "crm:lead:batchassign",
   "crm:lead:import",
@@ -3614,6 +3585,7 @@
   "hr:leave:quota",
   "hr:leave:update",
   "hr:performance:confirm",
+  "hr:performance:delete",
   "hr:performance:list",
   "hr:performance:update",
   "hr:position:create",
@@ -3625,6 +3597,7 @@
   "hr:recruitment:list",
   "hr:recruitment:update",
   "hr:salary:confirm",
+  "hr:salary:delete",
   "hr:salary:generate",
   "hr:salary:list",
   "hr:salary:update",
@@ -3636,18 +3609,10 @@
   "product:purchase-price:view",
   "product:retail-price:view",
   "product:wholesale-price:view",
-  "purchase:contract:submit",
-  "purchase:contract:view",
   "purchase:manage",
-  "purchase:order:export",
-  "purchase:order:import",
-  "purchase:order:print",
   "purchase:price:edit",
   "receipt:account:select",
   "role:manage",
-  "sale:discount:edit",
-  "sale:manage",
-  "sale:settle:force",
   "set:system-task:download",
   "set:system-task:view",
   "stock:check:approve",
@@ -3846,46 +3811,46 @@
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:100",
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:137",
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:155",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:46",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:69",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:35",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:42",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:52",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:64",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:74",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:109",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:41",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:71"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:52",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:75",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:43",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:50",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:60",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:72",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:82",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:117",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:47",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:77"
   ],
   "log:oper:detail": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:119",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:62",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:61"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:68",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:67"
   ],
   "log:oper:delete": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:173",
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:194",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:137",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:166",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:176",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:187"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:143",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:172",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:182",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:193"
   ],
   "log:oper:export": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:206",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:95",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:126",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:151",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:176",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:118"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:101",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:134",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:159",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:184",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:124"
   ],
   "log:login:list": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:247",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:146",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:168"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:152",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:174"
   ],
   "log:login:export": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:265",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:193"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:199"
   ],
   "system:cache:view": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/cache/controller/CacheManageController.java:53",
@@ -4085,17 +4050,17 @@
   ],
   "system:dataexport:export": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:35",
-   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:51",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:49",
    "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportControllerExt.java:36",
    "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportControllerExt.java:56",
    "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportControllerExt.java:75"
   ],
   "system:dataexport:import": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:65",
-   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:82"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:61",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:79"
   ],
   "system:dataexport:view": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:98",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportController.java:94",
    "backend/core/api/core-api/src/main/java/cn/aiedge/export/controller/DataExportControllerExt.java:90"
   ],
   "system:import:check": [
@@ -4741,21 +4706,21 @@
    "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:650"
   ],
   "log:oper:stats": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:76",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:85",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:86",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:97",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:118",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:81",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:93",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:106"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:82",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:91",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:94",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:105",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/AdvancedLogController.java:126",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:87",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:99",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/controller/SystemLogController.java:112"
   ],
   "log:login:detail": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:161"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:167"
   ],
   "log:login:stats": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:175",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:184"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:181",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:190"
   ],
   "tenant-admin:permission-template:create": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:34"
@@ -4815,9 +4780,6 @@
   "system:session:disable": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:92",
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:105"
-  ],
-  "set:menu-config:view|update": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SetMenuConfigController.java:38"
   ],
   "set:menu-config:list": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SetMenuConfigController.java:83"
@@ -4966,11 +4928,11 @@
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/ErrorReportController.java:111"
   ],
   "log:structured:list": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:47",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:180"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:53",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:186"
   ],
   "log:structured:stats": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:129"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/log/StructuredLogController.java:135"
   ],
   "quality:certificate:create": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/quality/controller/QualityCertificateController.java:25"
@@ -5212,25 +5174,25 @@
    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:108"
   ],
   "payment:request:create": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:42"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:54"
   ],
   "payment:request:list": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:56",
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:73",
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:81"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:68",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:85",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:93"
   ],
   "payment:request:cancel": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:88"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:100"
   ],
   "payment:request:confirm": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:105"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:193"
   ],
   "payment:record:list": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:115",
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:130"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:203",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:218"
   ],
   "payment:channel:list": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:138"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:226"
   ],
   "payment:reconciliation:execute": [
    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/ReconciliationController.java:30"
@@ -5249,20 +5211,20 @@
    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/ReconciliationController.java:70"
   ],
   "payment:refund:create": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:29"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:32"
   ],
   "payment:refund:list": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:41",
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:91"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:44",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:106"
   ],
   "payment:refund:view": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:56"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:59"
   ],
   "payment:refund:detail": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:64"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:67"
   ],
   "payment:refund:approve": [
-   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:71"
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/RefundController.java:74"
   ],
   "automation:rule:create": [
    "backend/core/platform/core-platform/src/main/java/cn/aiedge/automation/controller/AutomationRuleController.java:27"
@@ -5445,104 +5407,104 @@
    "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java:236"
   ],
   "crm:customer:list": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:27",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:87",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:135"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:30",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:96",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:144"
   ],
   "crm:customer:view": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:41",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:48",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:99",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:106",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:113",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:168",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:187"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:44",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:57",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:108",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:115",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:122",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:177",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:196"
   ],
   "crm:customer:create": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:55"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:64"
   ],
   "crm:customer:update": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:64",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:143"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:73",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:152"
   ],
   "crm:customer:delete": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:73",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:80"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:82",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:89"
   ],
   "crm:customer:import": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:157"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:166"
   ],
   "crm:customer:follow": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:175"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:184"
   ],
   "crm:follow-up:list": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:25"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:26"
   ],
   "crm:follow-up:detail": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:32",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:39",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:71",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:78"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:33",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:45",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:77",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:84"
   ],
   "crm:follow-up:create": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:46"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:52"
   ],
   "crm:follow-up:update": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:55"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:61"
   ],
   "crm:follow-up:delete": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:64"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:70"
   ],
   "crm:lead:view": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:85",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:26",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:39",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:46",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:110"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:91",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:27",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:40",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:52",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:116"
   ],
   "crm:lead:create": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:53"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:59"
   ],
   "crm:lead:edit": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:62"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:68"
   ],
   "crm:lead:delete": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:71",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:78"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:77",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:84"
   ],
   "crm:lead:export": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:85"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:91"
   ],
   "crm:lead:convert": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:96"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:102"
   ],
   "crm:lead:batchconvert": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:103"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:109"
   ],
   "crm:opportunity:view": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:26",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:40",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:47",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:132",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:139",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:146"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:27",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:41",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:53",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:138",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:145",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:152"
   ],
   "crm:opportunity:create": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:54"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:60"
   ],
   "crm:opportunity:edit": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:63",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:98",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:105",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:114",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:123"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:69",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:104",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:111",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:120",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:129"
   ],
   "crm:opportunity:delete": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:72",
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:79"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:78",
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:85"
   ],
   "crm:opportunity:export": [
-   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:86"
+   "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:92"
   ],
   "crm:customer-pool:list": [
    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerPoolController.java:31"
@@ -5610,46 +5572,46 @@
    "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:74",
    "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:82",
    "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:90",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:311",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:326"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:315",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:330"
   ],
   "crm:quotation:create": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:100",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:120",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:128",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:138",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:146",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:319"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:104",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:124",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:132",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:142",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:150",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:323"
   ],
   "crm:quotation:edit": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:154",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:213",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:224",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:243",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:279",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:288",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:304"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:158",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:217",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:228",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:247",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:283",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:292",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:308"
   ],
   "crm:quotation:submit": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:172"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:176"
   ],
   "crm:quotation:approve": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:180",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:191"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:184",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:195"
   ],
   "crm:quotation:send": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:202"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:206"
   ],
   "crm:quotation:convert": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:235"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:239"
   ],
   "crm:quotation:delete": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:253",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:260",
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:297"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:257",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:264",
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:301"
   ],
   "crm:quotation:downloadpdf": [
-   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:267"
+   "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationController.java:271"
   ],
   "crm:quotation-template:list": [
    "backend/crm/src/main/java/cn/aiedge/crm/quotation/controller/QuotationTemplateController.java:27",
@@ -7867,32 +7829,6 @@
   "monitor:business-metric:execute": [
    "backend/erp/erp-observability/src/main/java/cn/aiedge/erp/monitor/controller/BusinessMetricController.java:171"
   ],
-  "party:customer-level:list": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:24",
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:32",
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:40"
-  ],
-  "party:customer-level:detail": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:54",
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:61"
-  ],
-  "party:customer-level:create": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:69"
-  ],
-  "party:customer-level:update": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:78",
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:94",
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:102"
-  ],
-  "party:customer-level:delete": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:86"
-  ],
-  "party:customer-level:view": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:110"
-  ],
-  "party:customer-level:assign": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java:121"
-  ],
   "party:contact:list": [
    "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/ContactController.java:42",
    "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/ContactController.java:64"
@@ -7916,19 +7852,20 @@
    "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/ContactController.java:121"
   ],
   "party:grades:view": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:24"
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:44",
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:52"
   ],
   "party:grades:detail": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:32"
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:73"
   ],
   "party:grades:create": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:40"
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:80"
   ],
   "party:grades:update": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:48"
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:94"
   ],
   "party:grades:delete": [
-   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:57"
+   "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerGradeController.java:106"
   ],
   "party:customer-region:list": [
    "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/CustomerRegionController.java:35",
@@ -8204,12 +8141,11 @@
    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/controller/ProductGradePriceController.java:61"
   ],
   "set:print-config:view": [
-   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:94",
-   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:118",
-   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:150"
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:92",
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:147"
   ],
   "set:print-config:update": [
-   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:139"
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:136"
   ],
   "print:printer:create": [
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrinterController.java:28"
@@ -8301,6 +8237,8 @@
   "print:template:list": [
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintTemplateController.java:50",
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintTemplateController.java:95",
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/DocumentPrintController.java:38",
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/DocumentPrintController.java:45",
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/PrintTemplateV2Controller.java:162"
   ],
   "print:template:delete": [
@@ -8314,12 +8252,13 @@
   "print:template:view": [
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintTemplateController.java:85"
   ],
-  "print:format:check": [
-   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/FormatController.java:27"
-  ],
   "print:format:view": [
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/DocumentPrintController.java:79",
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/FormatController.java:43",
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/FormatController.java:54"
+  ],
+  "print:format:check": [
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/FormatController.java:27"
   ],
   "print:message:send": [
    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/v2/MessageController.java:25"
@@ -8437,8 +8376,7 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:113"
   ],
   "purchase:contract:list": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:50",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:179"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:50"
   ],
   "purchase:contract:detail": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:60",
@@ -8449,17 +8387,22 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:90"
   ],
   "purchase:contract:update": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:100",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:122"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:100"
   ],
   "purchase:contract:delete": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:111"
+  ],
+  "purchase:contract:submit": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:122"
   ],
   "purchase:contract:approve": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:133",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:146",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:156",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:167"
+  ],
+  "purchase:contract:view": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:179"
   ],
   "purchase:contract:export": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java:192"
@@ -8469,9 +8412,7 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseDocQueryController.java:29",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:50",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:114",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:209",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:243",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:269"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:209"
   ],
   "purchase:inquiry:create": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseInquiryController.java:25"
@@ -8507,8 +8448,7 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseInquiryController.java:150"
   ],
   "purchase:order:create": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:84",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:258"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:84"
   ],
   "purchase:order:update": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:95"
@@ -8531,8 +8471,17 @@
   "purchase:order:cancel": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:199"
   ],
+  "purchase:order:export": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:243"
+  ],
+  "purchase:order:import": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:258"
+  ],
+  "purchase:order:print": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:268"
+  ],
   "purchase:order:view": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:299"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:298"
   ],
   "purchase:price-track:list": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchasePriceTrackController.java:51"
@@ -8599,8 +8548,8 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:166",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:175",
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:185",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:258",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:267"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:257",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:266"
   ],
   "purchase:inbound:submit": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:141"
@@ -8620,7 +8569,7 @@
   ],
   "purchase:inbound:delete": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:219",
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:276"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:275"
   ],
   "purchase:inbound:export": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:226"
@@ -8629,10 +8578,10 @@
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:238"
   ],
   "purchase:inbound:print": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:246"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:245"
   ],
   "purchase:inbound:view": [
-   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:283"
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/inbound/controller/PurchaseInboundController.java:282"
   ],
   "purchase:exchange:list": [
    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java:30",

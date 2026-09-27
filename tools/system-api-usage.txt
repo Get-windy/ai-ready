@@ -1,0 +1,29 @@
+后端接口总数（method+path 去重后）: 3337 条，路径 2906 个
+前端代码中出现的请求路径: 4156 个
+
+前端从未调用的接口: 1253 条
+  其中疑似内部/回调/任务类: 110 条
+  其余（真正的冗余候选）:   1143 条
+
+=== 冗余候选按模块分布 ===
+  core                     539 条
+  crm                      103 条
+  erp-finance              94 条
+  erp-printing             60 条
+  erp-stock                49 条
+  wms                      40 条
+  erp-mall                 38 条
+  erp-pricing              36 条
+  erp-sales                32 条
+  erp-purchase             31 条
+  erp-supplier-portal      30 条
+  erp-partner              22 条
+  dms                      21 条
+  erp-marketing            19 条
+  erp-observability        13 条
+  erp-budget               8 条
+  erp-delivery-route       4 条
+  agreement                2 条
+  erp-fixed-asset          2 条
+
+已写入 tools/audit-api-usage.json

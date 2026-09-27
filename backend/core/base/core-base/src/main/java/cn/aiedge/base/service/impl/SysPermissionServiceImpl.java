@@ -128,8 +128,10 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     @Override
     public List<SysPermission> getChildrenPermissions(Long parentId, Long tenantId) {
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
+        // 与 listAllPermissions 同口径：平台级(0) + 本租户 —— 否则懒加载子节点同样恒空
         wrapper.eq(SysPermission::getParentId, parentId)
-               .eq(SysPermission::getTenantId, tenantId)
+               .in(SysPermission::getTenantId,
+                       tenantId == null || tenantId == 0L ? List.of(0L) : List.of(0L, tenantId))
                .orderByAsc(SysPermission::getSort);
         return list(wrapper);
     }
@@ -168,11 +170,23 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     // ==================== 私有方法 ====================
 
     /**
-     * 获取所有权限列表
+     * 获取所有权限列表（**平台级 tenant_id=0 + 本租户自建**）。
+     *
+     * <p>⚠️ 2026-09-26 修复：原先只取 {@code tenant_id = tenantId} 精确匹配，而平台定义的全部
+     * 权限码（含 {@code dms:*} / {@code sale:*} / {@code purchase:*} 等 1464 条）的
+     * {@code tenant_id} 恒为 0 ⇒ 租户管理员打开「角色 → 分配权限」时清单**恒为空**，
+     * 根本无法给本租户角色配任何平台权限码。这正是「平台开模块 → 租户自助配权限」
+     * 这条两层设计链路断在**最后一环**的原因（配送模块审计 §4.1 实证：
+     * {@code GET /permission/tree?tenantId=2} 返回 0 条，而库中 tenant_id=0 的有 1464 条）。</p>
+     *
+     * <p>租户插件对 {@code sys_permission} 已忽略（见 {@code MyBatisPlusConfig.IGNORE_TENANT_TABLES}：
+     * 「权限定义系统级」），故此处是唯一过滤条件。<b>本改动只增不减</b>：原能看到的本租户
+     * 权限码依旧可见，新增平台级；{@code tenantId=0}（平台视角）时行为完全不变。</p>
      */
     private List<SysPermission> listAllPermissions(Long tenantId) {
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysPermission::getTenantId, tenantId)
+        wrapper.in(SysPermission::getTenantId,
+                        tenantId == null || tenantId == 0L ? List.of(0L) : List.of(0L, tenantId))
                .orderByAsc(SysPermission::getSort);
         return list(wrapper);
     }

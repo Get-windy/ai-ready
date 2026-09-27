@@ -149,7 +149,7 @@ export interface ShopConfig {
   // ── 店铺设置页 ·「注册设置」子项（对标实测 5 项，Flyway V11.365.0 重做）──
   /** ① 允许注册账号 1=是 0=否（对标 EnableJoinApply / name=enable_join_apply） */
   enableJoinApply?: number
-  /** ② 买家注册默认级别（必填，关联 `/erp/partner/grades?gradeType=CUSTOMER` 的 `PartnerGrade.id`） */
+  /** ② 买家注册默认级别（必填，关联 `/erp/partner/grades` 的 `PartnerGrade.id`） */
   regDefaultGradeId?: number
   /** ③ 买家注册默认分类（必填；⚠️ 对标选项字典未实测，暂存原值字符串） */
   regDefaultCategory?: string

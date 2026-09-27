@@ -116,7 +116,7 @@ async function login() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// 1. sys_menu 菜单完整性（CRM 17 页 = 原 16 + 客户公海）
+// 1. sys_menu 菜单完整性（CRM 16 页 = 原 17 页去掉已搬回财务的「发票」）
 // ════════════════════════════════════════════════════════════════════
 const EXPECTED_MENUS = [
   [80200, '客户', 'crm/customer/index'],
@@ -133,13 +133,12 @@ const EXPECTED_MENUS = [
   [70330, '报价单', 'crm/quotation/form'],
   [80230, '合同', 'crm/contract/index'],
   [70341, '合同审批', 'crm/contract-approval'],
-  [70350, '发票', 'crm/invoice/form'],
   [70360, '销售漏斗', 'crm/funnel'],
   [70361, '客户分析', 'crm/customer-analysis'],
 ]
 
 async function section1Menu() {
-  console.log('\n=== 1. sys_menu 菜单完整性（CRM 17 页）===')
+  console.log('\n=== 1. sys_menu 菜单完整性（CRM 16 页；发票已搬回财务，见 V11.508.0）===')
   const ids = EXPECTED_MENUS.map(m => m[0]).join(',')
   const rows = await dbQuery(
     `SELECT id, menu_name, path, component, parent_id, visible, status
@@ -362,12 +361,12 @@ async function section3Write(token) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// 4. CRM 各页列表端点连通性（17 页对应主查询）
+// 4. CRM 各页列表端点连通性（16 页对应主查询；发票已搬回财务）
 // ════════════════════════════════════════════════════════════════════
 const PAGE_ENDPOINTS = [
-  ['客户', '/customer/page?pageNum=1&pageSize=1'],
+  ['客户', '/crm/customer/page?pageNum=1&pageSize=1'],
   ['客户跟进', '/crm/followUp/page?pageNum=1&pageSize=1'],
-  ['客户分级', '/customer/page?pageNum=1&pageSize=1'],
+  ['客户分级', '/crm/customer/page?pageNum=1&pageSize=1'],
   ['客户公海', '/crm/customer-pool/page?pageNum=1&pageSize=1'],
   ['线索', '/crm/lead/page?pageNum=1&pageSize=1'],
   ['线索转化', '/crm/lead/export'],
@@ -376,12 +375,11 @@ const PAGE_ENDPOINTS = [
   ['报价单', '/crm/quotation/page?pageNum=1&pageSize=1'],
   ['合同', '/crm/contract/page?pageNum=1&pageSize=1'],
   ['合同审批', '/crm/contract/export'],
-  ['发票', '/erp/invoice/page?page=0&size=1'],
   ['拜访规划', '/crm/visit/plan/page?page=1&size=1'],
   ['拜访执行', '/crm/visit/record/page?page=1&size=1'],
   ['拜访检视', '/crm/visit/review/page?page=1&size=1'],
   ['销售漏斗', '/crm/opportunity/export'],
-  ['客户分析', '/customer/export'],
+  ['客户分析', '/crm/customer/export'],
 ]
 
 async function section4Endpoints(token) {
@@ -397,7 +395,7 @@ async function section4Endpoints(token) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// 5. UI 遍历（17 页）：无 console error + 关键骨架存在 + 截屏
+// 5. UI 遍历（16 页）：无 console error + 关键骨架存在 + 截屏
 // ════════════════════════════════════════════════════════════════════
 async function solveSvgCaptcha(page) {
   const svg = await page.evaluate(() => {
@@ -424,7 +422,6 @@ const UI_PAGES = [
   ['报价单', '/crm/quotation/form'],
   ['合同', '/crm/contract/index'],
   ['合同审批', '/crm/contract-approval'],
-  ['发票', '/crm/invoice/form'],
   ['销售漏斗', '/crm/funnel'],
   ['客户分析', '/crm/customer-analysis'],
   ['拜访规划', '/sales/visit-plan'],
@@ -433,7 +430,7 @@ const UI_PAGES = [
 ]
 
 async function section5UI() {
-  console.log('\n=== 5. UI 遍历（17 页）===')
+  console.log('\n=== 5. UI 遍历（16 页）===')
   fs.mkdirSync(SHOTS, { recursive: true })
   const browser = await chromium.launch({ headless: true })
   const ctx = await browser.newContext({ viewport: { width: 1680, height: 950 }, locale: 'zh-CN' })

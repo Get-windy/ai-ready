@@ -251,7 +251,7 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { DocHistoryItem } from '@/api/analytics'
 import { ACCOUNT_PERIOD_OPS, DOC_TYPE_OPTIONS, QUICK_DATES, quickDateRange } from '../shared/docTypes'
-import { formatMoney, openDocForm, runBatchDocAction } from '../shared/docActions'
+import { canDo, formatMoney, openDocForm, runBatchDocAction } from '../shared/docActions'
 import { useDocQueryTable } from '../shared/useDocQueryTable'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 
@@ -382,10 +382,14 @@ function openBatchAudit(action: 'approve' | 'reject') {
     message.warning('请先勾选要处理的单据')
     return
   }
-  // 类型能力校验：筛掉该类型不支持审批的单据并如实告知，避免整批静默失败
-  const capable = selectedRows.value.filter(r => r.docTypeCode !== 'STOCK_DAMAGE')
+  // 类型能力校验：按**能力矩阵**（docTypes.ts）筛掉该类型不支持该动作的单据并如实告知，避免整批静默失败
+  // ⚠️ 2026-09-23：原为硬编码 `r.docTypeCode !== 'STOCK_DAMAGE'`，只挡了报损单（登记→执行直通流程）。
+  //    而 SALE_PRE_ORDER 的能力是 submit/approve/remove（**无 reject**）⇒ 批量驳回时不会被挡，
+  //    会被 runBatchDocAction 计入「N 张失败」，与事实（本就不该提交）不符。
+  //    改用 canDo(code, action) 后，过滤名单永远与能力矩阵一致，不再随矩阵增删而漂移。
+  const capable = selectedRows.value.filter(r => canDo(r.docTypeCode, action))
   const skipped = selectedRows.value.length - capable.length
-  if (skipped > 0) message.warning(`已跳过 ${skipped} 张不支持审批的单据（报损单走登记→执行直通流程）`)
+  if (skipped > 0) message.warning(`已跳过 ${skipped} 张不支持该操作的单据`)
   if (!capable.length) return
   auditTargets.value = capable
   auditForm.action = action

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NavBar, Swipe, SwipeItem, Cell, CellGroup, Button, Stepper, ActionSheet, showToast, showLoadingToast, closeToast, Dialog } from 'vant'
+import { NavBar, Swipe, SwipeItem, Cell, CellGroup, Button, Stepper, ActionSheet, showToast, showLoadingToast, closeToast } from 'vant'
 import { api, type ProductItem, type SkuItem } from '@/api'
 import { useCartStore } from '@/stores/cart'
 
@@ -50,11 +50,12 @@ const handleAddToCart = () => {
   }
   
   cartStore.addItem({
-    id: product.value.id,
-    name: product.value.name,
+    // 边界处收敛类型：商品接口返回的 id 可能是 number，name/price/stock 可能缺
+    id: String(product.value.id),
+    name: product.value.name ?? '',
     image: product.value.images?.[0] || '',
-    price: currentPrice.value,
-    stock: currentStock.value
+    price: currentPrice.value ?? 0,
+    stock: currentStock.value ?? 0
   }, quantity.value)
   
   showToast({ type: 'success', message: '已添加到购物车' })
@@ -70,11 +71,12 @@ const handleBuyNow = () => {
   
   cartStore.clearCart()
   cartStore.addItem({
-    id: product.value.id,
-    name: product.value.name,
+    // 边界处收敛类型：商品接口返回的 id 可能是 number，name/price/stock 可能缺
+    id: String(product.value.id),
+    name: product.value.name ?? '',
     image: product.value.images?.[0] || '',
-    price: currentPrice.value,
-    stock: currentStock.value
+    price: currentPrice.value ?? 0,
+    stock: currentStock.value ?? 0
   }, quantity.value)
   
   router.push('/order')
@@ -110,7 +112,7 @@ const handleQuantityChange = (val: number) => {
         <div class="product-desc">{{ product.description }}</div>
         <div class="product-price">
           <span class="price-symbol">¥</span>
-          <span class="price-value">{{ currentPrice.toFixed(2) }}</span>
+          <span class="price-value">{{ (currentPrice ?? 0).toFixed(2) }}</span>
           <span v-if="product.originalPrice" class="original-price">
             ¥{{ product.originalPrice.toFixed(2) }}
           </span>

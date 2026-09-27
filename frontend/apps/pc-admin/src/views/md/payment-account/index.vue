@@ -151,7 +151,7 @@
               :show-batch-delete="false"
               :selectable="false"
               storage-key="md-payment-account-columns"
-              global-config-key="md-payment-account-columns"
+              global-config-key="md-payment-account-columns-global"
               row-key="id"
             >
               <template #nameCell="{ record }">

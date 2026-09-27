@@ -725,6 +725,7 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import menuApi, { type MenuInfo, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
+import { isWriteFailed } from '@/utils/writeResult'
 import { useSubmitLock } from '@/composables'
 import * as Icons from '@ant-design/icons-vue'
 
@@ -1253,7 +1254,9 @@ const handleDelete = async (row: any) => {
     okType: 'danger',
     onOk: async () => {
       try {
-        await menuApi.delete(row.id)
+        const delRes = await menuApi.delete(row.id)
+        // 后端可能以 false / {success:false} 表达「没删成」（存在子菜单等）
+        if (isWriteFailed(delRes)) { message.error('删除失败：该菜单存在子菜单或已被引用，不允许删除'); return }
         message.success('删除成功')
         await refreshAllMenus()
       } catch (error: any) {

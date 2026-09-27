@@ -18,7 +18,15 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 高级日志查询控制器
- * 
+ *
+ * <p><b>⚠️ 本项目零调用方（2026-09-26 系统模块审计复核）</b>：全仓无任何 Java 代码引用本类，
+ * 前端也没有任何页面或 api 封装调用本控制器的端点。本系统「日志」相关页面唯一在用的后端是
+ * {@code cn.aiedge.audit.controller.SysLogStubController}（前缀 {@code /api/log}）。
+ *
+ * <p><b>为何保留而非删除</b>：REST 能力本身可用，且可能存在本仓之外的调用方（客户自建集成、
+ * 运维脚本），删除属不可逆操作。但<b>修改日志相关逻辑前请先确认改的是不是本类 ——
+ * 改在这里不会对任何现有页面生效</b>。
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */

@@ -162,6 +162,17 @@
           确认执行退还供应商操作？此操作将从出库仓库减少库存。
         </p>
       </a-modal>
+
+      <!-- ═══ 配置弹窗（顶部齿轮触发）：页面配置 / 录单默认值 / 打印设置 ═══ -->
+      <FormPageConfigModal
+        v-model:open="showFormConfig"
+        :fields="pageConfigFields"
+        :table-columns="pageConfigTableColumns"
+        v-model:print-config="printConfig"
+        @field-visible-change="setFieldVisible"
+        @field-enter-jump-change="setEnterJump"
+        @field-display-name-change="setDisplayName"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -177,6 +188,7 @@ import {
   MinusCircleOutlined,
   PlusCircleOutlined,
   ImportOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -185,6 +197,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
+import { useFormPageConfig } from '@/components/BillFormPage/useFormPageConfig'
+import FormPageConfigModal from '@/components/BillFormPage/FormPageConfigModal.vue'
 import { purchaseReturnApi } from '@/api/erp'
 import { PRODUCT_PURCHASE_DEFAULTS } from '@/utils/productDefaults'
 import request from '@/utils/request'
@@ -621,34 +635,20 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
       icon: act.icon,
     })),
     { key: 'history', label: '历史', icon: ClockCircleOutlined },
+    { key: 'config', label: '配置', icon: SettingOutlined },
   ],
 }))
 
-// ═══ 基本信息字段（页面配置35字段） ═══
-const basicInfoFields = computed<BasicInfoField[]>(() => [
+// ═══ 基本信息字段（页面配置35字段，静态定义；动态选项由 decorate 注入）═══
+const BASE_INFO_FIELDS: BasicInfoField[] = [
   { key: 'orderNo', label: '编号', type: 'input', inlineLabel: true, width: 210, disabled: true },
-  {
-    key: 'supplierId', label: '供应商', type: 'select', required: true,
-    inlineLabel: true, width: 300,
-    options: (optionRefs.suppliers || []).map((s: any) => ({ label: s.name, value: s.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
+  { key: 'supplierId', label: '供应商', type: 'select', required: true, inlineLabel: true, width: 300 },
   { key: 'supplierNo', label: '供应商编号', type: 'input', inlineLabel: true, width: 160, disabled: true },
   { key: 'bankName', label: '开户行', type: 'input', inlineLabel: true, width: 210 },
   { key: 'bankAccount', label: '银行账号', type: 'input', inlineLabel: true, width: 210 },
   { key: 'taxNo', label: '税号', type: 'input', inlineLabel: true, width: 210 },
-  {
-    key: 'warehouseId', label: '出库仓库', type: 'select', required: true,
-    inlineLabel: true, width: 210,
-    options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
-  {
-    key: 'purchaserId', label: '经手人', type: 'select', required: true,
-    inlineLabel: true, width: 210,
-    options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 210 },
+  { key: 'purchaserId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210 },
   { key: 'departmentName', label: '部门', type: 'input', inlineLabel: true, width: 160 },
   { key: 'date', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 210 },
   { key: 'returnType', label: '退货类型', type: 'select', required: true, inlineLabel: true, width: 210, options: [
@@ -667,7 +667,7 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'extText2', label: '自定义字段4(文本)', type: 'input', inlineLabel: true, width: 160 },
   { key: 'extText3', label: '自定义字段5(文本)', type: 'input', inlineLabel: true, width: 160 },
   // 收款区
-  { key: 'paymentAccount', label: '收款账户', type: 'select', inlineLabel: true, width: 210, options: (optionRefs.accounts || []).map((a: any) => ({ label: a.name, value: a.id })) },
+  { key: 'paymentAccount', label: '收款账户', type: 'select', inlineLabel: true, width: 210 },
   { key: 'paymentAmount', label: '收款金额', type: 'number', inlineLabel: true, width: 150, precision: 2 },
   { key: 'moreAccounts', label: '更多账户', type: 'input', inlineLabel: true, width: 130, disabled: true },
   { key: 'prevPrepaid', label: '此前预付', type: 'number', inlineLabel: true, width: 120, disabled: true, precision: 2 },
@@ -679,7 +679,52 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'paymentDeadline', label: '付款期限', type: 'date', inlineLabel: true, width: 160 },
   { key: 'createTime', label: '制单时间', type: 'input', inlineLabel: true, width: 210, disabled: true },
   { key: 'printCount', label: '打印次数', type: 'display', inlineLabel: true, width: 90 },
-])
+]
+
+// ═══ 页面配置弹窗（页面配置/录单默认值/打印设置）═══
+// 共用 useFormPageConfig + FormPageConfigModal：此前本页**完全没有**这个弹窗
+// （文档要求 35 个可配置字段，落地为 0）
+const FORM_CONFIG_MODULE = 'purchase-return-form'
+const showFormConfig = ref(false)
+const printConfig = reactive({
+  template: 'standard', copies: 1, paperSize: 'A4',
+  alwaysLastTemplate: false, afterSubmit: false,
+})
+
+const {
+  basicInfoFields,
+  pageConfigFields,
+  pageConfigTableColumns,
+  loadConfig: loadFormConfig,
+  setFieldVisible,
+  setEnterJump,
+  setDisplayName,
+} = useFormPageConfig({
+  baseFields: BASE_INFO_FIELDS,
+  module: FORM_CONFIG_MODULE,
+  decorate: (f) => {
+    switch (f.key) {
+      case 'supplierId':
+        return { options: (optionRefs.suppliers || []).map((s: any) => ({ label: s.name, value: s.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      case 'warehouseId':
+        return { options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      case 'purchaserId':
+        return { options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      case 'paymentAccount':
+        return { options: (optionRefs.accounts || []).map((a: any) => ({ label: a.name, value: a.id })) }
+      default:
+        return {}
+    }
+  },
+  collectDefaults: () => ({ ...printConfig }),
+  applyDefaults: (d) => {
+    if (d.template) printConfig.template = d.template
+    if (d.copies != null) printConfig.copies = Number(d.copies)
+    if (d.paperSize) printConfig.paperSize = d.paperSize
+    printConfig.alwaysLastTemplate = !!d.alwaysLastTemplate
+    printConfig.afterSubmit = !!d.afterSubmit
+  },
+})
 
 // ═══ 摘要面板 ═══
 const summaryConfig = computed<SummaryRow[]>(() => [
@@ -852,6 +897,9 @@ async function handleAction(actionKey: string) {
     case 'complete':
       showCompleteModal.value = true
       break
+    case 'config':
+      showFormConfig.value = true
+      break
   }
 }
 
@@ -949,6 +997,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 // ═══ 生命周期 ═══
 onMounted(() => {
+  loadFormConfig()
   if (effectiveMode.value !== 'edit' && formData.products.length === 0) {
     Array.from({ length: 20 }, () => handleAddProduct())
   }

@@ -1115,9 +1115,14 @@ export const accountingPeriodApi = {
   /** 查询会计期间列表（不分页，按期间编码升序） */
   getList: (params?: { periodYear?: number }) =>
     request.get('/erp/finance/period/list', params),
-  /** 新增会计期间（后端 @PostMapping("/")，需带尾部斜杠） */
+  /**
+   * 新增会计期间
+   * 后端 AccountingPeriodController = 类级 `@RequestMapping("/api/erp/finance/period")` + 方法级 `@PostMapping`（无 value），
+   * 真实路径**不带尾部斜杠**；Spring Boot 3 默认不做尾斜杠匹配（全仓无 setUseTrailingSlashMatch），
+   * 带上尾斜杠会匹配不到控制器、落到静态资源处理器并返回 404。
+   */
   create: (data: { periodYear: number; periodMonth: number; remark?: string }) =>
-    request.post('/erp/finance/period/', data),
+    request.post('/erp/finance/period', data),
   /** 启用/停用会计期间：1-开启 0-关闭（id 为雪花 ID，按字符串处理） */
   updateStatus: (id: string | number, status: number) =>
     request.put(`/erp/finance/period/${id}/status`, null, { params: { status } }),

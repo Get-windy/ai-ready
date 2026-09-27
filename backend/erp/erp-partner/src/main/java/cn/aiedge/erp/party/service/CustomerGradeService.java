@@ -24,6 +24,9 @@ public interface CustomerGradeService extends IService<CustomerGrade> {
 
     boolean checkGradeCodeExists(String gradeCode, Long excludeId);
 
+    /** 正在使用该级别名称的往来单位数（删除前的引用保护） */
+    long countUsedByGradeName(String gradeName);
+
     boolean enableGrade(Long id);
 
     boolean disableGrade(Long id);

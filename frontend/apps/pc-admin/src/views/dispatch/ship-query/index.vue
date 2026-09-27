@@ -267,6 +267,7 @@
       <PrintDialog
         ref="printDialogRef"
         page-code="ship-query"
+        :document-id="printData.id"
         :print-data="printData"
         :always-last-template="printConfig.alwaysLastTemplate"
         @print-success="handlePrintSuccess"

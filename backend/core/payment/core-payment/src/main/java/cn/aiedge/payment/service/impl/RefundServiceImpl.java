@@ -273,40 +273,6 @@ public class RefundServiceImpl implements RefundService {
         return user.getUsername();
     }
 
-    @Override
-    @Transactional
-    public RefundRecord handleCallback(String channel, String callbackData) {
-        PaymentChannel paymentChannel = getChannelMap().get(channel);
-        if (paymentChannel == null) {
-            throw new IllegalArgumentException("不支持的支付渠道: " + channel);
-        }
-
-        RefundRecord record = paymentChannel.queryRefund(callbackData);
-        if (record == null) {
-            // 尝试从回调数据解析
-            record = new RefundRecord();
-            record.setChannel(channel);
-            record.setCallbackData(callbackData);
-            record.setStatus(1);
-        }
-        record.setChannel(channel);
-        record.setCallbackTime(LocalDateTime.now());
-        recordMapper.insert(record);
-
-        // 更新退款请求状态
-        if (record.getStatus() == 1) {
-            LambdaQueryWrapper<RefundRequest> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(RefundRequest::getChannelRefundNo, record.getChannelRefundNo());
-            RefundRequest request = requestMapper.selectOne(wrapper);
-            if (request != null) {
-                request.setStatus(2);
-                request.setRefundedTime(LocalDateTime.now());
-                requestMapper.updateById(request);
-            }
-        }
-
-        return record;
-    }
 
     @Override
     public PageResult<RefundRecord> pageRefundRecord(Integer pageNum, Integer pageSize, String channel) {

@@ -1,6 +1,7 @@
 package cn.aiedge.crm.quotation.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.service.CustomerService;
 import cn.aiedge.crm.quotation.entity.Quotation;
@@ -31,6 +32,9 @@ import java.util.List;
 public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation> implements QuotationService {
 
     private final QuotationItemMapper quotationItemMapper;
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
+
     /** 转订单时需把 CRM 客户解析为 ERP 往来单位（红线：ERP 单据的 customer_id 必须是 biz_party.id） */
     private final CustomerService customerService;
 
@@ -100,20 +104,9 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
 
     @Override
     public String generateQuotationNo() {
-        String prefix = "QT";
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        LambdaQueryWrapper<Quotation> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(Quotation::getQuotationNo, prefix + dateStr)
-                .eq(Quotation::getDeleted, 0)
-                .orderByDesc(Quotation::getQuotationNo)
-                .last("LIMIT 1");
-        Quotation lastQuotation = getOne(wrapper);
-        int seq = 1;
-        if (lastQuotation != null) {
-            String lastNo = lastQuotation.getQuotationNo();
-            seq = Integer.parseInt(lastNo.substring(lastNo.length() - 4)) + 1;
-        }
-        return prefix + dateStr + String.format("%04d", seq);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE）：原实现「查当日最大号 +1」既有并发竞态，
+        // 又带 deleted=0 条件 —— 逻辑删除的行不计数但占号，会撞唯一索引。
+        return bizNumberGeneratorService.nextNumber("CRM_QUOTATION");
     }
 
     @Override
@@ -427,25 +420,14 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     }
 
     /**
-     * 销售订单号：{@code QO + yyyyMMdd + 4 位当日序号}。
+     * 销售订单号：直接复用 ERP 销售模块的号段（{@code bizNumberGeneratorService.nextSaleOrderNo()}）。
      *
-     * <p>原实现是 {@code "QO" + 日期 + String.format("%04d", orderId % 10000)} —— 对毫秒级 ID 取模后只剩
-     * 4 位，同一自然日内按生日悖论很快会算出重复号；而 {@code erp_sale_order.order_no} **没有唯一索引**，
-     * 撞号既不报错也不告警，属于静默重号。改为「查当日最大序号 + 1」。
-     * 注：仍是"查最大 +1"，并发下依旧有竞态；要彻底解决需改用序列，属独立裁定。</p>
+     * <p>原实现是 {@code "QO" + 日期 + orderId % 10000} —— 对毫秒级 ID 取模后只剩 4 位，同一自然日内
+     * 很快会算出重复号；而 {@code erp_sale_order.order_no} 没有唯一索引，撞号既不报错也不告警。
+     * 改为与 ERP 侧同一个号段，既消除碰撞、又让 CRM 转出的订单号与 ERP 自建的保持同一形态。</p>
      */
     private String generateSaleOrderNo() {
-        String prefix = "QO" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String maxNo = baseMapper.selectMaxSaleOrderNo(prefix);
-        int next = 1;
-        if (maxNo != null && maxNo.length() > prefix.length()) {
-            try {
-                next = Integer.parseInt(maxNo.substring(prefix.length())) + 1;
-            } catch (NumberFormatException e) {
-                log.warn("销售订单号 {} 后缀非数字，本次从 1 开始", maxNo);
-            }
-        }
-        return prefix + String.format("%04d", next);
+        return bizNumberGeneratorService.nextSaleOrderNo();
     }
 
 

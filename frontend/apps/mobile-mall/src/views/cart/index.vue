@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { NavBar, Checkbox, Stepper, Button, Empty, Dialog } from 'vant'
 import { useCartStore } from '@/stores/cart'

@@ -26,12 +26,12 @@ public interface PrintConfigService {
     int DECIMAL_MAX = 4;
 
     /**
-     * 打印内容的默认值（ql361 实拍选中值，逐字）。
+     * 打印内容的默认值 = 选项集第一项（ql361 rawValue=1 的实拍选中值）。
      *
-     * <p>完整选项集 3 项已实测，见 {@code PrintConfigController.PRINT_CONTENT_OPTIONS}；
-     * 本值为其中的第一项（ql361 rawValue=1）。</p>
+     * <p>选项集口径的唯一出处是 {@link cn.aiedge.erp.printing.support.PrintContentOptions}，
+     * 后端下拉、服务端拼接、默认值三处都从那里取，不再各写一份。</p>
      */
-    String DEFAULT_PRINT_CONTENT = "批号 *数量";
+    String DEFAULT_PRINT_CONTENT = cn.aiedge.erp.printing.support.PrintContentOptions.DEFAULT;
 
     /** 打印内容长度上限（与库列 {@code VARCHAR(64)} 一致，避免超长导致 SQL 报错） */
     int PRINT_CONTENT_MAX_LENGTH = 64;

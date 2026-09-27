@@ -341,6 +341,14 @@ public class MyBatisPlusConfig {
                 // 仅在实体**未显式指定**租户时填充：此前无条件 setValue 会覆盖调用方写入的 tenantId，
                 // 造成「给租户 A 建数据却落到会话租户头上」这类跨租户写错位（2026-09-18 已在
                 // SysTenantMenuMapper 实踩并绕过；sys_role_permission 亦有 16 行租户标记不一致的实证）。
+                //
+                // ⚠️ **作用范围仅限 tenantId 标了 `@TableField(fill = ...)` 的实体**
+                // （全仓只有 `mall/b2b/model/BaseEntity` 与 `ApiAccessLog`）。
+                // 原因：MyBatis 在 `BaseStatementHandler` 里先 `getBoundSql()` 定稿 SQL
+                // （非 fill 字段被 MP 生成成 `<if test="et.tenantId != null">` 条件列），
+                // 之后才创建 ParameterHandler 执行本填充 —— **对普通 tenantId 字段，这里 set 的值
+                // 进不了 SQL**（2026-09-26 字节码级定位，详见 AiReadyTenantLineInnerInterceptor#processInsert）。
+                // 普通实体的写入盖章由**租户拦截器的 processInsert** 负责，不要再依赖这里。
                 if (metaObject.hasSetter("tenantId") && metaObject.hasGetter("tenantId")
                         && metaObject.getValue("tenantId") == null) {
                     Long tenantId = getCurrentTenantIdValue();

@@ -64,13 +64,11 @@ public class PrintConfigController {
      *
      * <p>选项含义（ql361 帮助文案原文：「启用批次效期汇总打印后，会增加"批次效期"打印字段，
      * 打印的内容受此设置影响」）：决定单据明细行「批次效期」文本由 批号 / 生产日期 / 到期日期 与数量
-     * 如何拼接。前端 {@code PrintDialog} 据此在渲染数据中派生 {@code batchEffectiveText} 字段，
-     * 拼接口径与字段映射逐字对应本常量的三项文案（见 {@code components/PrintDialog/printBehavior.ts}）。</p>
+     * 如何拼接。服务端据 {@code batchEffectiveText} 字段做派生，
+     * 拼接口径与字段映射的唯一出处 = {@link cn.aiedge.erp.printing.support.PrintContentOptions}。</p>
      */
-    private static final List<Map<String, String>> PRINT_CONTENT_OPTIONS = List.of(
-            Map.of("value", "批号 *数量", "label", "批号 *数量"),
-            Map.of("value", "生产日期 *数量", "label", "生产日期 *数量"),
-            Map.of("value", "批号 生产日期~到期日期 *数量", "label", "批号 生产日期~到期日期 *数量"));
+    private static final List<Map<String, String>> PRINT_CONTENT_OPTIONS =
+            cn.aiedge.erp.printing.support.PrintContentOptions.OPTIONS;
 
     /**
      * 打印助手的下载地址（配置落位：**通道 1/2** —— 环境变量或 core-api 的 application.yml，
@@ -103,7 +101,7 @@ public class PrintConfigController {
      * 读取「打印行为」配置（**打印组件专用**，刻意不要求 {@code set:print-config:view}）。
      *
      * <p><b>为什么需要这个只读端点</b>：本页的配置要作用于**所有人的打印**，而
-     * {@code set:print-config:view} 只授给了超级管理员（迁移 V11.402.0 §③ 的口径）——
+     * {@code set:print-config:view} 是「打印设置」管理端点在用的管理权限（不是所有登录用户都有）——
      * 若打印组件直接调管理端点，普通账号（仓库/配送/资料页的用户）会拿到 403，
      * 并被前端 axios 拦截器弹成「没有操作权限」的全局提示，而配置对这些人**永远不生效**。
      * 因此这里单开一个「只读、只回行为字段」的端点：任何**已登录**用户都可读，读到的仍是
@@ -115,7 +113,6 @@ public class PrintConfigController {
      *
      * <p>无行时与 {@link #getPrintConfig()} 同口径按默认值建行（一行一租户，唯一索引兜底）。</p>
      */
-    @SaCheckPermission("set:print-config:view")
     @GetMapping("/behavior")
     @Operation(summary = "读取打印行为配置（打印组件专用，无需管理权限）")
     public ResponseEntity<Map<String, Object>> getBehaviorConfig() {

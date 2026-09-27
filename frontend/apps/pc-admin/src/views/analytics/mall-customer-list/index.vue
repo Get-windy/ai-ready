@@ -370,11 +370,11 @@ function handleCategorySelect(keys: any[]) {
   handleSearch()
 }
 
-// ═══ 客户级别下拉（GET /erp/partner/grades?gradeType=CUSTOMER，与 gradeId 过滤口径一致） ═══
+// ═══ 客户级别下拉（GET /erp/partner/grades，与 gradeId 过滤口径一致） ═══
 const gradeOptions = ref<{ label: string; value: number }[]>([])
 async function loadGrades() {
   try {
-    const list = await partnerGradeApi.list('CUSTOMER')
+    const list = await partnerGradeApi.list()
     gradeOptions.value = (list || []).map((g: any) => ({ label: g.gradeName, value: g.id }))
   } catch (e) {
     console.warn('[商城客户列表] 客户级别加载失败', e)

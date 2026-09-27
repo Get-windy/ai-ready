@@ -1,7 +1,7 @@
 package cn.aiedge.erp.sale.outbound.service.impl;
 
 import cn.aiedge.common.event.InventoryChangeEvent;
-import cn.aiedge.crm.customer.service.CustomerCreditService;
+import cn.aiedge.erp.party.service.PartyCreditService;
 import cn.aiedge.erp.pricing.service.PriceEngineService;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationRequest;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
@@ -64,7 +64,8 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     private final SaleOrderItemMapper saleOrderItemMapper;
     private final StockService stockService;
     private final PriceEngineService priceEngineService;
-    private final CustomerCreditService customerCreditService;
+    /** 信用归属 ERP（erp-partner）：入参 outbound.getCustomerId() 就是往来单位 ID，ID 域一致 */
+    private final PartyCreditService partyCreditService;
     private final SalesAccountingService salesAccountingService;
     private final ProductMapper productMapper;
     private final ProductCategoryService productCategoryService;
@@ -1042,15 +1043,15 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         if (outbound.getCustomerId() != null) {
             try {
                 BigDecimal totalAmount = outbound.getTotalAmount() != null ? outbound.getTotalAmount() : BigDecimal.ZERO;
-                boolean creditOk = customerCreditService.checkCreditAvailable(outbound.getCustomerId(), totalAmount);
+                boolean creditOk = partyCreditService.checkCreditAvailable(outbound.getCustomerId(), totalAmount);
                 if (!creditOk) {
                     // 获取信用状态详情用于日志
-                    Map<String, Object> creditStatus = customerCreditService.getCreditStatus(outbound.getCustomerId());
+                    Map<String, Object> creditStatus = partyCreditService.getCreditStatus(outbound.getCustomerId());
                     log.warn("客户信用额度不足，客户ID={}, 本单金额={}, 信用状态={}", outbound.getCustomerId(), totalAmount, creditStatus);
                     // 更新表头信用字段
-                    BigDecimal creditLimit = customerCreditService.getCreditLimit(outbound.getCustomerId());
-                    BigDecimal availableCredit = customerCreditService.getAvailableCredit(outbound.getCustomerId());
-                    BigDecimal currentDebt = customerCreditService.getCurrentDebt(outbound.getCustomerId());
+                    BigDecimal creditLimit = partyCreditService.getCreditLimit(outbound.getCustomerId());
+                    BigDecimal availableCredit = partyCreditService.getAvailableCredit(outbound.getCustomerId());
+                    BigDecimal currentDebt = partyCreditService.getCurrentDebt(outbound.getCustomerId());
                     outbound.setCreditLimit(creditLimit);
                     outbound.setAvailableCredit(availableCredit);
                     outbound.setPrevArrears(currentDebt);
@@ -1061,9 +1062,9 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                     updateById(outbound);
                 } else {
                     // 信用充足，更新信用字段
-                    BigDecimal creditLimit = customerCreditService.getCreditLimit(outbound.getCustomerId());
-                    BigDecimal availableCredit = customerCreditService.getAvailableCredit(outbound.getCustomerId());
-                    BigDecimal currentDebt = customerCreditService.getCurrentDebt(outbound.getCustomerId());
+                    BigDecimal creditLimit = partyCreditService.getCreditLimit(outbound.getCustomerId());
+                    BigDecimal availableCredit = partyCreditService.getAvailableCredit(outbound.getCustomerId());
+                    BigDecimal currentDebt = partyCreditService.getCurrentDebt(outbound.getCustomerId());
                     outbound.setCreditLimit(creditLimit);
                     outbound.setAvailableCredit(availableCredit);
                     outbound.setPrevArrears(currentDebt);
@@ -1337,7 +1338,7 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         // 更新客户信用欠款（对标Odoo/SAP信用管理）
         if (outbound.getCustomerId() != null) {
             try {
-                customerCreditService.updateCustomerDebt(outbound.getCustomerId());
+                partyCreditService.recalcPartyDebt(outbound.getCustomerId());
             } catch (Exception e) {
                 log.warn("更新客户信用欠款失败，客户ID={}: {}", outbound.getCustomerId(), e.getMessage());
             }
@@ -1434,7 +1435,7 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             // 更新客户信用欠款
             if (outbound.getCustomerId() != null) {
                 try {
-                    customerCreditService.updateCustomerDebt(outbound.getCustomerId());
+                    partyCreditService.recalcPartyDebt(outbound.getCustomerId());
                 } catch (Exception e) {
                     log.warn("更新客户信用欠款失败，客户ID={}: {}", outbound.getCustomerId(), e.getMessage());
                 }

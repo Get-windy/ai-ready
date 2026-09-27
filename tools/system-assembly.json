@@ -1,0 +1,1613 @@
+{
+ "scan_pkgs": [
+  "cn.aiedge.base",
+  "cn.aiedge.cache",
+  "cn.aiedge.common",
+  "cn.aiedge.config",
+  "cn.aiedge.api",
+  "cn.aiedge.user.controller",
+  "cn.aiedge.user.dto",
+  "cn.aiedge.user.entity",
+  "cn.aiedge.user.repository",
+  "cn.aiedge.user.service",
+  "cn.aiedge.dashboard",
+  "cn.aiedge.tenant",
+  "cn.aiedge.position",
+  "cn.aiedge.department",
+  "cn.aiedge.erp.purchase",
+  "cn.aiedge.erp.finance",
+  "cn.aiedge.erp.sale",
+  "cn.aiedge.erp.stock",
+  "cn.aiedge.erp.monitor",
+  "cn.aiedge.erp.controller",
+  "cn.aiedge.workflow",
+  "cn.aiedge.erp.batchsn.controller",
+  "cn.aiedge.erp.batchsn.config",
+  "cn.aiedge.erp.batchsn.entity",
+  "cn.aiedge.erp.batchsn.mapper",
+  "cn.aiedge.erp.batchsn.service",
+  "cn.aiedge.erp.supplier.controller",
+  "cn.aiedge.erp.supplier.service",
+  "cn.aiedge.erp.supplier.mapper",
+  "cn.aiedge.erp.supplier.repository",
+  "cn.aiedge.erp.supplier.model",
+  "cn.aiedge.erp.supplier.dto",
+  "cn.aiedge.erp.supplier.entity",
+  "cn.aiedge.erp.printing",
+  "cn.aiedge.erp.signature",
+  "cn.aiedge.erp.delivery",
+  "cn.aiedge.erp.customer",
+  "cn.aiedge.erp.party",
+  "cn.aiedge.erp.product.kit",
+  "cn.aiedge.erp.payment",
+  "cn.aiedge.erp.pricing",
+  "cn.aiedge.crm",
+  "cn.aiedge.agreement",
+  "cn.aiedge.erp.b2b",
+  "cn.aiedge.quality",
+  "cn.aiedge.trade",
+  "cn.aiedge.erp.metrics",
+  "cn.aiedge.erp.invoice",
+  "cn.aiedge.erp.budget",
+  "cn.aiedge.hr",
+  "cn.aiedge.dms",
+  "cn.aiedge.docquery",
+  "cn.aiedge.erp.marketing",
+  "cn.aiedge.payment",
+  "cn.aiedge.automation",
+  "cn.aiedge.customfield",
+  "cn.aiedge.kanban",
+  "cn.aiedge.permission",
+  "cn.aiedge.notification",
+  "cn.aiedge.dict",
+  "cn.aiedge.integration",
+  "cn.aiedge.wms",
+  "cn.aiedge.audit",
+  "cn.aiedge.erp.expense",
+  "cn.aiedge.erp.fixedasset",
+  "cn.aiedge.scheduler",
+  "cn.aiedge.module",
+  "cn.aiedge.monitor",
+  "cn.aiedge.platform",
+  "cn.aiedge.datasource",
+  "cn.aiedge.export",
+  "cn.aiedge.devtool",
+  "cn.aiedge.config"
+ ],
+ "controllers": [
+  {
+   "pkg": "cn.aiedge.agent.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "AgentController",
+    "AgentInvokeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.agreement.controller",
+   "covered": true,
+   "count": 6,
+   "classes": [
+    "AgreementComplianceController",
+    "AgreementContentController",
+    "AgreementController",
+    "AgreementLifecycleController",
+    "AgreementTemplateController",
+    "AgreementTermOptionController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.api.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DataFixController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.architecture",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "ComponentScanCoverageTest"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.assistant.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "AssistantController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.audit.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "AuditLogController",
+    "SysLogStubController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.automation.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "AutomationRuleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.base.config",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "GlobalExceptionHandler"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.base.controller",
+   "covered": true,
+   "count": 20,
+   "classes": [
+    "AuthController",
+    "LogManageController",
+    "NotificationController",
+    "PermissionTemplateController",
+    "RoleBillTypeController",
+    "RoleInheritanceController",
+    "SessionController",
+    "SetMenuConfigController",
+    "SysConfigController",
+    "SysDataScopeController",
+    "SysFieldPermissionController",
+    "SysMenuController",
+    "SysPermissionController",
+    "SysRegionController",
+    "SysRoleController",
+    "SysSodRuleController",
+    "SysTenantMenuController",
+    "SysUserController",
+    "UserDataScopeController",
+    "UserPageConfigController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.base.log",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "AdvancedLogController",
+    "ErrorReportController",
+    "StructuredLogController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.base.log.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SystemLogController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.base.websocket",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SseNotificationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.cache.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "CacheManageController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.common.file",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "FileUploadController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.config.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SystemConfigController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.crm.contract.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ContractController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.crm.customer.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "CustomerController",
+    "CustomerFollowUpController",
+    "CustomerLeadController",
+    "CustomerOpportunityController",
+    "CustomerPoolController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.crm.marketing.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "MarketingCampaignController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.crm.quotation.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "QuotationController",
+    "QuotationTemplateController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.crm.visit.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "VisitController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.customfield.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "CustomFieldController",
+    "CustomFieldValueController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dashboard.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DashboardController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.datasource.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "BackupController",
+    "CleanupRuleController",
+    "DataSourceController",
+    "SlowQueryController",
+    "SyncTaskController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.department.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DepartmentController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.devtool.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DevApiTestController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dict.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "DictController",
+    "DictItemController",
+    "DictTypeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.channel.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ChannelController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.config",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DmsGlobalExceptionHandler"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.config.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ConfigController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.dashboard.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DashboardController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.dispatch.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "DispatchController",
+    "RouteRiderController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.event.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "EventController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.execution.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ExecutionController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.orderpool.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "OrderPoolController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.payment.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PaymentController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.rider.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "RiderController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.route.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "GeoFenceController",
+    "RouteController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.settlement.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SettlementController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.sign.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SignController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.task.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "OutboundDeliveryFilterController",
+    "TaskController",
+    "TaskFilterOptionController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.tracking.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "TrackingController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.vehicle.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "VehicleController",
+    "VehicleEnergyLogController",
+    "VehicleMaintenanceController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.dms.verification.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "VerificationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.docquery.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "DocQueryController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.b2b.controller",
+   "covered": true,
+   "count": 13,
+   "classes": [
+    "MallAdminController",
+    "MallAdminKeywordController",
+    "MallAdminNoticeController",
+    "MallAdminPopupAdController",
+    "MallAuthController",
+    "MallCartController",
+    "MallNoticeController",
+    "MallOrderController",
+    "MallPartyLinkController",
+    "MallPaymentController",
+    "MallProductController",
+    "MallTradeAnalysisController",
+    "MallUserController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.batchsn.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "BatchNumberController",
+    "SerialNumberController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.batchsn.controller.advice",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ApiExceptionHandler"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.budget.controller",
+   "covered": true,
+   "count": 7,
+   "classes": [
+    "AnnualBudgetController",
+    "BudgetAdjustmentController",
+    "BudgetControlController",
+    "BudgetExecutionController",
+    "BudgetItemController",
+    "BudgetReportController",
+    "BudgetTemplateController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ErpBasicController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.customer.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "CustomerLevelController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.delivery.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "RouteController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.delivery.route.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "RouteMasterController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.expense.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ExpenseAnalyticsController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.expense.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "ExpenseApprovalController",
+    "ExpenseController",
+    "ExpensePaymentController",
+    "ExpenseReimbursementController",
+    "ExpenseTypeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.analytics.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "CollectionStatsAnalyticsController",
+    "InvoiceStatsController",
+    "PartnerLedgerController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.arapadjust.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ArApAdjustController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.bankaccount.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "BankAccountController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.cashtransfer.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "CashTransferController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.controller",
+   "covered": true,
+   "count": 20,
+   "classes": [
+    "AccountingPeriodController",
+    "AccountSubjectController",
+    "BusinessAccountingController",
+    "CollectionStatsController",
+    "ExpenseTypeSubjectController",
+    "FinanceAccountController",
+    "FinanceAuxiliaryController",
+    "FinanceReportController",
+    "FinanceTaxDeclarationController",
+    "FinanceTransactionController",
+    "FinancialReportController",
+    "LedgerController",
+    "MdPaymentChannelController",
+    "MdPaymentMethodController",
+    "MonthClosingController",
+    "OtherIncomeSubjectController",
+    "PartnerBalanceController",
+    "PayableController",
+    "ReceivableController",
+    "VoucherController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.expensedoc.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "ExpenseApprovalController",
+    "ExpenseDocController",
+    "ExpenseStatsController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.initial.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "InitialFinanceController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.otherincome.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "OtherIncomeDocController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.finance.reconciliation.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ReconciliationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.fixedasset.controller",
+   "covered": true,
+   "count": 8,
+   "classes": [
+    "FixedAssetCategoryController",
+    "FixedAssetController",
+    "FixedAssetDepreciationController",
+    "FixedAssetDisposalController",
+    "FixedAssetInventoryController",
+    "FixedAssetPurchaseController",
+    "FixedAssetReportController",
+    "FixedAssetTransferController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.invoice.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "InvoiceApplicationController",
+    "InvoiceController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.marketing.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "CommissionAnalyticsController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.marketing.controller",
+   "covered": true,
+   "count": 24,
+   "classes": [
+    "AddonRuleController",
+    "AutoCampaignController",
+    "CommissionRecordController",
+    "CommissionRuleController",
+    "CommissionStaffSummaryController",
+    "CouponTemplateController",
+    "FlashSaleController",
+    "LoyaltyCardController",
+    "LoyaltyCouponController",
+    "LoyaltyProgramController",
+    "MarketingRuleController",
+    "MemberConfigController",
+    "MemberLevelRuleController",
+    "PointsExchangeController",
+    "PointsJournalController",
+    "PointsLedgerController",
+    "PresaleController",
+    "ProductPointsRuleController",
+    "PromoActivityController",
+    "PromoteController",
+    "PromotionEngineController",
+    "ShareRecordController",
+    "SmsMarketingController",
+    "StoredCardController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.metrics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "MetricsController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.monitor.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "BusinessMetricController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.party.controller",
+   "covered": true,
+   "count": 11,
+   "classes": [
+    "ContactController",
+    "CustomerGradeController",
+    "CustomerRegionController",
+    "LinkedAccountController",
+    "MdCustomerController",
+    "MemberLevelController",
+    "PartyAttachmentController",
+    "PartyCategoryController",
+    "PartyContactController",
+    "PartyController",
+    "PartyRoleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.payment.controller",
+   "covered": true,
+   "count": 8,
+   "classes": [
+    "CapitalFlowController",
+    "DepositConditionController",
+    "OffsetController",
+    "PaymentController",
+    "PrePaymentController",
+    "PreReceiptController",
+    "ReceiptController",
+    "WriteOffController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.pricing.api",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "PriceEngineController",
+    "PriceStrategyConfigController",
+    "PriceTierController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.pricing.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "PriceApprovalController",
+    "PricingController",
+    "ProductGradePriceController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.printing.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "PrintConfigController",
+    "PrinterController",
+    "PrintLogController",
+    "PrintTaskController",
+    "PrintTemplateController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.printing.controller.v2",
+   "covered": true,
+   "count": 9,
+   "classes": [
+    "ClientApiController",
+    "ClientAuthController",
+    "FormatController",
+    "MessageController",
+    "PrintChainController",
+    "PrintClientController",
+    "PrintTaskV2Controller",
+    "PrintTemplateV2Controller",
+    "ScreenshotController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.product.kit.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ProductKitController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PurchaseAnalysisController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.controller",
+   "covered": true,
+   "count": 9,
+   "classes": [
+    "CostSharingController",
+    "PurchaseContractController",
+    "PurchaseDetailQueryController",
+    "PurchaseDocQueryController",
+    "PurchaseInquiryController",
+    "PurchaseOrderController",
+    "PurchasePriceTrackController",
+    "PurchaseQuoteController",
+    "UnifiedPurchaseDocQueryController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.inbound.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PurchaseInboundController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.purchaseexchange.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PurchaseExchangeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.purchasereturn.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PurchaseReturnController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.purchase.saledriven.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SalesDrivenController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PromotionFunnelController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.controller",
+   "covered": true,
+   "count": 9,
+   "classes": [
+    "AccountDeliveryController",
+    "PromotionController",
+    "SaleAnalysisController",
+    "SaleAnalysisReportController",
+    "SaleLogisticsController",
+    "SaleOrderController",
+    "SalesDetailQueryController",
+    "SalesDocQueryController",
+    "SalesPriceTrackController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.outbound.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "ErpSaleOutConfirmController",
+    "SaleOutboundController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.preorder.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PreOrderAnalysisController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.preorder.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SalePreOrderController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.retail.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "RetailController",
+    "RetailShiftController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.returnDoc.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SaleReturnDocController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.saleexchange.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SaleExchangeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.sale.salereturn.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "SaleReturnController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.signature.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "RatingController",
+    "SignatureController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.stock.analytics.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "InventoryAnalysisController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.stock.controller",
+   "covered": true,
+   "count": 36,
+   "classes": [
+    "GroupBuyController",
+    "InventoryModeController",
+    "MallTagController",
+    "ProductAttachmentController",
+    "ProductAttributeController",
+    "ProductBarcodeController",
+    "ProductBrandController",
+    "ProductCategoryController",
+    "ProductController",
+    "ProductGradeController",
+    "ProductImageController",
+    "ProductLocationController",
+    "ProductPriceController",
+    "ProductRelatedController",
+    "ProductShieldController",
+    "ProductSkuRuleController",
+    "ProductUnitController",
+    "ProductUnitDictController",
+    "ProductUnitGroupController",
+    "StockAlertConfigController",
+    "StockAlertQueryController",
+    "StockAssembleController",
+    "StockBomController",
+    "StockController",
+    "StockCostAdjustController",
+    "StockDamageController",
+    "StockInController",
+    "StockOutController",
+    "StockOverflowController",
+    "StockReplenishmentController",
+    "StockReportController",
+    "StockSplitController",
+    "StockTakeController",
+    "StockTransferController",
+    "WarehouseCategoryController",
+    "WarehouseController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.stock.controller.initial",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "InitialStockController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.erp.supplier.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "SupplierController",
+    "SupplierPortalController",
+    "SupplierPortalInquiryController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.export.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "BatchImportController",
+    "DataExportController",
+    "DataExportControllerExt",
+    "DataImportController",
+    "ImportTemplateController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.feedback.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "FeedbackController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.gateway.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "GatewayManagementController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.gateway.fallback",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "GatewayFallbackController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.hr.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "HrCandidateController",
+    "HrController",
+    "HrRecruitmentController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.integration.controller",
+   "covered": true,
+   "count": 4,
+   "classes": [
+    "IntegrationController",
+    "SyncConfigController",
+    "SyncFieldMappingController",
+    "SyncHistoryController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.kanban.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "KanbanController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.knowledge.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "KnowledgeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.module.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ModuleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.monitor.controller",
+   "covered": true,
+   "count": 5,
+   "classes": [
+    "AlertManagementController",
+    "HealthMonitorController",
+    "InfrastructureMonitorController",
+    "PerformanceMetricsController",
+    "SystemMonitorController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.mq.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "EnhancedMessageQueueController",
+    "MessageQueueController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.notification.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "NotificationController",
+    "NotificationStatsController",
+    "NotificationTemplateController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.payment.controller",
+   "covered": true,
+   "count": 4,
+   "classes": [
+    "PaymentConfigController",
+    "PaymentController",
+    "ReconciliationController",
+    "RefundController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.permission.controller",
+   "covered": true,
+   "count": 3,
+   "classes": [
+    "PermissionController",
+    "PermissionSimulationController",
+    "RecordRuleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.permission.exception",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PermissionDeniedException"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.permission.handler",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "PermissionExceptionHandler"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.platform.controller",
+   "covered": true,
+   "count": 4,
+   "classes": [
+    "MailConfigController",
+    "SecurityPolicyController",
+    "SmsConfigController",
+    "StorageConfigController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.position.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "PositionCategoryController",
+    "PositionController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.quality.controller",
+   "covered": true,
+   "count": 4,
+   "classes": [
+    "QualityCertificateController",
+    "QualityDefectHandleController",
+    "QualityInspectionController",
+    "QualityStandardController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.recommendation.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "RecommendationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.report.controller",
+   "covered": false,
+   "count": 3,
+   "classes": [
+    "ReportAnalyticsController",
+    "ReportController",
+    "ReportScheduleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.scheduler.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "ScheduledTaskController",
+    "SystemTaskController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.search.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "SearchController",
+    "SemanticSearchController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.storage.chunk",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "ChunkUploadController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.storage.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "FileAccessController",
+    "FileStorageController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.tenant.controller",
+   "covered": true,
+   "count": 7,
+   "classes": [
+    "SetAppCenterController",
+    "SetRebuildController",
+    "TenantController",
+    "TenantModuleController",
+    "TenantPackageController",
+    "TenantQuotaController",
+    "TenantRegistrationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.trade.controller",
+   "covered": true,
+   "count": 4,
+   "classes": [
+    "ChannelConfigController",
+    "ExternalOrderController",
+    "InventorySyncController",
+    "OpenApiController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.trade.monitor.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "ApiMonitorController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.user.controller",
+   "covered": true,
+   "count": 2,
+   "classes": [
+    "ProfileController",
+    "UserController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.webhook.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "WebhookController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.wms.controller",
+   "covered": true,
+   "count": 21,
+   "classes": [
+    "BorrowController",
+    "CheckController",
+    "ErpIntegrationController",
+    "EventController",
+    "InventoryController",
+    "LocationController",
+    "MoveController",
+    "PdaAuthController",
+    "PdaCheckController",
+    "PdaInventoryController",
+    "PdaMoveController",
+    "PdaPickController",
+    "PdaPutawayController",
+    "PdaReceiveController",
+    "PdaShipController",
+    "PdaTaskController",
+    "PickController",
+    "PutawayController",
+    "ReceiptController",
+    "ShipController",
+    "WarehouseController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.wms.inventory.service",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "InventoryReconcileController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.workflow.controller",
+   "covered": true,
+   "count": 1,
+   "classes": [
+    "WorkflowController"
+   ]
+  }
+ ],
+ "uncovered": [
+  {
+   "pkg": "cn.aiedge.agent.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "AgentController",
+    "AgentInvokeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.architecture",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "ComponentScanCoverageTest"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.assistant.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "AssistantController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.feedback.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "FeedbackController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.gateway.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "GatewayManagementController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.gateway.fallback",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "GatewayFallbackController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.knowledge.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "KnowledgeController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.mq.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "EnhancedMessageQueueController",
+    "MessageQueueController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.recommendation.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "RecommendationController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.report.controller",
+   "covered": false,
+   "count": 3,
+   "classes": [
+    "ReportAnalyticsController",
+    "ReportController",
+    "ReportScheduleController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.search.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "SearchController",
+    "SemanticSearchController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.storage.chunk",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "ChunkUploadController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.storage.controller",
+   "covered": false,
+   "count": 2,
+   "classes": [
+    "FileAccessController",
+    "FileStorageController"
+   ]
+  },
+  {
+   "pkg": "cn.aiedge.webhook.controller",
+   "covered": false,
+   "count": 1,
+   "classes": [
+    "WebhookController"
+   ]
+  }
+ ],
+ "mapper_pkgs": {
+  "cn.aiedge": 1,
+  "cn.aiedge.agent.mapper": 2,
+  "cn.aiedge.agreement.mapper": 15,
+  "cn.aiedge.architecture": 1,
+  "cn.aiedge.assistant.mapper": 1,
+  "cn.aiedge.audit.mapper": 1,
+  "cn.aiedge.automation.mapper": 2,
+  "cn.aiedge.base.log.mapper": 1,
+  "cn.aiedge.base.mapper": 31,
+  "cn.aiedge.common.serial.mapper": 1,
+  "cn.aiedge.config.mapper": 1,
+  "cn.aiedge.crm.contract.mapper": 5,
+  "cn.aiedge.crm.customer.mapper": 5,
+  "cn.aiedge.crm.marketing.mapper": 3,
+  "cn.aiedge.crm.quotation.mapper": 4,
+  "cn.aiedge.crm.visit.mapper": 2,
+  "cn.aiedge.customfield.mapper": 3,
+  "cn.aiedge.datasource.mapper": 5,
+  "cn.aiedge.dev.mapper": 1,
+  "cn.aiedge.dict.mapper": 2,
+  "cn.aiedge.dms.channel.mapper": 3,
+  "cn.aiedge.dms.config.mapper": 2,
+  "cn.aiedge.dms.dashboard.mapper": 1,
+  "cn.aiedge.dms.dispatch.mapper": 2,
+  "cn.aiedge.dms.event.mapper": 1,
+  "cn.aiedge.dms.orderpool.mapper": 2,
+  "cn.aiedge.dms.payment.mapper": 3,
+  "cn.aiedge.dms.route.mapper": 1,
+  "cn.aiedge.dms.settlement.mapper": 3,
+  "cn.aiedge.dms.sign.mapper": 1,
+  "cn.aiedge.dms.task.mapper": 6,
+  "cn.aiedge.dms.tracking.mapper": 1,
+  "cn.aiedge.dms.vehicle.mapper": 5,
+  "cn.aiedge.dms.verification.mapper": 6,
+  "cn.aiedge.erp.b2b.dao": 4,
+  "cn.aiedge.erp.b2b.mapper": 15,
+  "cn.aiedge.erp.batchsn.mapper": 4,
+  "cn.aiedge.erp.customer.mapper": 1,
+  "cn.aiedge.erp.delivery.mapper": 5,
+  "cn.aiedge.erp.delivery.route.mapper": 3,
+  "cn.aiedge.erp.expense.mapper": 2,
+  "cn.aiedge.erp.finance.arapadjust.mapper": 2,
+  "cn.aiedge.erp.finance.cashtransfer.mapper": 2,
+  "cn.aiedge.erp.finance.expensedoc.mapper": 4,
+  "cn.aiedge.erp.finance.initial.mapper": 3,
+  "cn.aiedge.erp.finance.mapper": 22,
+  "cn.aiedge.erp.finance.otherincome.mapper": 2,
+  "cn.aiedge.erp.finance.reconciliation.mapper": 2,
+  "cn.aiedge.erp.marketing.mapper": 32,
+  "cn.aiedge.erp.monitor.mapper": 3,
+  "cn.aiedge.erp.party.mapper": 13,
+  "cn.aiedge.erp.payment.mapper": 13,
+  "cn.aiedge.erp.pricing.mapper": 2,
+  "cn.aiedge.erp.printing.mapper": 12,
+  "cn.aiedge.erp.product.kit.mapper": 2,
+  "cn.aiedge.erp.purchase.inbound.mapper": 3,
+  "cn.aiedge.erp.purchase.mapper": 20,
+  "cn.aiedge.erp.purchase.purchaseexchange.mapper": 3,
+  "cn.aiedge.erp.purchase.purchasereturn.mapper": 2,
+  "cn.aiedge.erp.purchase.replenishment": 1,
+  "cn.aiedge.erp.purchase.saledriven.mapper": 1,
+  "cn.aiedge.erp.sale.mapper": 17,
+  "cn.aiedge.erp.sale.outbound.mapper": 2,
+  "cn.aiedge.erp.sale.preorder.mapper": 2,
+  "cn.aiedge.erp.sale.retail.mapper": 4,
+  "cn.aiedge.erp.sale.returnDoc.mapper": 2,
+  "cn.aiedge.erp.sale.saleexchange.mapper": 3,
+  "cn.aiedge.erp.sale.salereturn.mapper": 2,
+  "cn.aiedge.erp.signature.mapper": 2,
+  "cn.aiedge.erp.stock.mapper": 35,
+  "cn.aiedge.erp.supplier.mapper": 4,
+  "cn.aiedge.erp.supplier.repository": 2,
+  "cn.aiedge.export.template": 1,
+  "cn.aiedge.gateway.mapper": 1,
+  "cn.aiedge.hr.mapper": 14,
+  "cn.aiedge.integration.mapper": 3,
+  "cn.aiedge.kanban.mapper": 2,
+  "cn.aiedge.knowledge.mapper": 3,
+  "cn.aiedge.module.mapper": 2,
+  "cn.aiedge.monitor.mapper": 2,
+  "cn.aiedge.notification.mapper": 2,
+  "cn.aiedge.payment.mapper": 5,
+  "cn.aiedge.permission.mapper": 1,
+  "cn.aiedge.platform.mapper": 4,
+  "cn.aiedge.position.mapper": 3,
+  "cn.aiedge.quality.mapper": 5,
+  "cn.aiedge.recommendation.mapper": 2,
+  "cn.aiedge.report.mapper": 3,
+  "cn.aiedge.scheduler.mapper": 2,
+  "cn.aiedge.storage.mapper": 2,
+  "cn.aiedge.tenant.mapper": 3,
+  "cn.aiedge.trade.mapper": 3,
+  "cn.aiedge.trade.monitor.mapper": 2,
+  "cn.aiedge.webhook.mapper": 2,
+  "cn.aiedge.wms.borrow.mapper": 4,
+  "cn.aiedge.wms.check.mapper": 2,
+  "cn.aiedge.wms.event.mapper": 1,
+  "cn.aiedge.wms.inventory.mapper": 2,
+  "cn.aiedge.wms.move.mapper": 2,
+  "cn.aiedge.wms.pick.mapper": 3,
+  "cn.aiedge.wms.putaway.mapper": 2,
+  "cn.aiedge.wms.receipt.mapper": 2,
+  "cn.aiedge.wms.ship.mapper": 2,
+  "cn.aiedge.wms.warehouse.mapper": 2,
+  "cn.aiedge.workflow.mapper": 6
+ }
+}

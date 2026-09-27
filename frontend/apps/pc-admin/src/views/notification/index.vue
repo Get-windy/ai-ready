@@ -27,7 +27,6 @@
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <a-button
-            v-permission="'notification:view:refresh'"
             size="small"
             :loading="refreshLoading"
             @click="debounceClick('refresh', handleRefresh)"
@@ -143,7 +142,6 @@
               />
             </a-badge>
             <a-button
-              v-permission="'notification:view:markallread'"
               type="link"
               @click="debounceClick('markAllRead', handleMarkAllRead)"
             >
@@ -163,7 +161,6 @@
                 <SearchOutlined style="font-size: 48px; color: #faad14" />
               </template>
               <a-button
-                v-permission="'notification:view:resetfilters'"
                 @click="handleResetFilters"
               >
                 清除筛选
@@ -229,7 +226,6 @@
                 title="标记已读"
               >
                 <a-button
-                  v-permission="'notification:view:markread'"
                   type="link"
                   size="small"
                   @click="handleMarkRead(record)"

@@ -35,7 +35,7 @@
               tooltip="打印购置申请"
             />
             <a-button
-              v-permission="'erp:fixed-asset:purchase:list'"
+              v-permission="'fixed-asset:purchase:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)()"
@@ -249,7 +249,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'erp:fixed-asset:purchase:update'"
+                  v-permission="'fixed-asset:purchase:update'"
                   type="link"
                   size="small"
                   @click="editRecord(record)"
@@ -283,21 +283,21 @@
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="submit"
-                      v-permission="'erp:fixed-asset:purchase:submit'"
+                      v-permission="'fixed-asset:purchase:submit'"
                     >
                       <SendOutlined /> 提交审批
                     </a-menu-item>
                     <a-menu-item
                       v-if="record.status === 'pending'"
                       key="approve"
-                      v-permission="'erp:fixed-asset:purchase:approve'"
+                      v-permission="'fixed-asset:purchase:approve'"
                     >
                       <CheckCircleOutlined /> 审批通过
                     </a-menu-item>
                     <a-menu-item
                       v-if="record.status === 'pending'"
                       key="reject"
-                      v-permission="'erp:fixed-asset:purchase:approve'"
+                      v-permission="'fixed-asset:purchase:approve'"
                     >
                       <CloseCircleOutlined /> 审批拒绝
                     </a-menu-item>

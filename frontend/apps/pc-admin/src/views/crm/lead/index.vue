@@ -45,7 +45,7 @@
             </a-button>
             <a-button
               v-if="isButtonEnabled('batchAssign')"
-              v-permission="'crm:lead:batchassign'"
+              v-permission="'crm:lead:edit'"
               size="small"
               :disabled="!selectedRows.length"
               @click="handleBatchAssign"
@@ -317,7 +317,7 @@
                     </a-button>
                   </a-popconfirm>
                   <a-button
-                    v-permission="'crm:lead:assign'"
+                    v-permission="'crm:lead:edit'"
                     type="link"
                     size="small"
                     @click="handleAssign(record)"

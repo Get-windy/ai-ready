@@ -581,13 +581,13 @@ function handleCategorySelect(keys: any[]) {
   handleSearch()
 }
 
-// ═══ 客户级别选项（来源 GET /erp/partner/grades?gradeType=CUSTOMER → biz_customer_grade；
+// ═══ 客户级别选项（来源 GET /erp/partner/grades → biz_customer_grade；
 //     本页同时用于：查询区 gradeId 过滤（后端解析为级别名称匹配 customer_level）与编辑弹窗「客户级别」） ═══
 const gradeOptions = ref<{ label: string; value: number }[]>([])
 
 async function loadGrades() {
   try {
-    const list = await partnerGradeApi.list('CUSTOMER')
+    const list = await partnerGradeApi.list()
     gradeOptions.value = (list || []).map((g: any) => ({ label: g.gradeName, value: g.id }))
   } catch (e) {
     console.warn('[买家账号] 客户级别加载失败', e)

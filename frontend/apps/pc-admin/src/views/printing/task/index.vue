@@ -51,7 +51,7 @@
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
           </span>
           <a-button
-            v-permission="'printing:task:openexecutechain'"
+            v-permission="'print:task:execute'"
             type="primary"
             size="small"
             @click="handleOpenExecuteChain"
@@ -228,7 +228,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'printing:task:viewdetail'"
+                v-permission="'print:task:detail'"
                 type="link"
                 size="small"
                 @click="handleViewDetail(record)"
@@ -237,7 +237,7 @@
               </a-button>
               <a-button
                 v-if="record.status === 'PENDING' || record.status === 'QUEUED'"
-                v-permission="'printing:task:canceltask'"
+                v-permission="'print:task:cancel'"
                 type="link"
                 size="small"
                 danger
@@ -247,7 +247,7 @@
               </a-button>
               <a-button
                 v-if="record.screenshotId != null && record.screenshotStatus === 'PENDING'"
-                v-permission="'printing:task:confirmscreenshot'"
+                v-permission="'print:task:confirm'"
                 type="link"
                 size="small"
                 @click="handleConfirmScreenshot(record)"
@@ -256,7 +256,7 @@
               </a-button>
               <a-button
                 v-if="record.screenshotStatus === 'FAILED'"
-                v-permission="'printing:task:retryscreenshot'"
+                v-permission="'print:screenshot:retry'"
                 type="link"
                 size="small"
                 @click="handleRetryScreenshot(record)"

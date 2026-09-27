@@ -94,7 +94,7 @@ public class ApiPerformanceConfig {
         private void logApiTiming(String method, String uri, int status, long durationMs) {
             // INFO级别记录关键API响应时间
             if (uri.startsWith("/api/auth") || uri.startsWith("/api/user") || 
-                uri.startsWith("/api/customer") || uri.startsWith("/api/order")) {
+                uri.startsWith("/api/crm/customer") || uri.startsWith("/api/order")) {
                 log.info("[API-TIMING] {} {} {}ms (status={})", method, uri, durationMs, status);
             }
         }

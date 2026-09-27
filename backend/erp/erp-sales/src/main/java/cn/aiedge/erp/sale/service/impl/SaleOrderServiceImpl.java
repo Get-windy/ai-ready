@@ -190,6 +190,11 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
         calculateAmount(dto);
 
+        // ⚠️ 促销引擎结果必须**在这里**取出：`savePromotionDetails`（后面落分摊明细时）末尾会
+        //    `lastPromotionResult.remove()` 清掉 ThreadLocal，等到券核销那一步再读就是 null
+        //    ⇒ 会被误判成「引擎一个券都没采纳」，把本来可用的券也拒掉（2026-09-26 自测踩到）。
+        cn.aiedge.erp.marketing.promotion.PromotionResult promoResult = this.lastPromotionResult.get();
+
         // 信用额度校验 & 填充信用快照
         BigDecimal creditLimit = BigDecimal.ZERO;
         BigDecimal availableCredit = BigDecimal.ZERO;
@@ -300,10 +305,26 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         savePromotionDetails(order, dto);
 
         // 优惠券核销（与订单同一事务：核销失败则整单回滚，避免"券没用上但单据已存"）
-        if (dto.getCouponIds() != null) {
-            for (Long couponId : dto.getCouponIds()) {
-                couponRedemptionService.redeem(couponId, order.getId(), order.getOrderNo());
-            }
+        //
+        // ⚠️ 2026-09-26 修复（营销模块审计 P0）：此前是「按 dto.getCouponIds() 无脑核销」——
+        //    券被促销引擎判为不可用时（已过期 / 未达门槛 / 非本客户所有 / 该通道禁用 / 回填的单据日期
+        //    早于领券日），引擎只把它记进 `skipped`，而这里照样核销 ⇒
+        //    **券被白白扣掉、订单金额却一分未减**（E2E 实测：`券已核销` 通过、`coupon_amount` 恒 0）。
+        //    引擎的 `appliedCouponIds` 此前全仓无任何消费方 —— 即「引擎到底采纳了哪些券」从未被使用。
+        // 现在：① 只核销引擎**实际采纳**的券；② 传了券却有未被采纳的 ⇒ 直接报错（同事务回滚，
+        //    不会留下"已存单据"），并把引擎给出的跳过原因回给用户，避免"以为用了券、实际没优惠"。
+        cn.aiedge.erp.marketing.promotion.PromotionResult pr = promoResult;
+        List<Long> appliedCoupons = pr == null ? java.util.Collections.emptyList() : pr.getAppliedCouponIds();
+        List<Long> requestedCoupons = dto.getCouponIds() == null
+                ? java.util.Collections.emptyList() : dto.getCouponIds();
+        List<Long> rejected = requestedCoupons.stream().filter(id -> !appliedCoupons.contains(id)).toList();
+        if (!rejected.isEmpty()) {
+            String reason = pr == null || pr.getSkipped().isEmpty()
+                    ? "券不可用于本单" : String.join("；", pr.getSkipped());
+            throw BusinessException.badRequest("优惠券未生效，本单未保存：" + reason);
+        }
+        for (Long couponId : appliedCoupons) {
+            couponRedemptionService.redeem(couponId, order.getId(), order.getOrderNo());
         }
 
         log.info("创建销售订单: orderId={}, orderNo={}", order.getId(), order.getOrderNo());

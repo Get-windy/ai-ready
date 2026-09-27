@@ -429,7 +429,7 @@ const ALL_SPECS: TemplateSpec[] = [
     ],
   },
   {
-    pageCodes: ['crm/invoice'],
+    pageCodes: ['finance/invoice'],
     name: '发票_默认模板',
     businessType: 'invoice',
     docTitle: '销售发票',
@@ -1366,6 +1366,19 @@ interface SeedResult {
 /**
  * 为单个模板规格创建模板
  */
+/**
+ * 新建的模板是 DRAFT 状态，而打印弹窗只取 PUBLISHED，所以种子必须顺手发布。
+ * 发布失败不抛错：模板已经建出来了，让调用方照常记录成功，避免整批中断。
+ */
+async function publishQuietly(templateId?: number): Promise<void> {
+  if (!templateId) return
+  try {
+    await printingApi.publishTemplate(templateId)
+  } catch (err: any) {
+    console.warn(`⚠️ 模板 ${templateId} 发布失败，仍为草稿：`, err?.message)
+  }
+}
+
 async function seedSpec(spec: TemplateSpec): Promise<SeedResult[]> {
   const results: SeedResult[] = []
 
@@ -1382,7 +1395,10 @@ async function seedSpec(spec: TemplateSpec): Promise<SeedResult[]> {
         paperHeight: 297,
         margins: { top: 10, bottom: 10, left: 10, right: 10 },
       }
-      await printingApi.createTemplate(req)
+      // 新建落在 DRAFT；不跟着发布的话，PrintDialog（只取 PUBLISHED）里永远看不到它，
+      // 「初始化模板」会变成"点了没反应"
+      const created = await printingApi.createTemplate(req)
+      await publishQuietly(created?.data?.templateId)
       results.push({ pageCode, templateName: `[默认] ${spec.docTitle}`, success: true })
     } catch (err: any) {
       // 409可能表示已存在同名模板
@@ -1412,7 +1428,8 @@ async function seedSpec(spec: TemplateSpec): Promise<SeedResult[]> {
           paperHeight: 297,
           margins: { top: 10, bottom: 10, left: 10, right: 10 },
         }
-        await printingApi.createTemplate(req)
+        const created = await printingApi.createTemplate(req)
+        await publishQuietly(created?.data?.templateId)
         results.push({ pageCode: primaryPageCode, templateName: nodeName, success: true })
       } catch (err: any) {
         if (err?.response?.status === 409 || err?.message?.includes('已存在')) {

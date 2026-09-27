@@ -1,6 +1,7 @@
 package cn.aiedge.crm.contract.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.contract.entity.Contract;
 import cn.aiedge.crm.contract.entity.ContractAttachment;
 import cn.aiedge.crm.contract.entity.ContractChange;
@@ -37,6 +38,9 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     private final ContractAttachmentMapper attachmentMapper;
     private final ContractPaymentMapper paymentMapper;
     private final ContractChangeMapper changeMapper;
+
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public Contract getByContractNo(String contractNo) {
@@ -112,20 +116,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
 
     @Override
     public String generateContractNo() {
-        String prefix = "CT";
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        LambdaQueryWrapper<Contract> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(Contract::getContractNo, prefix + dateStr)
-                .eq(Contract::getDeleted, 0)
-                .orderByDesc(Contract::getContractNo)
-                .last("LIMIT 1");
-        Contract lastContract = getOne(wrapper);
-        int seq = 1;
-        if (lastContract != null) {
-            String lastNo = lastContract.getContractNo();
-            seq = Integer.parseInt(lastNo.substring(lastNo.length() - 4)) + 1;
-        }
-        return prefix + dateStr + String.format("%04d", seq);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE）：
+        // 原实现「查当日最大号 +1」既与并发竞态，又带 deleted=0 条件 —— 逻辑删除的行不计数但占号，
+        // 把当天最后一张合同删掉后再建必撞唯一索引（2026-09-21 实机复现）。
+        return bizNumberGeneratorService.nextNumber("CRM_CONTRACT");
     }
 
     @Override

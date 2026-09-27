@@ -52,7 +52,7 @@
               刷新
             </a-button>
             <a-button
-              v-permission="'supplier:inquiry:createinquiry'"
+              v-permission="'supplier:inquiry:create'"
               type="primary"
               :disabled="!supplierId"
               @click="handleCreateInquiry"
@@ -189,7 +189,7 @@
               <a-space>
                 <a-button
                   v-if="record.quotationStatus === 1"
-                  v-permission="'supplier:inquiry:viewquotation'"
+                  v-permission="'supplier:inquiry:detail'"
                   size="small"
                   @click="handleViewQuotation(record)"
                 >

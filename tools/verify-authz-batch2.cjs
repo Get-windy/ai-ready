@@ -21,9 +21,9 @@ const ADMIN = { u: 'admin', p: 'admin123', t: '系统租户' }
 const OUTSIDER = { u: 'e2e_hr_t2', p: 'admin123', t: 'E2E验收租户2' }
 
 const PROBES = [
-  { code: 'crm:customer:list', method: 'GET', path: '/customer/page?page=1&size=1' },
-  { code: 'crm:customer:update', method: 'PUT', path: '/customer/999999999', body: { customerName: 'x' } },
-  { code: 'crm:customer:delete', method: 'DELETE', path: '/customer/999999999' },
+  { code: 'crm:customer:list', method: 'GET', path: '/crm/customer/page?page=1&size=1' },
+  { code: 'crm:customer:update', method: 'PUT', path: '/crm/customer/999999999', body: { customerName: 'x' } },
+  { code: 'crm:customer:delete', method: 'DELETE', path: '/crm/customer/999999999' },
   { code: 'crm:lead:view', method: 'GET', path: '/crm/followUp/lead/999999999' },
   { code: 'crm:opportunity:create', method: 'POST', path: '/crm/opportunity', body: {} },
   { code: 'crm:opportunity:view', method: 'GET', path: '/crm/opportunity/statistics' },

@@ -19,11 +19,17 @@ public interface PaymentChannel {
     String getChannelName();
 
     /**
-     * 创建支付订单
-     * @param request 支付请求
-     * @return 渠道订单号
+     * 渠道下单：返回**渠道订单标识 + 客户端付款地址/参数**。
+     *
+     * <p>2026-09-26 由「返回 {@code String}（渠道订单号）」改为返回
+     * {@link ChannelPayResult} —— 真接支付宝/银联后，下单必须同时给出
+     * 「查单/退款用的键」与「客户端去哪儿付」。原设计只有前者，结果是
+     * 要么把收银台 URL 塞进 {@code channel_order_no}（之后查单必炸），
+     * 要么客户端拿不到付款地址（C 端只能跳空白页）。</p>
+     *
+     * @param request 支付请求（{@code bizNo} 即提交给渠道的商户单号 / out_trade_no）
      */
-    String createPayment(PaymentRequest request);
+    ChannelPayResult createPayment(PaymentRequest request);
 
     /**
      * 查询支付状态
@@ -32,12 +38,6 @@ public interface PaymentChannel {
      */
     PaymentRecord queryPayment(String channelOrderNo);
 
-    /**
-     * 处理支付回调
-     * @param callbackData 回调数据
-     * @return 支付记录
-     */
-    PaymentRecord handleCallback(String callbackData);
 
     /**
      * 关闭支付订单

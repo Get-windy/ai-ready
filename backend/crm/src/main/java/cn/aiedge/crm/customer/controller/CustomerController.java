@@ -16,7 +16,9 @@ import java.util.List;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
-@RequestMapping("/api/customer")
+// 与同模块其余 9 个控制器一致（都在 /api/crm/* 下）。此前是 CRM 里唯一不守约定的前缀，
+// 会误导「URL 前缀 → 模块」类工具推出 customer:* 而非 crm:customer:*
+@RequestMapping("/api/crm/customer")
 @Tag(name = "CRM客户管理", description = "客户信息管理、查询、维护")
 @RequiredArgsConstructor
 public class CustomerController {

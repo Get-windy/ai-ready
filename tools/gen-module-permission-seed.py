@@ -358,13 +358,21 @@ MODULES = {
         #   ① 历史码的动作词是 view / edit（不是 list / detail / update）；
         #   ② 通用规则的 POST 兜底是 create ⇒ `POST /{id}/sign`、`/{id}/terminate`、
         #      `/mark-expired` 全被判成"新建合同"；
-        #   ③ CustomerController 的类级路径是 /api/customer，推导成 party:customer:*，
-        #      而库中这套码挂在 crm:customer:*。
+        #   ③ CustomerController 的类级路径原为 /api/customer（全模块唯一不守 /api/crm/* 约定的），
+        #      会被推导成 party:customer:*，而库中这套码挂在 crm:customer:*。
+        #      ⚠️ 2026-09-26 已把该类级路径统一为 /api/crm/customer，正常情况下推导结果即为
+        #      crm:customer:*；下面的 'party:customer' 覆盖保留，用于向前兼容历史路径的推导。
         # 继续用推导结果 = 再造一套平行命名空间（本仓已踩过 product:* 那次），
         # 故对**有历史码的资源**逐条对齐；只有词表里确实没有的动作才新增码
         # （新增清单由 `--apply` 的 missing 报告给出，再人工写种子迁移）。
         'resource_overrides': {
             'party:customer': {
+                'domain': 'crm', 'resource': 'customer',
+                # export 无独立码 → 归 list（导出就是列表的另一种输出）；
+                # status 是"改客户状态" → 归 update
+                'actions': {'detail': 'view', 'export': 'list', 'status': 'update'},
+            },
+            'crm:customer': {
                 'domain': 'crm', 'resource': 'customer',
                 # export 无独立码 → 归 list（导出就是列表的另一种输出）；
                 # status 是"改客户状态" → 归 update
@@ -420,6 +428,10 @@ MODULES = {
                 # 导出复用历史码 downloadpdf（同义动作，不新造 export 码）
                 ('GET', r'/export$',                'crm:quotation:downloadpdf'),
             ],
+            '/api/crm/customer': [
+                ('POST', r'/\{[^/}]+\}/follow$',    'crm:customer:follow'),
+            ],
+            # 历史路径（2026-09-26 前 CustomerController 的前缀），保留以便旧分支重新生成时不致错码
             '/api/customer': [
                 ('POST', r'/\{[^/}]+\}/follow$',    'crm:customer:follow'),
             ],

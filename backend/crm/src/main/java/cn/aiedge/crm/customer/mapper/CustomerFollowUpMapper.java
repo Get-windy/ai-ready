@@ -20,10 +20,4 @@ public interface CustomerFollowUpMapper extends BaseMapper<CustomerFollowUp> {
     @Select("SELECT MAX(follow_up_date) FROM crm_customer_follow_up WHERE customer_id = #{customerId}")
     LocalDate selectMaxFollowUpDate(@Param("customerId") Long customerId);
 
-    /**
-     * 当日跟进编号的最大值。刻意不带 deleted 条件：唯一索引 uk_crm_follow_up_code
-     * 不含 deleted，已逻辑删除的行仍占号，取号时必须把它们算进来（否则会撞索引）。
-     */
-    @Select("SELECT MAX(follow_up_code) FROM crm_customer_follow_up WHERE follow_up_code LIKE CONCAT(#{prefix}, '%')")
-    String selectMaxFollowUpCode(@Param("prefix") String prefix);
-}
+    }

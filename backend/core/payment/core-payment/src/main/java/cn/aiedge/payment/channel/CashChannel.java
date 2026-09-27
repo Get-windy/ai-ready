@@ -26,9 +26,9 @@ public class CashChannel implements PaymentChannel {
     }
 
     @Override
-    public String createPayment(PaymentRequest request) {
-        // 线下支付直接返回成功
-        return "CASH_" + request.getId();
+    public ChannelPayResult createPayment(PaymentRequest request) {
+        // 现金为**线下渠道**：无收银台可跳，当场收款由人工确认（confirmOfflinePayment）
+        return ChannelPayResult.ofChannelOrderNo("CASH_" + request.getId());
     }
 
     @Override
@@ -37,16 +37,6 @@ public class CashChannel implements PaymentChannel {
         record.setChannelOrderNo(channelOrderNo);
         record.setChannel(getChannelCode());
         record.setStatus(2); // 线下支付默认成功
-        return record;
-    }
-
-    @Override
-    public PaymentRecord handleCallback(String callbackData) {
-        // 线下支付无回调
-        PaymentRecord record = new PaymentRecord();
-        record.setChannel(getChannelCode());
-        record.setStatus(2);
-        record.setCallbackTime(LocalDateTime.now());
         return record;
     }
 

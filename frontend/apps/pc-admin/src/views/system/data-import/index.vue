@@ -413,13 +413,8 @@
                       </template>
                       <template v-if="column.key === 'action'">
                         <a-space>
-                          <a-button
-                            type="link"
-                            size="small"
-                            @click="editMapping(record)"
-                          >
-                            编辑
-                          </a-button>
+                          <!-- 「编辑」按钮已移除：本表格各字段均为行内可编辑（下拉/输入框/勾选/开关），
+                               原按钮绑定的 editMapping() 函数体是空的、点击无任何反应。 -->
                           <a-popconfirm
                             title="确定删除？"
                             @confirm="deleteMapping(record, index)"
@@ -739,6 +734,12 @@ const selectedBillType = ref('')
 const mappingRows = ref<any[]>([])
 const selectedMappingRows = ref<number[]>([])
 const mappingSaving = ref(false)
+/**
+ * 字段映射是否**成功加载**过。
+ * 保存走的是「全量覆盖」接口（batchSaveMappings 把整表提交上去），
+ * 若加载失败后表格是空的，用户一点保存就会把服务端的映射全部清空 —— 必须禁止这种情况。
+ */
+const mappingLoaded = ref(false)
 const templateLoading = ref(false)
 const selectedDomain = ref('master')
 
@@ -772,6 +773,7 @@ function onDomainChange() {
   } else {
     selectedBillType.value = ''
     mappingRows.value = []
+    mappingLoaded.value = false
   }
 }
 
@@ -976,14 +978,23 @@ async function loadSources() {
       label: s.systemName,
       value: s.systemCode,
     }))
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    // 静默失败会让「源系统」下拉恒空且没有任何提示，用户以为本就没有可选项
+    console.error('[外链同步] 加载源系统列表失败', e)
+    sourceOptions.value = []
+    message.error('加载源系统列表失败')
+  }
 }
 
 async function loadBillTypes() {
   try {
     const res = await dictItemApi.getByDictCode('BILL_TYPE')
     billTypeItems.value = Array.isArray(res) ? res : []
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    console.error('[外链同步] 加载单据类型字典失败', e)
+    billTypeItems.value = []
+    message.error('加载单据类型失败')
+  }
 }
 
 function getSystemName(sourceType: string): string {
@@ -1101,6 +1112,7 @@ async function testConnection(id: number) {
 
 async function loadFieldMappings() {
   if (!selectedMappingConfig.value || !selectedBillType.value) return
+  mappingLoaded.value = false
   try {
     const res = await request.get(
       `/v1/sync-config/${selectedMappingConfig.value.id}/field-mappings/${selectedBillType.value}`
@@ -1117,8 +1129,13 @@ async function loadFieldMappings() {
       required: !!m.required,
       status: m.status ?? 1,
     }))
+    mappingLoaded.value = true
   } catch (e) {
+    // 静默清空 + 下游「保存」是全量覆盖 ⇒ 用户会在不知情下把服务端映射清空，必须显式报错并锁住保存
+    console.error('[外链同步] 加载字段映射失败', e)
     mappingRows.value = []
+    mappingLoaded.value = false
+    message.error('加载字段映射失败，请重试（未加载成功前不允许保存，以免覆盖服务端配置）')
   }
 }
 
@@ -1152,10 +1169,6 @@ function showCreateMapping() {
   })
 }
 
-function editMapping(record: any) {
-  // 行内编辑，无需弹窗
-}
-
 function deleteMapping(record: any, index: number) {
   mappingRows.value.splice(index, 1)
 }
@@ -1170,6 +1183,11 @@ function onMappingRowSelect(keys: number[]) {
 
 async function batchSaveMappings() {
   if (!selectedMappingConfig.value || !selectedBillType.value) return
+  // 提交前守卫：本接口是全量覆盖语义，未成功加载过就提交 = 把服务端映射清空
+  if (!mappingLoaded.value) {
+    message.error('字段映射尚未成功加载，已禁止保存（避免覆盖服务端已有配置）。请重新选择后重试。')
+    return
+  }
   mappingSaving.value = true
   try {
     const payload = mappingRows.value.map((r, idx) => ({

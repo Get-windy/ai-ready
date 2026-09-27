@@ -65,22 +65,14 @@
         @change="handlePageConfigChange"
       />
 
-      <!-- 批量打印弹窗 -->
-      <a-modal
-        v-model:open="showPrintDialog"
-        title="批量打印"
-        :width="400"
-        @ok="confirmPrint"
-      >
-        <div style="padding: 16px 0;">
-          <div style="margin-bottom: 8px;">打印模板：</div>
-          <a-select v-model:value="printTemplate" style="width: 100%;">
-            <a-select-option value="default">标准模板</a-select-option>
-            <a-select-option value="simple">简化模板</a-select-option>
-            <a-select-option value="detailed">详细模板</a-select-option>
-          </a-select>
-        </div>
-      </a-modal>
+      <!-- 打印（模板渲染）：无已发布模板时组件会明确提示，不再假装成功 -->
+      <PrintDialog
+        ref="printDialogRef"
+        page-code="purchase-inbound"
+        :document-id="printData.id"
+        :print-data="printData"
+        @print-success="handlePrintSuccess"
+      />
 
       <!-- 批量导入隐藏文件输入 -->
       <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFileChange" />
@@ -98,6 +90,7 @@ import DocCenterLayout from '@/components/DocCenterLayout/DocCenterLayout.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 import { userPageConfigApi } from '@/api/erp'
 import request from '@/utils/request'
 import { showImportResult } from '@/utils/importResult'
@@ -371,8 +364,6 @@ function applyHiddenSearchFields() {
 
 // ═══ 工具栏操作 ═══
 const showPageConfig = ref(false)
-const showPrintDialog = ref(false)
-const printTemplate = ref('default')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const importLoading = ref(false)
 
@@ -388,23 +379,38 @@ const handleToolbarAction = (action: string) => {
   }
 }
 
+// ═══ 打印（模板渲染）═══
+// 收敛到共享 PrintDialog：模板/渲染由 erp-printing 负责，本页只给单据主键。
+// pageCode='purchase-inbound' 目前后端**尚未**注册 PrintDataProvider、也没有已发布模板，
+// 此时组件会明确提示「还没有已发布的打印模板」并禁用打印 —— 不再像原先那样
+// 自写一个假弹窗、点了只把打印次数 +1（2026-09-22 审计 P1）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+/** 本次打印涉及的单据 ID，打印成功后回写打印次数 */
+const printingIds = ref<string[]>([])
+
 function handleBatchPrint() {
-  printTemplate.value = localStorage.getItem('purchase-inbound-last-print-template') || 'default'
-  showPrintDialog.value = true
+  if (!selectedRowKeys.value.length) {
+    message.warning('请先勾选要打印的入库单')
+    return
+  }
+  printData.value = { id: selectedRowKeys.value[0] }
+  printingIds.value = selectedRowKeys.value.map((k: any) => String(k))
+  printDialogRef.value?.open()
 }
 
-async function confirmPrint() {
-  try {
-    await request.post('/erp/purchase/inbound/batch-print', { template: printTemplate.value, ids: selectedRowKeys.value })
-    localStorage.setItem('purchase-inbound-last-print-template', printTemplate.value)
-    // 后端 batch-print 只做「打印次数 +1」——打印链路（erp-printing）当前无模板/客户端数据，
-    // 建了任务也不会出纸。这里改为调用浏览器打印产出真实单据，同时把次数记在台账上，
-    // 让按钮的提示语与实际发生的事一致。
-    window.print()
-    message.success(`已记录打印次数并打开打印预览（模板: ${printTemplate.value}）`)
-    showPrintDialog.value = false
-    fetchData()
-  } catch { message.error('打印失败') }
+/** 打印成功 → 累加「打印次数」后刷新列表 */
+async function handlePrintSuccess() {
+  const ids = printingIds.value
+  printingIds.value = []
+  if (ids.length) {
+    try {
+      await request.post('/erp/purchase/inbound/batch-print', { ids })
+    } catch (e) {
+      console.warn('[采购入库单] 打印次数回写失败', e)
+    }
+  }
+  fetchData()
 }
 
 async function handleImportFileChange(e: Event) {

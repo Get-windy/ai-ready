@@ -204,7 +204,7 @@
             :view-mode="true"
             :show-pagination="false"
             :storage-key="storageKey"
-            :global-config-key="storageKey"
+            :global-config-key="`${storageKey}-global`"
             @checkbox-change="handleRowCheck"
             @checkbox-all="handleRowCheckAll"
           >

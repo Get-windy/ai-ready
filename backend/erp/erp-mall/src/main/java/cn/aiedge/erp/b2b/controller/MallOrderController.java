@@ -69,6 +69,19 @@ public class MallOrderController {
     //   · 三者在前端两个应用里均无调用方（pc-admin 用管理端端点，mobile-mall 未接）。
     //   将来做 C 端支付时，应走 core-payment 的 createPayment + 渠道回调驱动订单状态。
 
+    @Operation(summary = "订单状态计数", description = "「我的」订单五宫格与订单页 Tab 的角标数据（口径与列表一致）")
+    @GetMapping("/counts")
+    public ApiResponse<Map<String, Integer>> counts() {
+        return ApiResponse.success(mallOrderService.orderStatusCounts());
+    }
+
+    @Operation(summary = "订单物流信息", description = "返回发货信息（物流公司/运单号）；真实轨迹待承运商对接，无数据源时 traces 为空")
+    @GetMapping("/{id}/track")
+    public ApiResponse<Map<String, Object>> track(
+            @Parameter(description = "订单ID") @PathVariable Long id) {
+        return ApiResponse.success(mallOrderService.orderLogistics(id));
+    }
+
     @Operation(summary = "支付方式列表", description = "获取可用的支付方式列表")
     @GetMapping("/payment-methods")
     public ApiResponse<List<Map<String, Object>>> getPaymentMethods() {

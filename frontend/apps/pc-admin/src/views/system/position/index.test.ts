@@ -61,34 +61,33 @@ describe('Position Management', () => {
     const { departmentApi } = await import('@/api/department')
     const { dictItemApi } = await import('@/api/dict')
 
+    /**
+     * ⚠️ mock 必须回放**响应拦截器拆包后**的真实形态，否则会掩盖 bug。
+     *
+     * `utils/request.ts` 在成功时已经把 Result/Page 拆开：调用方拿到的
+     * 就是数据本体（Page 是 `{records,total}`、列表是数组），**永远不会**多出一层 `data`。
+     * 此前此处 mock 了 `{ data: [], code: 200 }` 这类运行时不会出现的外壳，
+     * 让页面里 `if (res.data)` 的错误写法在测试中「恰好」走通 —— 于是
+     * 「列表/下拉恒空」的 P0 长期无人发现（2026-09-24 系统模块审计 P2）。
+     * 改动这里的 mock 前，请先确认 request.ts 的拆包行为没变。
+     */
     vi.mocked(mockPosApi.getPage).mockResolvedValue({
       records: [],
-      total: 0,
-      data: true
+      total: 0
     } as any)
-    vi.mocked(mockPosApi.getCategoryList).mockResolvedValue({
-      data: [],
-      code: 200
-    } as any)
+    vi.mocked(mockPosApi.getCategoryList).mockResolvedValue([] as any)
     vi.mocked(mockPosApi.getCategoryPage).mockResolvedValue({
       records: [],
-      total: 0,
-      data: true
+      total: 0
     } as any)
-    vi.mocked(departmentApi.getList).mockResolvedValue({
-      data: [],
-      code: 200
-    } as any)
-    vi.mocked(dictItemApi.getByDictCode).mockResolvedValue({
-      data: [
-        { itemText: '初级', itemValue: '1', sortOrder: 1 },
-        { itemText: '中级', itemValue: '2', sortOrder: 2 },
-        { itemText: '高级', itemValue: '3', sortOrder: 3 },
-        { itemText: '专家', itemValue: '4', sortOrder: 4 },
-        { itemText: '首席', itemValue: '5', sortOrder: 5 }
-      ],
-      code: 200
-    } as any)
+    vi.mocked(departmentApi.getList).mockResolvedValue([] as any)
+    vi.mocked(dictItemApi.getByDictCode).mockResolvedValue([
+      { itemText: '初级', itemValue: '1', sortOrder: 1 },
+      { itemText: '中级', itemValue: '2', sortOrder: 2 },
+      { itemText: '高级', itemValue: '3', sortOrder: 3 },
+      { itemText: '专家', itemValue: '4', sortOrder: 4 },
+      { itemText: '首席', itemValue: '5', sortOrder: 5 }
+    ] as any)
 
     wrapper = mount(PositionIndex, {
       global: {

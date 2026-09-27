@@ -76,7 +76,6 @@
               <a-divider />
 
               <a-button
-                v-permission="'profile:view:openeditprofile'"
                 block
                 @click="debounceClick('editProfile', handleOpenEditProfile)"
               >
@@ -138,7 +137,6 @@
                 </a-form-item>
                 <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
                   <a-button
-                    v-permission="'profile:view:changepassword'"
                     type="primary"
                     :loading="passwordLoading"
                     @click="debounceClick('changePassword', handleChangePassword)"
@@ -257,7 +255,6 @@
                 </a-form-item>
                 <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
                   <a-button
-                    v-permission="'profile:view:savepreferences'"
                     type="primary"
                     :loading="preferenceLoading"
                     @click="debounceClick('savePreference', handleSavePreferences)"

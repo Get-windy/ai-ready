@@ -12,7 +12,10 @@ export interface MarginConfig {
   right: number
 }
 
-/** 打印模板 */
+/**
+ * 打印模板。
+ * status 是字符串枚举（后端该列是 varchar）：'DRAFT' | 'PUBLISHED' | 'DISABLED'
+ */
 export interface PrintTemplateVO {
   templateId: number
   tenantId: number
@@ -26,7 +29,8 @@ export interface PrintTemplateVO {
   marginBottom: number
   marginLeft: number
   marginRight: number
-  status: number
+  /** 'DRAFT' | 'PUBLISHED' | 'DISABLED' */
+  status: string
   isDefault: boolean
   version: number
   createdAt: string
@@ -49,7 +53,8 @@ export interface PrintTemplateQuery {
   page: number
   size: number
   pageCode?: string
-  status?: number
+  /** 'DRAFT' | 'PUBLISHED' | 'DISABLED' */
+  status?: string
 }
 
 /** 打印链 */
@@ -232,6 +237,40 @@ export interface TemplateRenderRequest {
 /** 模板渲染结果 */
 export interface TemplateRenderResult {
   html: string
+}
+
+/**
+ * 「单据打印」页面级信息（后端已发布模板 + 是否后端可装配数据）。
+ *
+ * 模板正文一并下发：兼容路径（页面自己给数据）要在前端本地渲染，拿到模板就得能画。
+ * 单独再取一次详情会多要一个 print:template:detail 权限，只有 list 的角色会突然打不出预览。
+ */
+export interface DocumentTemplatesVO {
+  pageCode: string
+  /** 后端是否已注册该页面的数据装配器（true 才能只给单据主键打印） */
+  supported: boolean
+  defaultTemplateId: number | null
+  templates: Array<{
+    templateId: number
+    templateName: string
+    isDefault: boolean
+    paperSize: string
+    version: number
+    updatedAt: string
+    templateJson: string
+  }>
+}
+
+/** 按单据渲染打印内容的结果 */
+export interface DocumentPrintResultVO {
+  html: string
+  templateId: number
+  templateName: string
+  paperSize: string
+  paperWidth: number | null
+  paperHeight: number | null
+  defaultTemplateId: number | null
+  documentNo: string | null
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -461,6 +500,39 @@ export const printingApi = {
    */
   renderTemplate(data: TemplateRenderRequest): Promise<ApiResponse<TemplateRenderResult>> {
     return request.post(`${PREFIX}/format/render`, data)
+  },
+
+  // ── 单据打印（业务级）──────────────────────────────────
+  // 页面只给 pageCode + 单据主键，取数/挑模板/打印设置加工全在后端。
+  // 与 renderTemplate 的分工：这个是业务接口，那个是设计器预览/调试用的开发者接口。
+
+  /**
+   * 页面已发布模板（「已发布」这个规则由服务端定，前端不再猜 status 取值）
+   */
+  getDocumentTemplates(pageCode: string): Promise<ApiResponse<DocumentTemplatesVO>> {
+    return request.get(`${PREFIX}/documents/${encodeURIComponent(pageCode)}/templates`)
+  },
+
+  /**
+   * 按单据渲染打印内容（后端装配数据，页面无需准备 printData）
+   */
+  renderDocument(
+    pageCode: string,
+    documentId: number | string,
+    templateId?: number | null,
+  ): Promise<ApiResponse<DocumentPrintResultVO>> {
+    return request.post(
+      `${PREFIX}/documents/${encodeURIComponent(pageCode)}/${documentId}/render`,
+      null,
+      { params: templateId ? { templateId } : {} },
+    )
+  },
+
+  /**
+   * 已注册数据装配器的页面编码（接入检查用）
+   */
+  getDocumentPageCodes(): Promise<ApiResponse<string[]>> {
+    return request.get(`${PREFIX}/documents/page-codes`)
   }
 }
 

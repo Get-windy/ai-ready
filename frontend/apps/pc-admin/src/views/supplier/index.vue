@@ -19,7 +19,7 @@
           <div class="supplier-header-right">
             <a-space>
               <a-button
-                v-permission.disabled="'supplier:add'"
+                v-permission.disabled="'supplier:create'"
                 type="primary"
                 title="快捷键 Ctrl+N"
                 @click="handleCreate"
@@ -407,7 +407,7 @@
               </a-tooltip>
               <a-tooltip title="编辑">
                 <a-button
-                  v-permission.disabled="'supplier:edit'"
+                  v-permission.disabled="'supplier:update'"
                   type="link"
                   size="small"
                   @click="handleEdit(record)"

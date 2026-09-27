@@ -54,4 +54,14 @@ public class PaymentRequest extends BaseEntity {
 
     /** 支付人姓名 */
     private String payerName;
+
+    /**
+     * 客户端付款地址（支付宝收银台 URL / 银联网关 URL）。
+     *
+     * <p><b>刻意不持久化</b>（{@code exist = false}）：付款地址可能带一次性签名参数、
+     * 且随时可变，存进库只会过期误导。它由 {@code createPayment} 当次返回给前端，
+     * 之后要重新付款就重新下单/重新取。</p>
+     */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String payUrl;
 }

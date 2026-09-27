@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "I:\AI-Ready\tools\dbq.py", line 23, in <module>
+    run(sys.argv[1])
+    ~~~^^^^^^^^^^^^^
+  File "I:\AI-Ready\tools\dbq.py", line 11, in run
+    cur.execute(sql)
+    ~~~~~~~~~~~^^^^^
+psycopg2.errors.UndefinedColumn: ´íÎó:  ×Ö¶Î "name" ²»´æÔÚ
+LINE 1: SELECT id,parent_id,name,menu_code,client_type,path,componen...
+                            ^
+

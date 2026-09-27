@@ -35,7 +35,7 @@
               tooltip="打印资产列表"
             />
             <a-button
-              v-permission="'erp:fixed-asset:asset:list'"
+              v-permission="'fixed-asset:asset:list'"
               size="small"
               :loading="refreshLoading"
               @click="debounceClick('refresh', fetchData)"
@@ -252,7 +252,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'erp:fixed-asset:asset:update'"
+                  v-permission="'fixed-asset:asset:update'"
                   type="link"
                   size="small"
                   @click="editAsset(record)"
@@ -286,19 +286,19 @@
                     <a-menu-item
                       v-if="record.status === 'draft'"
                       key="activate"
-                      v-permission="'erp:fixed-asset:asset:update'"
+                      v-permission="'fixed-asset:asset:update'"
                     >
                       <CheckCircleOutlined /> 启用
                     </a-menu-item>
                     <a-menu-item
                       key="depreciate"
-                      v-permission="'erp:fixed-asset:asset:update'"
+                      v-permission="'fixed-asset:asset:update'"
                     >
                       <CalculatorOutlined /> 折旧计提
                     </a-menu-item>
                     <a-menu-item
                       key="transfer"
-                      v-permission="'erp:fixed-asset:asset:update'"
+                      v-permission="'fixed-asset:asset:update'"
                     >
                       <SwapOutlined /> 资产转移
                     </a-menu-item>

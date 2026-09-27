@@ -27,7 +27,7 @@
           tooltip="打印资产总览"
         />
         <a-button
-          v-permission="'erp:fixed-asset:asset:list'"
+          v-permission="'fixed-asset:asset:list'"
           size="small"
           :loading="refreshLoading"
           @click="debounceClick('refresh', handleRefresh)()"

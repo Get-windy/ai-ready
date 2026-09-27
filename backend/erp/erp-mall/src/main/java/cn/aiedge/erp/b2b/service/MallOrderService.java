@@ -33,6 +33,26 @@ public interface MallOrderService {
     //     · 三者在两个前端应用（pc-admin / mobile-mall）中**零调用方**。
     //   待 C 端支付与审核链路真正建设时，按上面的正确路径重新接入。
 
+    /**
+     * F-05「我的」订单五宫格 / 订单页顶部 Tab 的**状态计数**。
+     *
+     * <p>口径与 {@link #listOrders} **完全一致**（同一身份、同一订单来源），
+     * 否则会出现"列表里有 3 单待付款、角标却写 2"这类对不上的情况。</p>
+     *
+     * @return key：pendingPayment 待付款 / pendingShip 待发货 / pendingReceive 待收货 /
+     *         completed 已完成 / afterSales 售后（暂恒 0，见实现注释）
+     */
+    Map<String, Integer> orderStatusCounts();
+
+    /**
+     * F-06 订单物流信息。
+     *
+     * <p>返回该单的**发货信息**（物流公司 / 运单号 / 配送状态）。
+     * 真实轨迹需要对接承运商（快递100 之类），本系统暂无数据源，
+     * 故 {@code traces} 恒为空数组并附带说明 —— **不编造轨迹节点**。</p>
+     */
+    Map<String, Object> orderLogistics(Long id);
+
     /** 获取支付方式列表 */
     List<Map<String, Object>> getPaymentMethods();
 }

@@ -23,7 +23,7 @@ export { stockApi, batchApi, preOrderApi, saleOrderApi } from './erp'
 export { receivableApi, payableApi, capitalFlowApi, reportApi } from './finance'
 export { dashboardApi } from './dashboard'
 export { shopUserApi } from './erp/mall'
-export { invoiceApi } from './crm'
+export { invoiceApi } from './finance/invoice'
 export { feeStatisticsApi } from './erp/expense'
 // 批次查询专用封装：后端 /erp/batch-sn 返回 BatchApiResponse（code 为字符串 "SUCCESS"），
 // 标准 request 拦截器（仅认数字 code===200）会误判为失败；

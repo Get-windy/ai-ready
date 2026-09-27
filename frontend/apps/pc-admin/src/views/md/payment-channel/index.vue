@@ -153,7 +153,7 @@
               :show-export="false"
               :show-batch-delete="false"
               storage-key="md-payment-channel-columns"
-              global-config-key="md-payment-channel-columns"
+              global-config-key="md-payment-channel-columns-global"
               row-key="id"
               @sort-change="handleSortChange"
             >

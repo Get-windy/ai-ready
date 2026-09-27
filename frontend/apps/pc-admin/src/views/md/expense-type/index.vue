@@ -107,7 +107,7 @@
               :view-mode="true"
               :min-rows="20"
               storage-key="md-expense-type-table-columns"
-              global-config-key="md-expense-type-table-columns"
+              global-config-key="md-expense-type-table-columns-global"
             >
               <!-- 科目名称：按层级缩进 + 展开/收起 -->
               <template #nameCell="{ record }">

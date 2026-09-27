@@ -273,10 +273,10 @@ public class PermissionInitializationConfig implements ApplicationRunner {
             createPermission("库存管理", "stock:manage", 1, "/erp/stock", null, null, 34),
             createPermission("库存查看", "stock:list", 3, null, "/api/erp/stock/page", "GET", 35),
             createPermission("CRM客户管理", "crm:manage", 1, "/crm", null, null, 36),
-            createPermission("客户查询", "crm:customer:list", 3, null, "/api/customer/page", "GET", 37),
-            createPermission("客户创建", "crm:customer:create", 3, null, "/api/customer", "POST", 38),
-            createPermission("客户更新", "crm:customer:update", 3, null, "/api/customer/*", "PUT", 39),
-            createPermission("客户删除", "crm:customer:delete", 3, null, "/api/customer/*", "DELETE", 40)
+            createPermission("客户查询", "crm:customer:list", 3, null, "/api/crm/customer/page", "GET", 37),
+            createPermission("客户创建", "crm:customer:create", 3, null, "/api/crm/customer", "POST", 38),
+            createPermission("客户更新", "crm:customer:update", 3, null, "/api/crm/customer/*", "PUT", 39),
+            createPermission("客户删除", "crm:customer:delete", 3, null, "/api/crm/customer/*", "DELETE", 40)
         );
         savePermissions(erpPermissions);
 

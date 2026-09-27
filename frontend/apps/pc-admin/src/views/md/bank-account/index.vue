@@ -108,7 +108,7 @@
             :loading="loading"
             :view-mode="true"
             :storage-key="storageKey"
-            :global-config-key="storageKey"
+            :global-config-key="`${storageKey}-global`"
             :show-pagination="true"
             v-model:current="pagination.current"
             v-model:page-size="pagination.pageSize"

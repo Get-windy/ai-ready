@@ -82,7 +82,25 @@ export default defineConfig({
   },
   server: {
     port: 3002,
-    host: true
+    host: true,
+    /**
+     * 开发代理（2026-09-26 补）。
+     *
+     * 商城 C 端的 axios `baseURL` 是**相对路径** `/api/v1/mall`，Origin 即 dev server；
+     * 而本应用原先**没配 proxy** ⇒ `npm run dev` 起来后所有接口都打到 vite 自己身上、
+     * 必然 404，等于 C 端在本地根本没法联调（此前只能靠部署时的 nginx 兜）。
+     *
+     * 目标后端可用 `VITE_API_TARGET` 覆盖（默认共享 dev 的 5655），
+     * 便于对着自己的独立实例调试；验证脚本就是这么用的。
+     * ⚠️ 目标必须写 127.0.0.1 而不是 localhost：Node 18+ 对 localhost 优先解析 IPv6(::1)，
+     *    而 Java 应用通常只监听 IPv4 ⇒ 代理报 ECONNREFUSED（2026-09-26 实踩）。
+     */
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:5655',
+        changeOrigin: true
+      }
+    }
   },
   build: {
     outDir: 'dist',

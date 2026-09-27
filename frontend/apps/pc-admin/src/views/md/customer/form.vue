@@ -884,7 +884,7 @@ const formRules: Record<string, any> = {
 }
 
 async function loadCategories() { try { categories.value = await partnerCategoryApi.getTree('CUSTOMER') } catch { categories.value = [] } }
-async function loadGrades() { try { grades.value = await partnerGradeApi.list('CUSTOMER') } catch { grades.value = [] } }
+async function loadGrades() { try { grades.value = await partnerGradeApi.list() } catch { grades.value = [] } }
 async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
 async function loadWarehouses() { try { const res = await warehouseApi.listAll(); warehouses.value = (res as any)?.data || (res as any) || [] } catch { warehouses.value = [] } }
 /** 所属区域选项（来源：客户区域管理 erp_customer_region） */

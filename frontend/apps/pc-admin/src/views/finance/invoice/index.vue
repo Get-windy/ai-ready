@@ -5,7 +5,7 @@
         CRM 发票 · 台账列表（菜单 70350 的 list_path → 标签「历史」）
         · CRM 为本系统独有模块（ql361 无 CRM 域）；但本页后端不在 crm 模块，而是 ERP 财务的
           InvoiceController（@RequestMapping("/api/erp/invoice")，纯 Spring Data JPA）
-        · 注意：菜单主 path 是表单页 crm/invoice/form，本页是「历史」标签页（与客户/线索/商机/合同相反）
+        · 注意：菜单主 path 是表单页 finance/invoice/form（2026-09-26 由 CRM 搬入财务），本页是「历史」标签页（与客户/线索/商机/合同相反）
         · 路线 A：ErrorBoundary > PageContainer(full-height) > CategoryListLayout > BillDetailTable(+StandardPagination)
         · 本轮修复：
           ① P0 分页键：/erp/invoice/query 是 Spring Data Pageable（认 page(0 基)/size），原发 pageNum/pageSize 恒第 1 页
@@ -32,7 +32,7 @@
         <template #toolbar-left>
           <a-button
             v-if="isButtonEnabled('create')"
-            v-permission="'crm:invoice:create'"
+            v-permission="'invoice:create'"
             type="primary"
             size="small"
             class="btn-add"
@@ -321,7 +321,7 @@
                   :size="0"
                 >
                   <a-button
-                    v-permission="'crm:invoice:view'"
+                    v-permission="'invoice:view'"
                     type="link"
                     size="small"
                     @click="handleView(record)"
@@ -330,7 +330,7 @@
                   </a-button>
                   <a-button
                     v-if="isEditable(record)"
-                    v-permission="'crm:invoice:edit'"
+                    v-permission="'invoice:update'"
                     type="link"
                     size="small"
                     @click="handleEdit(record)"
@@ -339,7 +339,7 @@
                   </a-button>
                   <a-button
                     v-if="canIssue(record)"
-                    v-permission="'crm:invoice:issue'"
+                    v-permission="'invoice:update'"
                     type="link"
                     size="small"
                     @click="handleIssue(record)"
@@ -348,7 +348,7 @@
                   </a-button>
                   <a-button
                     v-if="canSend(record)"
-                    v-permission="'crm:invoice:send'"
+                    v-permission="'invoice:create'"
                     type="link"
                     size="small"
                     @click="handleSend(record)"
@@ -357,7 +357,7 @@
                   </a-button>
                   <a-button
                     v-if="canVoid(record)"
-                    v-permission="'crm:invoice:cancelconfirm'"
+                    v-permission="'invoice:create'"
                     type="link"
                     size="small"
                     danger
@@ -473,7 +473,7 @@
           >
             <template #action>
               <a-button
-                v-permission="'crm:invoice:detailrefresh'"
+                v-permission="'invoice:detail'"
                 size="small"
                 @click="fetchDetail(detailId)"
               >
@@ -651,10 +651,9 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import type { QueryFieldSetting, FunctionButtonSetting } from '@/components/PageConfigPanel/index.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
-import { invoiceApi } from '@/api/crm'
+import { invoiceApi } from '@/api/finance/invoice'
 import { exportCsv } from '@/utils/exportCsv'
 import { useUserStore } from '@/stores/user'
-import request from '@/utils/request'
 import dayjs from 'dayjs'
 import {
   PlusOutlined,
@@ -674,29 +673,11 @@ const router = useRouter()
 const userStore = useUserStore()
 
 /**
- * 后端端点直连（invoiceApi 未封装的参数/端点；本任务禁止改 src/api/，缺口已在交付报告登记）：
+ * 后端端点直连说明（2026-09-26 已把内联 invoiceOps 收敛进 @/api/finance/invoice）：
  * · /query：方向 + 条件分页，Spring Data Pageable（page 从 0 开始 + size）
  * · /statistics：全量聚合（totalCount/totalAmount/totalPaid/totalUnpaid/overdueCount…）
  * · /{id}/send、/{id}/void：必填 sentBy / voidedBy（原先缺失 → 必 400）
  */
-const invoiceOps = {
-  query(params: any) {
-    return request.get('/erp/invoice/query', params)
-  },
-  statistics(params?: any) {
-    return request.get('/erp/invoice/statistics', params)
-  },
-  /** 状态变更：newStatus 必须取 InvoiceStatus 枚举 name（后端无 ISSUED 值） */
-  updateStatus(id: any, newStatus: string, notes?: string) {
-    return request.put(`/erp/invoice/${id}/status`, null, { params: { newStatus, notes } })
-  },
-  send(id: any, sendMethod: string, sentBy: any) {
-    return request.post(`/erp/invoice/${id}/send`, null, { params: { sendMethod, sentBy } })
-  },
-  voidInvoice(id: any, reason: string, voidedBy: any) {
-    return request.post(`/erp/invoice/${id}/void`, null, { params: { reason, voidedBy } })
-  },
-}
 
 // ═══ Tab（三个 Tab 各自独立：列定义 / 查询条件 / 功能按钮 / storage-key） ═══
 const TABS = [
@@ -931,7 +912,7 @@ const realRows = computed(() => tableData.value.filter((r: any) => !r.__ghost))
 const stats = reactive({ totalCount: 0, totalAmount: 0, totalPaid: 0, totalUnpaid: 0, overdueCount: 0, fromApi: false })
 async function fetchStatistics() {
   try {
-    const res: any = await invoiceOps.statistics()
+    const res: any = await invoiceApi.getStatistics()
     stats.totalCount = Number(res?.totalCount) || 0
     stats.totalAmount = Number(res?.totalAmount) || 0
     stats.totalPaid = Number(res?.totalPaid) || 0
@@ -1066,7 +1047,7 @@ async function fetchList() {
     if (searchForm.issuedByName) params.issuedByName = searchForm.issuedByName
     if (searchForm.invoiceDateRange?.[0]) params.startDate = searchForm.invoiceDateRange[0]
     if (searchForm.invoiceDateRange?.[1]) params.endDate = searchForm.invoiceDateRange[1]
-    const res: any = await invoiceOps.query(params)
+    const res: any = await invoiceApi.query(params)
     // Result<Page<Invoice>> 被 request 拦截器解包为 Spring Page 对象
     tableData.value = res?.content || res?.records || []
     pagination.total = Number(res?.totalElements ?? res?.total ?? 0)
@@ -1147,11 +1128,11 @@ function handleView(record: any) {
 
 // ═══ 新建 / 编辑：统一跳转 form.vue（原内嵌弹窗恒调 create，编辑会变成重复新建） ═══
 function handleCreate() {
-  router.push({ path: '/crm/invoice/form' })
+  router.push({ path: '/finance/invoice/form' })
 }
 function handleEdit(record: any) {
   detailVisible.value = false
-  router.push({ path: '/crm/invoice/form', query: { id: String(record.id) } })
+  router.push({ path: '/finance/invoice/form', query: { id: String(record.id) } })
 }
 
 // ═══ 开具（PUT /{id}/status，newStatus 取枚举 name；前端无 ISSUED 值） ═══
@@ -1164,7 +1145,7 @@ function handleIssue(record: any) {
     centered: true,
     onOk: async () => {
       try {
-        await invoiceOps.updateStatus(record.id, 'GENERATED', '前端开具')
+        await invoiceApi.updateStatus(record.id, 'GENERATED', '前端开具')
         message.success('发票已开具（状态：已生成）')
         await fetchList()
         fetchStatistics()
@@ -1200,7 +1181,7 @@ async function handleSendConfirm() {
   }
   sendLoading.value = true
   try {
-    await invoiceOps.send(sendTarget.value.id, sendMethod.value, sentBy)
+    await invoiceApi.sendInvoice(sendTarget.value.id, sendMethod.value, sentBy)
     message.success('发票已发送')
     sendVisible.value = false
     await fetchList()
@@ -1237,7 +1218,7 @@ async function handleVoidConfirm() {
   }
   voidLoading.value = true
   try {
-    await invoiceOps.voidInvoice(voidTarget.value.id, reason, voidedBy)
+    await invoiceApi.voidInvoice(voidTarget.value.id, reason, voidedBy)
     message.success('发票已作废')
     voidVisible.value = false
     await fetchList()

@@ -189,7 +189,7 @@
           <BillTableList
             ref="defTableRef"
             :columns="defVxeColumns"
-            :data-source="permissionDefData"
+            :data-source="filteredDefData"
             :loading="defLoading"
             :pagination="null as any"
             row-key="id"
@@ -536,6 +536,7 @@ import SodRulePanel from './components/SodRulePanel.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { useUserStore } from '@/stores/user'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import { isWriteFailed } from '@/utils/writeResult'
 
 // ==================== 通用 ====================
 const userStore = useUserStore()
@@ -584,27 +585,49 @@ const defFilterFields: FilterField[] = [
 
 const defSearchForm = ref({ permissionName: '', permissionType: undefined as number | undefined, status: undefined as number | undefined })
 
+/**
+ * 权限定义表格的**本地过滤**视图。
+ *
+ * 后端 `GET /permission/tree` 只接受 tenantId、不提供筛选参数，因此「权限名称/权限类型/状态」
+ * 三个查询条件必须在本地裁剪（此前只把条件写进 defSearchForm 而从不读取 → 输入无任何效果）。
+ * 规则：节点自身命中则保留；自身不命中但子孙命中时保留该节点（否则树会断链）。
+ */
+const filteredDefData = computed<PermissionInfo[]>(() => {
+  const { permissionName, permissionType, status } = defSearchForm.value
+  const kw = String(permissionName || '').trim().toLowerCase()
+  if (!kw && permissionType === undefined && status === undefined) return permissionDefData.value
+  const keep = (n: PermissionInfo): PermissionInfo | null => {
+    const children = ((n.children || []) as PermissionInfo[]).map(keep).filter(Boolean) as PermissionInfo[]
+    const hitName = !kw || String(n.permissionName || '').toLowerCase().includes(kw)
+    const hitType = permissionType === undefined || n.permissionType === permissionType
+    const hitStatus = status === undefined || n.status === status
+    if ((hitName && hitType && hitStatus) || children.length) return { ...n, children }
+    return null
+  }
+  return permissionDefData.value.map(keep).filter(Boolean) as PermissionInfo[]
+})
+
 const fetchDefData = async () => {
   defLoading.value = true
   defHasError.value = false
   try {
     const res = await permissionApi.getTree(userStore.tenantId || 1)
-    if (res.data) {
-      // 修复 64 位 Long 精度
-      const seenIds = new Set<string>()
-      let dupCounter = 0
-      const fixIds = (items: any[]) => {
-        for (const item of items) {
-          const idStr = String(item.id)
-          if (seenIds.has(idStr)) { item._rawId = item.id; item.id = --dupCounter }
-          seenIds.add(idStr)
-          if (item.children?.length) fixIds(item.children)
-        }
+    // ⚠️ 响应拦截器已拆包：res 即树数组本体，旧写法 `if (res.data)` 恒 false → 整表恒空且无报错
+    const tree = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as PermissionInfo[]
+    // 修复 64 位 Long 精度
+    const seenIds = new Set<string>()
+    let dupCounter = 0
+    const fixIds = (items: any[]) => {
+      for (const item of items) {
+        const idStr = String(item.id)
+        if (seenIds.has(idStr)) { item._rawId = item.id; item.id = --dupCounter }
+        seenIds.add(idStr)
+        if (item.children?.length) fixIds(item.children)
       }
-      fixIds(res.data)
-      permissionDefData.value = res.data
-      defExpandedKeys.value = res.filter((item: any) => item.permissionType === 0).map((item: any) => item.id)
     }
+    fixIds(tree)
+    permissionDefData.value = tree
+    defExpandedKeys.value = tree.filter((item: any) => item.permissionType === 0).map((item: any) => item.id)
   } catch (err) {
     defHasError.value = true
     permissionDefData.value = []
@@ -620,7 +643,7 @@ const fetchDefData = async () => {
 const handleDefFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) Object.assign(defSearchForm.value, { permissionName: '', permissionType: undefined, status: undefined })
   else Object.assign(defSearchForm.value, filters)
-  fetchDefData()
+  // 过滤在本地由 filteredDefData 完成（后端 getTree 不接受筛选参数），无需重新请求
 }
 
 const handleDefExpandAll = () => {
@@ -656,7 +679,7 @@ const defFormRules: any = {
 const loadDefParentTree = async () => {
   try {
     const res = await permissionApi.getTree(userStore.tenantId || 1)
-    if (res.data) defParentTreeData.value = res.data
+    defParentTreeData.value = (Array.isArray(res) ? res : ((res as any)?.data ?? [])) as PermissionInfo[]
   } catch (err) {
     // 父级权限树只用于新增权限时选择上级，加载失败不阻断主流程
     console.warn('[权限配置] 加载父级权限树失败', err)
@@ -715,7 +738,13 @@ const handleDefDelete = (record: PermissionInfo) => {
     content: `确定要删除权限 "${record.permissionName}" 及其子权限吗？此操作不可撤销。`,
     okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
-      try { await permissionApi.delete(record._rawId ?? record.id); message.success('删除成功'); fetchDefData() }
+      try {
+        const delRes = await permissionApi.delete(record._rawId ?? record.id)
+        // 后端可能以 false / {success:false} 表达「没删成」（有子权限等）
+        if (isWriteFailed(delRes)) { message.error('删除失败：存在子权限或权限不存在，不允许删除'); return }
+        message.success('删除成功')
+        fetchDefData()
+      }
       catch (err: any) { message.error(err.message || '删除失败') }
     }
   })

@@ -73,9 +73,20 @@ public class CommissionAnalyticsServiceImpl implements CommissionAnalyticsServic
     //  公共工具
     // ════════════════════════════════════════════════════════════════
 
+    /**
+     * 当前登录会话租户；**取不到时明确拒绝**，不回落到任何默认租户。
+     *
+     * <p>⚠️ 2026-09-23 修复：原实现为 {@code return t == null ? 1L : t}。这是本仓明令要根除的高危写法
+     * （见 {@code DocQueryController#currentTenantId} 的注释）：解析不出租户时"回落 1"，
+     * 等于**把系统租户（平台自身）的数据展示给另一个租户的用户**。
+     * 本类端点均带 {@code @SaCheckLogin}，正常必然解析得出租户。</p>
+     */
     private static Long tenantId() {
         Long t = MyBatisPlusConfig.getCurrentTenantIdValue();
-        return t == null ? 1L : t;
+        if (t == null) {
+            throw new BusinessException(401, "无法确定当前租户，请重新登录");
+        }
+        return t;
     }
 
     private static BigDecimal dec(Object v) {

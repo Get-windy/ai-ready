@@ -15,6 +15,11 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SearchBar: typeof import('./src/components/common/SearchBar.vue')['default']
     TabBar: typeof import('./src/components/layout/TabBar.vue')['default']
+    TopTabs: typeof import('./src/components/layout/TopTabs.vue')['default']
+    VanButton: typeof import('vant/es')['Button']
+    VanCell: typeof import('vant/es')['Cell']
+    VanEmpty: typeof import('vant/es')['Empty']
+    VanField: typeof import('vant/es')['Field']
     VanIcon: typeof import('vant/es')['Icon']
   }
 }

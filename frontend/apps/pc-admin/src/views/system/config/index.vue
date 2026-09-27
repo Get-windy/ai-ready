@@ -28,7 +28,7 @@
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
             <a-button
-              v-permission="'system:config:query'"
+              v-permission="'system:config:list'"
               size="small"
               :loading="refreshLoading"
               @click="handleRefresh"
@@ -106,7 +106,7 @@
           :show-search="false"
           :selectable="true"
           add-text="新增配置"
-          add-permission="system:config:create"
+          add-permission="system:config:update"
           edit-permission="system:config:update"
           delete-permission="system:config:delete"
           @add="handleAdd"
@@ -137,7 +137,7 @@
                   <SettingOutlined style="font-size: 48px; color: #d9d9d9;" />
                 </template>
                 <a-button
-                  v-permission="'system:config:create'"
+                  v-permission="'system:config:update'"
                   type="primary"
                   size="small"
                   @click="handleAdd"
@@ -425,9 +425,11 @@ const fetchData = async () => {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     })
-    if (res.data) {
-      tableData.value = res.records
-      pagination.total = res.total
+    // ⚠️ 响应拦截器已拆包（utils/request.ts）：res 就是 Page 本体，旧写法读 `res.data` 恒 undefined
+    //    → 整页表格恒空且不报错（无异常可 catch）。这里直接读 res.records。
+    if (res) {
+      tableData.value = (res as any).records || []
+      pagination.total = (res as any).total || 0
     }
   } catch (error) {
     hasError.value = true
@@ -445,9 +447,8 @@ const fetchData = async () => {
 const fetchGroups = async () => {
   try {
     const res = await configApi.getConfigGroups()
-    if (res.data) {
-      groupOptions.value = res.data
-    }
+    // 同上：拦截器已拆包，res 即分组数组本身
+    groupOptions.value = Array.isArray(res) ? res : (((res as any)?.data ?? []) as any[])
   } catch (err) {
     console.warn('[系统管理] 加载分组列表失败', err)
     message.error('加载分组失败')
@@ -516,7 +517,13 @@ const handleDeleteConfirm = (record: SystemConfig) => {
     centered: true,
     async onOk() {
       try {
-        await configApi.delete(record.configKey)
+        // ⚠️ 后端对「配置不存在」「内置配置」会**显式返回 false**（SystemConfigServiceImpl），
+        //    旧写法不看返回值恒弹「删除成功」→ 实际什么都没删。必须按返回值判定。
+        const ok = (await configApi.delete(record.configKey)) as unknown as boolean
+        if (ok === false) {
+          message.error('删除失败：配置不存在，或它是内置配置（内置配置不允许删除）')
+          return
+        }
         message.success('删除成功')
         fetchData()
       } catch (err) {
@@ -536,7 +543,13 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
     content: `确定要删除选中的 ${ids.length} 个配置吗？`,
     async onOk() {
       try {
-        await configApi.batchDelete(ids)
+        // 同上：后端在「没有可删项」或「未删满请求条数」时返回 false
+        const ok = (await configApi.batchDelete(ids)) as unknown as boolean
+        if (ok === false) {
+          message.error('批量删除未全部成功：选中项可能包含内置配置或已被删除')
+          fetchData()
+          return
+        }
         message.success('批量删除成功')
         selectedRowKeys.value = []
         fetchData()

@@ -39,7 +39,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-5655}"
-VERSION="0.3.24"
+VERSION="0.3.25"
 JAR="backend/core/api/core-api/target/core-api-${VERSION}-exec.jar"
 # 默认只构建「核心模块 + 聚合模块」，其余业务模块从本地仓库取，避免全仓重建。
 # ⚠️ 改了别的业务模块（如 erp/erp-finance）时必须显式带上它，否则 core-api 打包会从
@@ -121,6 +121,24 @@ build() {
   (cd backend && ./mvnw -pl "$MODULES" clean install $SKIP_TESTS -B)
   [ -f "$JAR" ] || { echo "构建结束但找不到 $JAR" >&2; exit 1; }
   echo "==> 产物: $JAR ($(date -r "$JAR" '+%Y-%m-%d %H:%M:%S'))"
+  check_stale_classes
+}
+
+# ── 2.5 ECJ 残缺类闸门（打包后、启动前）──
+# 为什么必须卡在这里：IDE(Eclipse/ECJ) 会把**带编译错误的 .class** 写进 target/classes
+# （签名退化成 `()LResult;`、常量池塞 `Unresolved compilation problem:`），
+# 且时间戳比源码新 ⇒ Maven 增量判定"没变化"⇒ **静默打包** ⇒ 启动才炸
+# （NoClassDefFoundError: Cell / No qualifying bean of type X）。
+# 本仓已踩过多次（erp-stock 商品、erp-printing 打印、2026-09-26 营销诊断现场）。
+# `clean install` 能治，但**没人会在启动前逐 class 验**——所以把它变成构建失败。
+check_stale_classes() {
+  echo "==> ECJ 残类闸门（扫 fat jar 的 10 万级 class）"
+  if ! python tools/check-stale-classes.py "$JAR"; then
+    echo "!! 产物里有 ECJ 残缺类，拒绝启动（启动必崩）。" >&2
+    echo "   处置：确认 IDE 没有把它自己的编译输出写进 target/classes；" >&2
+    echo "         重跑：cd backend && ./mvnw -pl $MODULES clean install $SKIP_TESTS -B" >&2
+    exit 1
+  fi
 }
 
 # ── 3. 启动并等就绪 ──

@@ -482,7 +482,7 @@ public class MdCustomerController {
         if (body.get("followType") instanceof Number) {
             follow.setFollowType(((Number) body.get("followType")).intValue());
         }
-        follow.setContent((String) body.get("content"));
+        follow.setContent(str(body.get("content")));
         if (body.get("result") instanceof Number) {
             follow.setFollowResult(((Number) body.get("result")).intValue());
         }
@@ -1402,17 +1402,17 @@ public class MdCustomerController {
             party.setId(existingId);
         }
         // 基础字段
-        party.setPartyCode((String) body.getOrDefault("partnerCode", body.get("partyCode")));
-        party.setPartyName((String) body.getOrDefault("partnerName", body.get("partyName")));
-        party.setShortName((String) body.getOrDefault("partnerShortName", body.get("shortName")));
+        party.setPartyCode(str(body.getOrDefault("partnerCode", body.get("partyCode"))));
+        party.setPartyName(str(body.getOrDefault("partnerName", body.get("partyName"))));
+        party.setShortName(str(body.getOrDefault("partnerShortName", body.get("shortName"))));
         // 助记码（物流公司等基础资料快速检索）
-        String mnemonicCode = (String) body.getOrDefault("mnemonicCode", body.get("mnemonic_code"));
+        String mnemonicCode = str(body.getOrDefault("mnemonicCode", body.get("mnemonic_code")));
         if (mnemonicCode != null) {
             party.setMnemonicCode(mnemonicCode.isEmpty() ? null : mnemonicCode);
         }
 
         // 类型映射
-        String partnerType = (String) body.getOrDefault("partnerType", "customer");
+        String partnerType = str(body.getOrDefault("partnerType", "customer"));
         party.setPartyType(PARTNER_TYPE_TO_PARTY.getOrDefault(partnerType.toLowerCase(), 1));
 
         // 分类（兼容 Number 与 String 两种形态：前端 tree-select 可能回传字符串 id）
@@ -1426,11 +1426,11 @@ public class MdCustomerController {
         }
 
         // 联系人
-        String email = (String) body.getOrDefault("contactEmail", body.get("email"));
+        String email = str(body.getOrDefault("contactEmail", body.get("email")));
         if (email != null) party.setEmail(email);
 
         // 结算方式
-        String settleType = (String) body.getOrDefault("settleType", "现结");
+        String settleType = str(body.getOrDefault("settleType", "现结"));
         party.setSettlementType("挂账".equals(settleType) ? 1 : 0);
 
         // 所在地区（省/市/区县，来源 sys_region；前端保存时同步默认联系人所在地区）
@@ -1439,32 +1439,32 @@ public class MdCustomerController {
         setIfPresent(party::setDistrict, body.get("district"));
 
         // 级别
-        String gradeName = (String) body.getOrDefault("gradeName", body.get("partyLevel"));
+        String gradeName = str(body.getOrDefault("gradeName", body.get("partyLevel")));
         if (gradeName != null) party.setPartyLevel(gradeName);
 
         // 其他字段
-        String phone = (String) body.getOrDefault("phone", null);
+        String phone = str(body.getOrDefault("phone", null));
         if (phone != null) party.setPhone(phone);
-        String fax = (String) body.getOrDefault("fax", null);
+        String fax = str(body.getOrDefault("fax", null));
         if (fax != null) party.setFax(fax);
-        String website = (String) body.getOrDefault("website", null);
+        String website = str(body.getOrDefault("website", null));
         if (website != null) party.setWebsite(website);
-        String legalPerson = (String) body.getOrDefault("legalPerson", null);
+        String legalPerson = str(body.getOrDefault("legalPerson", null));
         if (legalPerson != null) party.setLegalPerson(legalPerson);
-        String taxNumber = (String) body.getOrDefault("taxNumber", null);
+        String taxNumber = str(body.getOrDefault("taxNumber", null));
         if (taxNumber != null) party.setTaxNumber(taxNumber);
-        String bankName = (String) body.getOrDefault("bankName", null);
+        String bankName = str(body.getOrDefault("bankName", null));
         if (bankName != null) party.setBankName(bankName);
-        String bankAccount = (String) body.getOrDefault("bankAccount", null);
+        String bankAccount = str(body.getOrDefault("bankAccount", null));
         if (bankAccount != null) party.setBankAccount(bankAccount);
         // 纳税人信息（公司全称 / 地址 / 开户行地址）
-        String companyFullName = (String) body.getOrDefault("companyFullName", null);
+        String companyFullName = str(body.getOrDefault("companyFullName", null));
         if (companyFullName != null) party.setCompanyFullName(companyFullName.isEmpty() ? null : companyFullName);
-        String address = (String) body.getOrDefault("address", null);
+        String address = str(body.getOrDefault("address", null));
         if (address != null) party.setAddress(address.isEmpty() ? null : address);
-        String bankAddress = (String) body.getOrDefault("bankAddress", null);
+        String bankAddress = str(body.getOrDefault("bankAddress", null));
         if (bankAddress != null) party.setBankAddress(bankAddress.isEmpty() ? null : bankAddress);
-        String remark = (String) body.getOrDefault("remark", null);
+        String remark = str(body.getOrDefault("remark", null));
         if (remark != null) party.setRemark(remark);
 
         // ── 供应商金标准字段 ──
@@ -1476,7 +1476,7 @@ public class MdCustomerController {
             party.setOpeningPrepaid(new BigDecimal(body.get("openingPrepaid").toString()));
         }
         // 其他信息
-        String operatingSeries = (String) body.getOrDefault("operatingSeries", null);
+        String operatingSeries = str(body.getOrDefault("operatingSeries", null));
         if (operatingSeries != null) {
             party.setOperatingSeries(operatingSeries.isEmpty() ? null : operatingSeries);
         }
@@ -1484,7 +1484,7 @@ public class MdCustomerController {
             party.setOperatingArea(new BigDecimal(body.get("operatingArea").toString()));
         }
         // 账期（动态付款期限 / 固定账期 / 结算期）
-        String paymentTermType = (String) body.getOrDefault("paymentTermType", null);
+        String paymentTermType = str(body.getOrDefault("paymentTermType", null));
         if (paymentTermType != null) {
             party.setPaymentTermType(paymentTermType.isEmpty() ? null : paymentTermType);
         }
@@ -1505,7 +1505,7 @@ public class MdCustomerController {
             party.setPriceTrackEnabled(((Number) priceTrack).intValue());
         }
         // 多重身份（既是供应商又是客户）：显式传入则覆盖，否则按 partyType 推导
-        String roles = (String) body.get("roles");
+        String roles = str(body.get("roles"));
         if (StringUtils.hasText(roles)) {
             party.setRoles(roles);
         } else if (party.getId() == null) {
@@ -1513,9 +1513,9 @@ public class MdCustomerController {
         }
 
         // ── 客户金标准字段（V11.151.0） ──
-        String warehouseName = (String) body.getOrDefault("warehouseName", null);
+        String warehouseName = str(body.getOrDefault("warehouseName", null));
         if (warehouseName != null) party.setWarehouseName(warehouseName.isEmpty() ? null : warehouseName);
-        String region = (String) body.getOrDefault("region", null);
+        String region = str(body.getOrDefault("region", null));
         if (region != null) party.setRegion(region.isEmpty() ? null : region);
         // 所在地区（省/市/区县）
         setIfPresent(party::setProvince, body.get("province"));
@@ -1527,13 +1527,13 @@ public class MdCustomerController {
         } else if (promoterId instanceof String && !((String) promoterId).isEmpty()) {
             try { party.setPromoterId(Long.valueOf((String) promoterId)); } catch (NumberFormatException ignored) { }
         }
-        String promoterName = (String) body.getOrDefault("promoterName", null);
+        String promoterName = str(body.getOrDefault("promoterName", null));
         if (promoterName != null) party.setPromoterName(promoterName.isEmpty() ? null : promoterName);
-        String buyerAccount = (String) body.getOrDefault("buyerAccount", null);
+        String buyerAccount = str(body.getOrDefault("buyerAccount", null));
         if (buyerAccount != null) party.setBuyerAccount(buyerAccount.isEmpty() ? null : buyerAccount);
-        String customerOnePass = (String) body.getOrDefault("customerOnePass", null);
+        String customerOnePass = str(body.getOrDefault("customerOnePass", null));
         if (customerOnePass != null) party.setCustomerOnePass(customerOnePass.isEmpty() ? null : customerOnePass);
-        String customerSource = (String) body.getOrDefault("customerSource", null);
+        String customerSource = str(body.getOrDefault("customerSource", null));
         if (customerSource != null) party.setCustomerSource(customerSource.isEmpty() ? null : customerSource);
         if (body.get("businessLicenseExpiry") != null) {
             party.setBusinessLicenseExpiry(parseDate(String.valueOf(body.get("businessLicenseExpiry"))));
@@ -1559,13 +1559,13 @@ public class MdCustomerController {
         }
 
         // ── 会员信息（会员管理子标签 / 表单会员信息分区） ──
-        String memberName = (String) body.getOrDefault("memberName", null);
+        String memberName = str(body.getOrDefault("memberName", null));
         if (memberName != null) party.setMemberName(memberName.isEmpty() ? null : memberName);
-        String memberCardNo = (String) body.getOrDefault("memberCardNo", null);
+        String memberCardNo = str(body.getOrDefault("memberCardNo", null));
         if (memberCardNo != null) party.setMemberCardNo(memberCardNo.isEmpty() ? null : memberCardNo);
-        String memberLevel = (String) body.getOrDefault("memberLevel", null);
+        String memberLevel = str(body.getOrDefault("memberLevel", null));
         if (memberLevel != null) party.setMemberLevel(memberLevel.isEmpty() ? null : memberLevel);
-        String memberCardStatus = (String) body.getOrDefault("memberCardStatus", null);
+        String memberCardStatus = str(body.getOrDefault("memberCardStatus", null));
         if (memberCardStatus != null) party.setMemberCardStatus(memberCardStatus.isEmpty() ? null : memberCardStatus);
         if (body.get("memberValidStart") != null) {
             party.setMemberValidStart(parseDate(String.valueOf(body.get("memberValidStart"))));
@@ -1602,7 +1602,7 @@ public class MdCustomerController {
         } else if (handlerId instanceof String && !((String) handlerId).isEmpty()) {
             try { party.setDefaultHandlerId(Long.valueOf((String) handlerId)); } catch (NumberFormatException ignored) {}
         }
-        String handlerName = (String) body.getOrDefault("defaultHandlerName", null);
+        String handlerName = str(body.getOrDefault("defaultHandlerName", null));
         if (handlerName != null) {
             party.setDefaultHandlerName(handlerName.isEmpty() ? null : handlerName);
         }

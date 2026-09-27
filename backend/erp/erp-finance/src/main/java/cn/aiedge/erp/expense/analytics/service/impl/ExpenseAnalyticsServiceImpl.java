@@ -48,7 +48,13 @@ public class ExpenseAnalyticsServiceImpl implements ExpenseAnalyticsService {
     private static final String FROM =
         " FROM erp_expense_doc d"
         + " JOIN erp_expense_item i ON i.expense_doc_id = d.id AND i.deleted = 0 AND i.tenant_id = d.tenant_id"
-        + " LEFT JOIN finance_account_subject s ON s.subject_code = i.subject_code";
+        // ⚠️ 2026-09-23 修复：原来只按 subject_code 关联，既无 tenant_id 也无软删条件。
+        //    finance_account_subject 无「租户内 subject_code 唯一」约束 ⇒ 同一编码（多租户下各存一份、
+        //    或同租户重复建档）会**匹配到多行**，使 SUM(i.amount) 成倍放大、「查费用」各视图金额虚增；
+        //    同时 s.subject_name 可能取到别租户的科目名。
+        //    这里按「与单据同租户」关联（比传参更稳），并排除软删科目。
+        + " LEFT JOIN finance_account_subject s ON s.subject_code = i.subject_code"
+        + " AND s.tenant_id = d.tenant_id AND s.deleted_flag = 0";
 
     /** 科目编号：科目编码优先，缺失回落费用类型编码 */
     private static final String SUBJECT_CODE = "COALESCE(NULLIF(i.subject_code,''), NULLIF(i.expense_code,''), '未指定')";

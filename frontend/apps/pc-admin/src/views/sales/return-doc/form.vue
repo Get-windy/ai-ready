@@ -110,6 +110,7 @@
     <PrintDialog
       ref="printDialogRef"
       page-code="sale-return-doc"
+      :document-id="formData.id"
       :print-data="printData"
       :always-last-template="printSettings.alwaysLastTemplate"
       @print-success="handlePrintSuccess"

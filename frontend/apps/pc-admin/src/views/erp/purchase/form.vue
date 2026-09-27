@@ -100,6 +100,7 @@
   <PrintDialog
     ref="printDialogRef"
     page-code="purchase"
+    :document-id="formData.id"
     :print-data="printData"
   />
 

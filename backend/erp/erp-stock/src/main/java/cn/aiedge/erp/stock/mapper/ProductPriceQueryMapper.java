@@ -166,14 +166,14 @@ public interface ProductPriceQueryMapper {
         + " ORDER BY p.brand")
     List<String> selectBrands(@Param("tenantId") Long tenantId);
 
-    /** 客户级别下拉：客户档案已用的级别名称 + 客户级别主数据，保持与客户档案同源 */
+    /** 客户级别下拉：客户档案已用的级别名称 + 客户级别主数据（biz_customer_grade，全站唯一数据源），与客户档案同源 */
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT DISTINCT name FROM ("
         + " SELECT party_level AS name FROM biz_party"
         + "   WHERE deleted = 0 AND party_level IS NOT NULL AND party_level <> ''"
         + "     AND (CAST(#{tenantId} AS BIGINT) IS NULL OR tenant_id = CAST(#{tenantId} AS BIGINT))"
         + " UNION"
-        + " SELECT grade_name AS name FROM erp_partner_grade"
+        + " SELECT grade_name AS name FROM biz_customer_grade"
         + "   WHERE deleted = 0 AND status = 1 AND grade_name IS NOT NULL AND grade_name <> ''"
         + "     AND (CAST(#{tenantId} AS BIGINT) IS NULL OR tenant_id = CAST(#{tenantId} AS BIGINT))"
         + " ) t ORDER BY name")

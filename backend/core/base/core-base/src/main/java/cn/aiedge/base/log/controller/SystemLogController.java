@@ -23,7 +23,13 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 /**
  * 系统日志管理控制器
  * 提供系统日志的增删改查、统计分析、导出等功能
- * 
+ *
+ * <p><b>⚠️ 本项目零调用方（2026-09-26 系统模块审计复核）</b>：全仓无任何 Java 代码引用本类，
+ * 前端也没有任何页面或 api 封装调用本控制器的端点（前缀 {@code /api/logs/system}）。
+ * 本系统「日志」相关页面唯一在用的后端是 {@code cn.aiedge.audit.controller.SysLogStubController}（前缀 {@code /api/log}）。
+ * 保留而非删除的原因见 {@code cn.aiedge.base.log.AdvancedLogController} 的类注释；
+ * <b>改日志逻辑前请先确认改的是不是本类</b>。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */

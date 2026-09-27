@@ -220,7 +220,7 @@
                 title="编辑"
               >
                 <a-button
-                  v-permission="'finance:receipt:edit'"
+                  v-permission="'finance:receipt:update'"
                   type="link"
                   size="small"
                   @click="handleEdit(record)"

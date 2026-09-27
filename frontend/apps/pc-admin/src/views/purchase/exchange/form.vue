@@ -132,11 +132,22 @@
       :multiple="true"
       @confirm="handleProductSelectConfirm"
     />
+
+    <!-- ═══ 配置弹窗（顶部齿轮触发）：页面配置 / 录单默认值 / 打印设置 ═══ -->
+    <FormPageConfigModal
+      v-model:open="showFormConfig"
+      :fields="pageConfigFields"
+      :table-columns="pageConfigTableColumns"
+      v-model:print-config="printConfig"
+      @field-visible-change="setFieldVisible"
+      @field-enter-jump-change="setEnterJump"
+      @field-display-name-change="setDisplayName"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -154,6 +165,8 @@ import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
+import { useFormPageConfig } from '@/components/BillFormPage/useFormPageConfig'
+import FormPageConfigModal from '@/components/BillFormPage/FormPageConfigModal.vue'
 import { purchaseExchangeApi } from '@/api/purchase-exchange'
 import { PRODUCT_PURCHASE_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
@@ -376,43 +389,68 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   ],
 }))
 
-const basicInfoFields = computed<BasicInfoField[]>(() => [
+// 基本信息字段（静态定义；动态选项由 decorate 注入）
+const BASE_INFO_FIELDS: BasicInfoField[] = [
   { key: 'orderNo', label: '编号', type: 'input', inlineLabel: true, width: 210, disabled: true },
-  {
-    key: 'supplierId', label: '供应商', type: 'select', required: true,
-    inlineLabel: true, width: 300,
-    options: optionRefs.suppliers.map((s: any) => ({ label: s.name, value: s.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
+  { key: 'supplierId', label: '供应商', type: 'select', required: true, inlineLabel: true, width: 300 },
   { key: 'supplierCode', label: '供应商编号', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'bankName', label: '开户行', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'bankAccount', label: '银行账号', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'taxNo', label: '税号', type: 'input', inlineLabel: true, width: 210, readonly: true },
-  {
-    key: 'inWarehouseId', label: '换入仓库', type: 'select', required: true,
-    inlineLabel: true, width: 210,
-    options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
-  {
-    key: 'outWarehouseId', label: '换出仓库', type: 'select', required: true,
-    inlineLabel: true, width: 210,
-    options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
-  {
-    key: 'handlerId', label: '经手人', type: 'select', required: true,
-    inlineLabel: true, width: 210,
-    options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
+  { key: 'inWarehouseId', label: '换入仓库', type: 'select', required: true, inlineLabel: true, width: 210 },
+  { key: 'outWarehouseId', label: '换出仓库', type: 'select', required: true, inlineLabel: true, width: 210 },
+  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210 },
   { key: 'deptName', label: '部门', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'exchangeDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 210 },
   { key: 'contactName', label: '联系人', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'contactPhone', label: '联系电话', type: 'input', inlineLabel: true, width: 210, readonly: true },
   { key: 'contactAddress', label: '联系地址', type: 'input', inlineLabel: true, width: 435, readonly: true },
   { key: 'summary', label: '摘要', type: 'input', inlineLabel: true, width: 300 },
-])
+]
+
+// ═══ 页面配置弹窗（页面配置/录单默认值/打印设置）═══
+// 原先顶部「配置」按钮只弹一句「请使用底部Tab中的列配置功能」，没有任何配置面板；
+// 现接入共享的 useFormPageConfig + FormPageConfigModal。
+const FORM_CONFIG_MODULE = 'purchase-exchange-form'
+const showFormConfig = ref(false)
+const printConfig = reactive({
+  template: 'standard', copies: 1, paperSize: 'A4',
+  alwaysLastTemplate: false, afterSubmit: false,
+})
+
+const {
+  basicInfoFields,
+  pageConfigFields,
+  pageConfigTableColumns,
+  loadConfig: loadFormConfig,
+  setFieldVisible,
+  setEnterJump,
+  setDisplayName,
+} = useFormPageConfig({
+  baseFields: BASE_INFO_FIELDS,
+  module: FORM_CONFIG_MODULE,
+  decorate: (f) => {
+    switch (f.key) {
+      case 'supplierId':
+        return { options: (optionRefs.suppliers || []).map((s: any) => ({ label: s.name, value: s.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      case 'inWarehouseId':
+      case 'outWarehouseId':
+        return { options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      case 'handlerId':
+        return { options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value }
+      default:
+        return {}
+    }
+  },
+  collectDefaults: () => ({ ...printConfig }),
+  applyDefaults: (d) => {
+    if (d.template) printConfig.template = d.template
+    if (d.copies != null) printConfig.copies = Number(d.copies)
+    if (d.paperSize) printConfig.paperSize = d.paperSize
+    printConfig.alwaysLastTemplate = !!d.alwaysLastTemplate
+    printConfig.afterSubmit = !!d.afterSubmit
+  },
+})
 
 const tabsConfig = computed<BillTabConfig[]>(() => [
   {
@@ -851,7 +889,7 @@ function handleAction(actionKey: string) {
       message.info('请先保存换货单后再打印')
       break
     case 'config':
-      message.info('请使用底部Tab中的列配置功能')
+      showFormConfig.value = true
       break
     case 'import':
       message.info('导入功能请使用列表页的导入按钮')
@@ -877,6 +915,7 @@ function formatNow() {
 // 生命周期
 // ═══════════════════════════════════════
 onMounted(async () => {
+  loadFormConfig()
   const editId = route.params.id || route.query.id
   // 新建：异步获取真实单号并填充默认空行
   if (!editId) {

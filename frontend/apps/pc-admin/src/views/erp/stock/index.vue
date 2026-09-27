@@ -187,7 +187,7 @@
               锁定
             </a-button>
             <a-button
-              v-permission="'erp:stock:export'"
+              v-permission="'stock:export'"
               @click="debounceClick('export', handleExport)"
             >
               <template #icon>

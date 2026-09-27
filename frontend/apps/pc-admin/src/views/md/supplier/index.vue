@@ -171,7 +171,6 @@
             :data-source="tableData"
             :loading="loading"
             :view-mode="true"
-            :min-rows="1"
             :show-pagination="false"
             :storage-key="storageKey"
             :global-config-key="storageKey"
@@ -179,9 +178,12 @@
             @checkbox-all="handleRowCheckAll"
             @sort-change="handleSortChange"
           >
-            <!-- 操作列：订货 / 修改 / 更多（对标行级操作） -->
+            <!-- 操作列：订货 / 修改 / 更多（对标行级操作；占位空行不渲染） -->
             <template #actionCell="{ record }">
-              <a-space :size="0">
+              <a-space
+                v-if="!record.__ghost"
+                :size="0"
+              >
                 <a-button
                   type="link"
                   size="small"
@@ -240,15 +242,18 @@
 
             <!-- 附件数量列 -->
             <template #attachmentCell="{ record }">
-              <span v-if="record.attachmentCount">
-                <PaperClipOutlined /> {{ record.attachmentCount }}
-              </span>
-              <span v-else>-</span>
+              <template v-if="!record.__ghost">
+                <span v-if="record.attachmentCount">
+                  <PaperClipOutlined /> {{ record.attachmentCount }}
+                </span>
+                <span v-else>-</span>
+              </template>
             </template>
 
-            <!-- 固定列：附件快捷入口（有附件时高亮可用） -->
+            <!-- 固定列：附件快捷入口（有附件时高亮可用；占位空行不渲染） -->
             <template #attachIconCell="{ record }">
               <a-button
+                v-if="!record.__ghost"
                 type="text"
                 size="small"
                 :disabled="!record.attachmentCount"
@@ -741,6 +746,7 @@ function refreshAll() {
 
 // ═══ 行选择 ═══
 function handleRowCheck(record: any, _index: number, checked: boolean) {
+  if (!record || record.__ghost) return // 占位空行不参与批量操作
   const id = record.id
   if (checked) {
     if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
@@ -749,7 +755,7 @@ function handleRowCheck(record: any, _index: number, checked: boolean) {
   }
 }
 function handleRowCheckAll(checked: boolean, records: any[]) {
-  selectedIds.value = checked ? records.map((r: any) => r.id) : []
+  selectedIds.value = checked ? (records || []).filter((r: any) => r && !r.__ghost).map((r: any) => r.id) : []
 }
 
 // ═══ 行操作 ═══

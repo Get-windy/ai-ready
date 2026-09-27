@@ -25,9 +25,9 @@ public class BankChannel implements PaymentChannel {
     }
 
     @Override
-    public String createPayment(PaymentRequest request) {
-        // 银行转账需要人工确认
-        return "BANK_" + request.getId();
+    public ChannelPayResult createPayment(PaymentRequest request) {
+        // 银行转账为**线下渠道**：没有收银台可跳，商户单号即由我方生成
+        return ChannelPayResult.ofChannelOrderNo("BANK_" + request.getId());
     }
 
     @Override
@@ -36,16 +36,6 @@ public class BankChannel implements PaymentChannel {
         record.setChannelOrderNo(channelOrderNo);
         record.setChannel(getChannelCode());
         record.setStatus(0); // 需人工确认
-        return record;
-    }
-
-    @Override
-    public PaymentRecord handleCallback(String callbackData) {
-        // 银行转账无自动回调，需人工录入
-        PaymentRecord record = new PaymentRecord();
-        record.setChannel(getChannelCode());
-        record.setCallbackData(callbackData);
-        record.setStatus(0);
         return record;
     }
 

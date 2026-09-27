@@ -5,6 +5,7 @@ import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.mapper.MallNoticeMapper;
 import cn.aiedge.erp.b2b.model.MallNotice;
 import cn.aiedge.erp.b2b.service.MallNoticeService;
+import cn.aiedge.erp.b2b.support.MallGuestAccess;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -27,9 +28,30 @@ public class MallNoticeServiceImpl implements MallNoticeService {
 
     private final MallNoticeMapper mallNoticeMapper;
     private final SecurityContext securityContext;
+    private final MallGuestAccess guestAccess;
 
+    /**
+     * 当前租户：**会话优先，其次请求头**。
+     *
+     * <p>2026-09-26 修：原先只取 {@code securityContext.getCurrentTenantId()}，它在
+     * **匿名**请求下返回 {@code null}（没有会话、也没有当前用户），而
+     * {@code wrapper.eq(tenantId, null)} 生成的 {@code tenant_id = null} 恒不成立 ⇒
+     * 公告永远查出 0 条。这在管理端看不出来（管理端总是登录的），
+     * 但公告端点迁到 C 端并放开匿名后（审计 F-04）立刻暴露：
+     * 首页公告栏空白，而接口返回 200 空数组 —— 属"静默错"。
+     * 匿名场景的租户只能来自 {@code X-Tenant-Id}（B2B 一租户一店），
+     * 复用 {@link MallGuestAccess#currentShopTenantId()} 与会话口径保持一致。</p>
+     */
     private Long getCurrentTenantId() {
-        return securityContext.getCurrentTenantId();
+        Long fromSession = securityContext.getCurrentTenantId();
+        if (fromSession != null) {
+            return fromSession;
+        }
+        Long fromHeader = guestAccess.currentShopTenantId();
+        if (fromHeader != null) {
+            log.debug("公告租户来自请求头 X-Tenant-Id: {}", fromHeader);
+        }
+        return fromHeader;
     }
 
     @Override

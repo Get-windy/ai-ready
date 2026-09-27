@@ -1,7 +1,7 @@
 package cn.aiedge.crm.customer.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
-import cn.aiedge.crm.common.CrmDocNo;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.crm.customer.entity.CustomerOpportunity;
 import cn.aiedge.crm.customer.mapper.CustomerOpportunityMapper;
 import cn.aiedge.crm.customer.service.CustomerOpportunityService;
@@ -23,6 +23,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportunityMapper, CustomerOpportunity> implements CustomerOpportunityService {
+
+    /** 系统统一号段服务（biz_number_sequence，行锁 + 按日重置） */
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     /** 商机阶段值域：1 初步接触 → 5 成交（与 getStageDesc 一一对应） */
     private static final int STAGE_MIN = 1;
@@ -253,8 +256,8 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
 
     @Override
     public String generateOpportunityCode() {
-        String prefix = CrmDocNo.prefixOf("OPP-");
-        return CrmDocNo.next(prefix, baseMapper.selectMaxOpportunityCode(prefix), 4);
+        // 走系统统一号段（biz_number_sequence + SELECT FOR UPDATE），不再「查最大号 +1」
+        return bizNumberGeneratorService.nextNumber("CRM_OPPORTUNITY");
     }
 
     private String getStageDesc(int stage) {

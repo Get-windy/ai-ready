@@ -62,13 +62,16 @@ const searchProducts = async () => {
   showLoadingToast({ message: '搜索中...', forbidClick: true, duration: 0 })
   
   try {
-    const res = await api.product.search({
-      keyword: searchValue.value,
+    // api.product.search 的签名是 (keyword, params) —— 原先只传一个对象，
+    // 运行期会发出 keyword=[object Object]（永远搜不到），类型上直接报 TS2554。
+    const res: any = await api.product.search(searchValue.value, {
       page: page.value,
-      pageSize
+      size: pageSize
     })
-    
-    const newProducts = res.data?.list || []
+
+    // 后端返回 PageResult({ records, total })，不是 { list } —— 原先取 res.data?.list 恒空
+    const payload = res?.data ?? res
+    const newProducts: any[] = payload?.records ?? []
     
     if (page.value === 1) {
       products.value = newProducts
@@ -82,14 +85,12 @@ const searchProducts = async () => {
     } else {
       page.value++
     }
-  } catch {
-    products.value = [
-      { id: 1, name: '搜索结果示例1', price: 99.00, image: '', sales: 100 },
-      { id: 2, name: '搜索结果示例2', price: 199.00, image: '', sales: 50 },
-      { id: 3, name: '搜索结果示例3', price: 299.00, image: '', sales: 30 }
-    ]
+  } catch (err: any) {
+    // ⚠️ 原先在失败时塞三条「搜索结果示例」假商品 —— 用户会以为商城里有这些商品。
+    //    失败就该是空结果 + 如实提示。
+    console.warn('[搜索] 加载失败', err?.response?.data?.message || err?.message)
+    products.value = []
     finished.value = true
-    saveHistoryKeyword(searchValue.value)
   } finally {
     loading.value = false
     closeToast()

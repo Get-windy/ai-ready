@@ -9,7 +9,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -17,6 +19,7 @@ import java.util.Map;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "退款管理", description = "退款请求、退款审批、退款记录")
+@Slf4j
 @RestController
 @RequestMapping("/api/refund")
 @RequiredArgsConstructor
@@ -78,13 +81,25 @@ public class RefundController {
         return Result.success();
     }
 
-    @Operation(summary = "退款回调")
+    /**
+     * 退款回调 —— **已停用**（2026-09-26，F-07 同一批处置）。
+     *
+     * <p>原实现把原始报文交给 `RefundServiceImpl.handleCallback` → `PaymentChannel.queryRefund`，
+     * 而各渠道的 queryRefund 都是硬编码返回（`CashChannel` 甚至直接 `setStatus(1)` 注释写着
+     * "线下退款默认成功"）⇒ 任何登录用户 POST 一下就能把退款单置为"已退款"。
+     * 与支付回调是同一个洞。</p>
+     *
+     * <p>支付侧已有 `PaymentCallbackVerifier` SPI（含支付宝/微信/银联三家实现），
+     * 但**退款验签没有对应的 SPI**，本轮不臆造。因此这里直接 fail-closed：
+     * 退款一律走人工核销（`approveRefund`），回调入口拒绝。</p>
+     */
+    @Operation(summary = "退款回调（已停用）",
+            description = "退款验签 SPI 未建设，回调一律拒绝；退款请走人工核销")
     @PostMapping("/callback/{channel}")
-    public Result<RefundRecord> handleCallback(
-            @PathVariable String channel,
-            @RequestBody String callbackData) {
-        RefundRecord record = refundService.handleCallback(channel, callbackData);
-        return Result.success(record);
+    public ResponseEntity<String> callback(@PathVariable String channel) {
+        log.warn("收到退款回调但退款验签未实现，已拒绝：channel={}", channel);
+        return ResponseEntity.status(501)
+                .body("REFUND_CALLBACK_NOT_IMPLEMENTED: 退款回调验签未建设，请走人工核销");
     }
 
     @Operation(summary = "分页查询退款记录")

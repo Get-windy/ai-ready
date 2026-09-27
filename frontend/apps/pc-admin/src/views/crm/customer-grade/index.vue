@@ -265,7 +265,7 @@ import { crmCustomerApi, type CrmCustomer } from '@/api/crm'
 defineOptions({ name: 'CrmCustomerGrade' })
 
 // ═══ CRM 客户等级字典（与 crm_customer.customer_level 一致） ═══
-// 注意：这是「CRM 服务分级」，与 ERP 的 erp_customer_level（价格等级）是两回事，勿混用。
+// 注意：这是「CRM 服务分级」，与 ERP 的客户级别（biz_customer_grade，价格折扣口径）是两回事，勿混用。
 const LEVEL_OPTIONS = [
   { label: 'VIP客户', value: 1 },
   { label: '重要客户', value: 2 },

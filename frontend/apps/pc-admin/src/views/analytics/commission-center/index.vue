@@ -515,7 +515,7 @@ const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'export', label: '导出', enabled: true }
 ]
 const {
-  showPageConfig, queryFields, functionButtons,
+  showPageConfig, queryFields, functionButtons, isQueryVisible,
   isButtonEnabled, handlePageConfigChange, pageConfigStorageKey
 } = useAnalyticsPageConfig({
   storageKey: 'analytics-commission-center-page-config',
@@ -523,8 +523,16 @@ const {
   defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
 })
 
-/** 查询项按 Tab 决定可见性（对标逐 Tab 查询区不同） */
+/**
+ * 查询项可见性 = **页面配置勾选** ∧ **当前 Tab 是否有该查询项**
+ *
+ * ⚠️ 2026-09-23 修复：原实现只按 `activeTab` 判断、完全没读页面配置
+ *    （`isQueryVisible` 未解构），导致「页面配置」弹窗里取消勾选任一查询项后查询区毫无变化
+ *    —— 21 个接了 PageConfigPanel 的页面里唯独本页如此（其余页模板都用 `v-if="isQueryVisible(...)"`）。
+ *    对标口径：本页逐 Tab 查询区不同（如「配送员」只在配送员/每月提成/提成构成 3 个 Tab 出现）。
+ */
 function queryVisible(key: string): boolean {
+  if (!isQueryVisible(key)) return false
   if (activeTab.value === 'detail') return false
   if (key === 'rider' || key === 'role') return activeTab.value === 'riders' || activeTab.value === 'monthly' || activeTab.value === 'composition'
   if (key === 'plan' || key === 'type' || key === 'hideZero') {

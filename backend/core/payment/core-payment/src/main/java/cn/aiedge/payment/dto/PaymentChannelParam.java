@@ -46,7 +46,11 @@ public class PaymentChannelParam {
     // 真实收款前应改为加密存储或接密钥管理；此处如实标注，不做半成品的「假加密」。
     // ═══════════════════════════════════════════════════════════════════════
 
-    @Schema(description = "【验签】支付宝公钥（Base64，不含 PEM 头尾）")
+    @Schema(description = "【签名】支付宝应用私钥（PKCS8、Base64，可带 PEM 头尾）—— 下单/查单/退款都要用它签名")
+    private String alipayPrivateKey;
+    @Schema(description = "【可选】支付宝网关地址（沙箱可覆盖，默认 openapi.alipay.com/gateway.do）")
+    private String alipayGateway;
+    @Schema(description = "【验签】支付宝公钥（Base64，不含 PEM 头尾）—— 验证渠道应答与异步通知")
     private String alipayPublicKey;
 
     @Schema(description = "【验签】微信支付 APIv3 密钥（32 位，用于 AES-256-GCM 解 resource）")
@@ -73,4 +77,10 @@ public class PaymentChannelParam {
      * 证书换发时新旧并存 —— 只配一张会在换发当天全部验签失败。</p>
      */
     private String unionPayCerts;
+    @Schema(description = "【签名】银联商户私钥（PKCS8、Base64，可带 PEM 头尾）—— 下单/查单/退款都要用它签名")
+    private String unionPayMerchantPrivateKey;
+    @Schema(description = "【签名】银联证书 ID（certId，报文中随签名一起上送）")
+    private String unionPayCertId;
+    @Schema(description = "【可选】银联网关地址（默认网关支付正式地址）")
+    private String unionPayGateway;
 }

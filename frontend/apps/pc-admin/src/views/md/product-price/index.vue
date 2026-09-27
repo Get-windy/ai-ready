@@ -323,7 +323,7 @@
               :loading="loading"
               :view-mode="false"
               storage-key="md-product-price-batch-columns"
-              global-config-key="md-product-price-batch"
+              global-config-key="md-product-price-batch-columns-global"
               @checkbox-change="onCheckboxChange"
               @checkbox-all="onCheckboxAll"
               @cell-change="onPriceCellChange"
@@ -365,7 +365,7 @@
               :loading="loading"
               :view-mode="true"
               storage-key="md-product-price-grade-columns"
-              global-config-key="md-product-price-grade"
+              global-config-key="md-product-price-grade-columns-global"
               :show-pagination="false"
             >
               <template #actionCell="{ record }">
@@ -398,7 +398,7 @@
               :loading="loading"
               :view-mode="true"
               storage-key="md-product-price-level-columns"
-              global-config-key="md-product-price-level"
+              global-config-key="md-product-price-level-columns-global"
               @checkbox-change="onCheckboxChange"
               @checkbox-all="onCheckboxAll"
             >
@@ -432,7 +432,7 @@
               :loading="loading"
               :view-mode="true"
               storage-key="md-product-price-customer-columns"
-              global-config-key="md-product-price-customer"
+              global-config-key="md-product-price-customer-columns-global"
               @checkbox-change="onCheckboxChange"
               @checkbox-all="onCheckboxAll"
             >
@@ -1297,9 +1297,32 @@ async function handleExport() {
 
 // ═══ 打印(F8) ═══
 const printDialogRef = ref<any>(null)
+/**
+ * 打印用的列：取**当前 Tab 表格实际在使用的那套列定义**（四个 Tab 各有一套），
+ * 剔掉序号/勾选/操作/槽位这些打不出内容的列与无标题列。
+ *
+ * 引擎侧由 `items.columnsFrom: "columns"` 按这份定义动态画表头 ⇒ 列改了不用改模板，
+ * 「用户当前看到的列」才能如实打出来。列的 key 必须与行对象的字段名一致。
+ */
+const printColumns = computed(() =>
+  (activeTab.value === 'batch'
+    ? batchColumns.value
+    : activeTab.value === 'gradeDiscount'
+      ? gradeDiscountColumns.value
+      : ruleColumns.value)
+    .filter((c: any) => c.title
+      && !['rowNo', 'checkbox', 'action', 'slot'].includes(c.type)
+      && !['rowNo', 'checkbox', 'action', 'imageUrl'].includes(c.key))
+    .map((c: any) => ({ key: c.key, title: c.title, width: c.width, align: c.align })),
+)
+
 const printData = computed<Record<string, any>>(() => {
   const rows = currentTabRows()
   return {
+    // 结果集打印的约定形状：title / columns / rows（原有键一并保留，保持兼容）
+    title: TABS.find(t => t.key === activeTab.value)?.label || '商品价格管理',
+    columns: printColumns.value,
+    totalText: `共 ${pagination.total} 条`,
     pageTitle: TABS.find(t => t.key === activeTab.value)?.label || '商品价格管理',
     rows,
     total: pagination.total,

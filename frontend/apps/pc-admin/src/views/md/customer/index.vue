@@ -784,7 +784,7 @@
             :view-mode="true"
             :show-pagination="false"
             :storage-key="activeStorageKey"
-            :global-config-key="activeStorageKey"
+            :global-config-key="`${activeStorageKey}-global`"
             @checkbox-change="handleRowCheck"
             @checkbox-all="handleRowCheckAll"
           >
@@ -1984,7 +1984,7 @@ async function loadMemberLevelOptions() {
 
 async function loadGradeOptions() {
   try {
-    const list = await partnerGradeApi.list('CUSTOMER')
+    const list = await partnerGradeApi.list()
     gradeOptions.value = (list || []).map((g: any) => ({ label: g.gradeName, value: g.gradeName }))
   } catch (e) {
     console.warn('[客户] 客户级别加载失败', e)
@@ -2059,17 +2059,15 @@ async function loadData() {
       tableData.value = res?.records || []
       pagination.total = Number(res?.total || 0)
     } else if (activeTab.value === 'grade') {
-      const res: any = await request.get('/erp/customer/level/page', {
-        params: {
-          pageNum: pagination.current,
-          pageSize: pagination.pageSize,
-          levelName: gradeQuery.keyword || undefined,
-        },
+      // 客户级别统一走 /erp/partner/grades（biz_customer_grade），与客户表单/筛选下拉同源
+      const res: any = await partnerGradeApi.page({
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize,
+        keyword: gradeQuery.keyword || undefined,
       })
       const records = (res?.records || res?.data?.records || []).map((r: any) => ({
         ...r,
-        gradeName: r.levelName,
-        defaultPrice: r.discountRate != null ? `${r.levelName}*${(Number(r.discountRate) / 100).toFixed(2)}` : '-',
+        defaultPrice: r.discountRate != null ? `${r.gradeName}*${(Number(r.discountRate) / 100).toFixed(2)}` : '-',
       }))
       tableData.value = records
       pagination.total = Number(res?.total ?? res?.data?.total ?? records.length)
@@ -2184,7 +2182,7 @@ function handleEditRow(record: any) {
   if (activeTab.value === 'grade') {
     Object.assign(gradeForm, {
       id: record.id,
-      gradeName: record.levelName,
+      gradeName: record.gradeName,
       discountRate: record.discountRate ?? 100,
     })
     gradeModalVisible.value = true
@@ -2208,12 +2206,16 @@ function handleDeleteRow(record: any) {
   if (activeTab.value === 'grade') {
     Modal.confirm({
       title: '删除客户级别',
-      content: `确定删除「${record.levelName}」吗？`,
+      content: `确定删除「${record.gradeName}」吗？`,
       okType: 'danger',
       onOk: async () => {
-        await request.delete(`/erp/customer/level/${record.id}`)
-        message.success('已删除')
-        loadData()
+        try {
+          await partnerGradeApi.delete(record.id)
+          message.success('已删除')
+          loadData()
+        } catch (e: any) {
+          message.error(e?.message || '删除失败')
+        }
       },
     })
   } else if (activeTab.value === 'region') {
@@ -2421,16 +2423,17 @@ async function handleGradeSave() {
   }
   gradeSaving.value = true
   try {
+    // 字段口径与 biz_customer_grade 对齐（级别名称同时作为编码，与其他主数据一致）
     const payload = {
-      levelName: gradeForm.gradeName,
-      levelCode: gradeForm.gradeName,
+      gradeName: gradeForm.gradeName,
+      gradeCode: gradeForm.gradeName,
       discountRate: gradeForm.discountRate,
-      enabled: true,
+      status: 1,
     }
     if (gradeForm.id) {
-      await request.put(`/erp/customer/level/${gradeForm.id}`, payload)
+      await partnerGradeApi.update(gradeForm.id, payload)
     } else {
-      await request.post('/erp/customer/level', payload)
+      await partnerGradeApi.create(payload)
     }
     message.success('保存成功')
     gradeModalVisible.value = false
@@ -2682,10 +2685,22 @@ async function handleImportUpload() {
   formData.append('file', file.originFileObj || file)
   importLoading.value = true
   try {
-    await request.post('/import/v2/excel/customer', formData, {
+    // ⚠️ 改调资料模块自带的**真实**导入端点：`/import/v2/excel/customer`（cn.aiedge.export）
+    //    只解析校验、完全不落库，却回执「成功 N 条」（2026-09-24 系统模块审计 P0）。
+    //    本端点会做编码生成 + 编号查重 + 真实写入 erp_partner。
+    const res: any = await request.post('/erp/md/customer/import-excel?partnerType=customer', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    message.success('导入成功')
+    const errors: string[] = Array.isArray(res?.errors) ? res.errors : []
+    const okCount = Number(res?.success) || 0
+    if (errors.length) {
+      message.warning(
+        `导入完成：成功 ${okCount} 条，失败 ${errors.length} 条。${errors.slice(0, 2).join('；')}${errors.length > 2 ? ' …' : ''}`,
+        8,
+      )
+    } else {
+      message.success(`导入成功 ${okCount} 条`)
+    }
     importModalVisible.value = false
     loadData()
   } catch (e: any) {

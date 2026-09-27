@@ -13,8 +13,6 @@ const form = ref({
   nickname: '',
   phone: '',
   email: '',
-  gender: '',
-  birthday: '',
   avatar: ''
 })
 
@@ -26,8 +24,6 @@ onMounted(() => {
       nickname: userStore.user.nickname || '',
       phone: userStore.user.phone || '',
       email: userStore.user.email || '',
-      gender: userStore.user.gender || '',
-      birthday: userStore.user.birthday || '',
       avatar: userStore.user.avatar || ''
     }
     
@@ -113,24 +109,6 @@ const goBack = () => {
             label="邮箱"
             placeholder="请输入邮箱"
             type="email"
-          />
-          
-          <Field
-            v-model="form.gender"
-            label="性别"
-            placeholder="请选择性别"
-            readonly
-            is-link
-            @click="() => {}"
-          />
-          
-          <Field
-            v-model="form.birthday"
-            label="生日"
-            placeholder="请选择生日"
-            readonly
-            is-link
-            @click="() => {}"
           />
           
           <div class="submit-section">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, AddressList, AddressEdit, Button, Dialog, Popup, showLoadingToast, closeToast } from 'vant'
+import { NavBar, AddressList, AddressEdit, Dialog, Popup, showLoadingToast, closeToast } from 'vant'
 import { api, type AddressItem } from '@/api'
 
 const router = useRouter()
@@ -24,7 +24,7 @@ const loadAddresses = async () => {
 
     const defaultAddr = addresses.value.find(a => a.isDefault)
     if (defaultAddr) {
-      chosenAddressId.value = defaultAddr.id
+      chosenAddressId.value = String(defaultAddr.id)
     }
   } catch (err) {
     console.warn('[地址] 加载地址失败', err)
@@ -67,21 +67,42 @@ const handleSelect = (address: any) => {
   chosenAddressId.value = address.id
 }
 
-const handleSave = async (content: AddressItem) => {
+/**
+ * Vant `AddressEdit` 的保存体 → 后端 `AddressDTO`。
+ *
+ * Vant 的 `AddressEditInfo` 字段是 `{name, tel, province, city, county, areaCode, addressDetail, isDefault}`，
+ * 而库里是 `consignee / phone / region(省市区一个串) / address(详细)` —— 字段名和粒度都不同，
+ * 必须在边界这一处转换（早先在服务层按不存在的列名读写，直接 500）。
+ */
+function toPayload(content: any): Omit<AddressItem, 'id'> {
+  const region = [content?.province, content?.city, content?.county].filter(Boolean).join('')
+  return {
+    consignee: content?.name ?? '',
+    phone: content?.tel ?? '',
+    region,
+    address: content?.addressDetail ?? content?.address ?? '',
+    isDefault: !!content?.isDefault
+  }
+}
+
+const handleSave = async (content: any) => {
   showLoadingToast({ message: '保存中...', forbidClick: true, duration: 0 })
-  
+
+  const payload = toPayload(content)
   try {
-    if (editingAddress.value) {
-      await api.user.updateAddress(editingAddress.value.id, content)
-      const index = addresses.value.findIndex(a => a.id === editingAddress.value.id)
+    const editing = editingAddress.value
+    if (editing) {
+      await api.user.updateAddress(String(editing.id), payload)
+      const index = addresses.value.findIndex(a => a.id === editing.id)
       if (index !== -1) {
-        addresses.value[index] = { ...content, id: editingAddress.value.id }
+        addresses.value[index] = { ...payload, id: editing.id }
       }
     } else {
-      const res = await api.user.addAddress(content)
-      addresses.value.push({ ...content, id: res.data?.id || Date.now().toString() })
+      const res: any = await api.user.addAddress(payload)
+      // 新增后回填后端给的 id（原先用 Date.now() 兜底，但那会让"设为默认"等按 id 的操作失效）
+      addresses.value.push({ ...payload, id: res?.data?.id ?? Date.now().toString() })
     }
-    
+
     showEdit.value = false
   } catch (err) {
     console.warn('[地址] 保存失败', err)
@@ -106,7 +127,14 @@ const goBack = () => {
     <div class="address-content">
       <AddressList
         v-model="chosenAddressId"
-        :list="addresses"
+        :list="addresses.map(a => ({
+          // Vant 要求 id/tel/name/address 确定类型；AddressItem 全可选 ⇒ 此处收敛
+          id: String(a.id),
+          name: a.consignee ?? '',
+          tel: a.phone ?? '',
+          address: `${a.region ?? ''} ${a.address ?? ''}`.trim(),
+          isDefault: a.isDefault ?? false
+        }))"
         default-tag-text="默认"
         @add="handleAdd"
         @edit="handleEdit"
@@ -122,7 +150,20 @@ const goBack = () => {
       round
     >
       <AddressEdit
-        :address-info="editingAddress"
+        :address-info="editingAddress
+          ? {
+              name: editingAddress.consignee ?? '',
+              tel: editingAddress.phone ?? '',
+              // 库里 region 是**一个字符串**（省市区合并），拆不回三级；整串放进 province，
+              // 区域选择器允许只选一级 ⇒ 再次编辑时不丢数据
+              province: editingAddress.region ?? '',
+              city: '',
+              county: '',
+              areaCode: '',
+              addressDetail: editingAddress.address ?? '',
+              isDefault: editingAddress.isDefault ?? false
+            }
+          : undefined"
         :show-delete="!!editingAddress"
         show-set-default
         show-search-result

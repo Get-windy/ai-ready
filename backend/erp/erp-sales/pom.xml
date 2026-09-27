@@ -41,17 +41,18 @@
       <artifactId>erp-finance</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- CRM信用服务依赖（客户信用额度检查） -->
-    <dependency>
-      <groupId>cn.aiedge.crm</groupId>
-      <artifactId>crm</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <!-- 营销服务依赖（促销引擎 PromotionEngine / 优惠券核销 CouponRedemptionService）
          ⚠️ 依赖方向 erp-sales → erp-marketing 不成环：erp-marketing 只依赖 core-base -->
     <dependency>
       <groupId>cn.aiedge.erp</groupId>
       <artifactId>erp-marketing</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- 打印服务依赖（实现 PrintDataProvider，让销售单据能被「单据打印」统一接口渲染）
+         ⚠️ 依赖方向 erp-sales → erp-printing 不成环：erp-printing 只依赖 core-base -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-printing</artifactId>
       <version>${project.version}</version>
     </dependency>
     <!-- Spring Boot Starter -->
