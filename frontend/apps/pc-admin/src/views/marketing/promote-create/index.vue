@@ -202,6 +202,12 @@
         </div>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-promote-create"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -221,6 +227,8 @@ import {
   promoteApi, couponTemplateApi, promoActivityApi, groupBuyApi, flashSaleApi, shareApi,
   SHARE_TYPE_MAP, COUPON_TYPE_MAP, PROMO_STATUS_MAP,
 } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MarketingPromoteCreate' })
 
@@ -548,53 +556,38 @@ async function handleShare() {
   }
 }
 
-// ═══ 打印 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+/** 单元格按列的 slotName 走与表格同一套格式化 */
+function printCellValue(r: any, c: any) {
+  const v = r[c.key]
+  if (v == null) return ''
+  if (c.slotName === 'timeCell') return fmtTime(v)
+  if (c.slotName === 'moneyCell') return fmtMoney(v)
+  if (c.slotName === 'typeCell') return COUPON_TYPE_MAP[v] || v
+  if (c.slotName === 'scopeCell') return v === 'SPECIFIED' ? '指定客户' : '全部客户'
+  if (c.slotName === 'promoStatusCell') return PROMO_STATUS_MAP[v]?.text || v
+  if (c.slotName === 'flashStatusCell') return FLASH_STATUS_MAP[v]?.text || v
+  if (c.slotName === 'shareTypeCell') return SHARE_TYPE_MAP[v] || v
+  return String(v)
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const cols = columns.value.filter(c => c.type !== 'rowNo' && c.type !== 'action')
-  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || ''
-  const cellValue = (r: any, c: any) => {
-    const v = r[c.key]
-    if (v == null) return ''
-    if (c.slotName === 'timeCell') return fmtTime(v)
-    if (c.slotName === 'moneyCell') return fmtMoney(v)
-    if (c.slotName === 'typeCell') return COUPON_TYPE_MAP[v] || v
-    if (c.slotName === 'scopeCell') return v === 'SPECIFIED' ? '指定客户' : '全部客户'
-    if (c.slotName === 'promoStatusCell') return PROMO_STATUS_MAP[v]?.text || v
-    if (c.slotName === 'flashStatusCell') return FLASH_STATUS_MAP[v]?.text || v
-    if (c.slotName === 'shareTypeCell') return SHARE_TYPE_MAP[v] || v
-    return String(v)
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
-    cols.map(c => `<td>${escapeHtml(cellValue(r, c))}</td>`).join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>我要推广-${tabLabel}</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>我要推广 · ${tabLabel}</h2>
-    <table><thead><tr><th>#</th>${cols.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-promote-create',
+  // 列随 Tab 变、单元格格式按列的 slotName 决定 → 明确按数据列打
+  useDataColumns: true,
+  title: () => `我要推广 · ${TABS.find(t => t.key === activeTab.value)?.label || ''}`,
+  columns: () => columns.value
+    .filter((c: any) => c.type !== 'rowNo' && c.type !== 'action')
+    .map((c: any) => ({
+      key: c.key,
+      title: c.title,
+      align: c.align,
+      formatter: (_v: any, row: any) => printCellValue(row, c),
+    })),
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

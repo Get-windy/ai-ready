@@ -261,6 +261,13 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+
+    <!-- 打印：结果集打印（列与行由页面给，模板负责版式） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-commission-center"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -280,6 +287,8 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { commissionAnalyticsApi } from '@/api/analytics-finance'
 import { useExport } from '@/composables/useExport'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 import { QUICK_DATES, quickDateRange } from '../shared/docTypes'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
@@ -711,29 +720,72 @@ function cellText(c: DetailColumnConfig, r: any): string {
   return c.formatter ? c.formatter(raw, r) : fmtText(raw)
 }
 
-function handlePrint() {
-  const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
+const currentTabLabel = computed(() => TABS.find(t => t.key === activeTab.value)?.label || '业绩提成中心')
+
+/** 打印标题里的区间：矩阵类 Tab 是年度口径，业绩明细是日期区间（对标两者查询口径不同） */
+const printPeriod = computed(() => {
+  if (activeTab.value === 'detail') return `${dateRange.value?.[0] || ''} ~ ${dateRange.value?.[1] || ''}`
+  if (isYearTab.value) return `${query.year}年`
+  return ''
+})
+
+/**
+ * 打印用的**拍平**模型 —— 透视上纸的老办法：列 = [分组字段, ...该透视当前的指标列]，行 = 拍平后的叶子行。
+ *
+ * 默认 Tab「配送员 / 每月提成」是人员 × 12 月矩阵：`1月~12月 + 合计` 是运行期列
+ * （13 列共用 `key='checkbox'`、取值在 `monthCell` 插槽里按列名换算），
+ * 直接交给统一列模型会**整列变空**（引擎按 key 取值，矩阵列没有对应的数据字段，key 也不唯一）。
+ * 所以这里把每个矩阵列拍成一个唯一 key 的普通列（`m01~m12` / `total` —— 正好就是行数据里的字段名），
+ * 取值沿用改造前的 `monthCellText` / `cellText`（钱两位小数 + 千分位、空值 '-'）：
+ * 模板按数据列画表头、数据列不含 agg 合计（合计走 pageFooter 的 totalText），
+ * 先格式化成显示文本才能与改造前自建 HTML 的单元格逐字一致。
+ */
+const printModel = computed(() => {
+  const columns: Array<{ key: string; title: string; align?: string }> = []
+  const cells: Array<(r: any) => string> = []
+  for (const c of printableColumns.value) {
+    if (c.type === 'slot' && c.slotName === 'monthCell') {
+      const title = String(c.title || '')
+      const key = title === '合计' ? 'total' : `m${String(title.replace('月', '')).padStart(2, '0')}`
+      columns.push({ key, title, align: c.align })
+      cells.push((r: any) => monthCellText(r, c))
+    } else {
+      columns.push({ key: String(c.key), title: String(c.title), align: c.align })
+      cells.push((r: any) => cellText(c, r))
+    }
   }
-  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '业绩提成中心'
-  const html = `<html><head><meta charset="utf-8"><title>业绩提成中心-${tabLabel}</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>业绩提成中心 · ${tabLabel}</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  const flatRows = rows.value.map(r => {
+    const flat: Record<string, any> = {}
+    columns.forEach((col, i) => { flat[col.key] = cells[i](r) })
+    return flat
+  })
+  return { columns, rows: flatRows }
+})
+
+/** 页脚合计：与屏幕表尾同口径（逐列取该列自己的 formatter），前面缀条数 */
+function printTotalText(): string {
+  const colOf = new Map(leafColumns.value.map(c => [c.key, c]))
+  const parts = summaryColumns.value.map(s => {
+    const c = colOf.get(s.key)
+    const text = c?.formatter ? c.formatter(s.value, summary.value) : fmtNum(s.value)
+    return `${c?.title || s.key} ${text}`
+  })
+  const count = `共 ${pagination.total || rows.value.length} 条`
+  return parts.length ? `${count}；合计 ${parts.join('，')}` : count
 }
+
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口（h3 + 一张表：当前可见列 × 当前页行），
+// 现在交给 PrintDialog：列与行由页面给（矩阵 Tab 已按上面的拍平模型展开），模板负责版式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-commission-center',
+  title: () => `业绩提成中心 · ${currentTabLabel.value}${printPeriod.value ? `（${printPeriod.value}）` : ''}`,
+  useDataColumns: true,
+  columns: () => printModel.value.columns,
+  rows: () => printModel.value.rows,
+  totalText: printTotalText,
+  emptyTip: '没有可打印的数据'
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

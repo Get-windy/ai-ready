@@ -437,6 +437,12 @@
         </a-descriptions>
       </a-spin>
     </a-modal>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="set-operation-log"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -460,6 +466,8 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { logApi, type OperLogRow, type LoginLogRow, type OperLogQuery, type LoginLogQuery } from '@/api/log'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'SetOperationLog' })
 
@@ -999,77 +1007,39 @@ async function handleExport() {
   }
 }
 
-// ═══════════════════════════ 打印(F8) ═══════════════════════════
-
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
-/** 真实打印模板：按当前 Tab 的台账列出一张可打印的 HTML（新窗口 → print） */
-function handlePrint() {
-  const isOper = activeTab.value === 'oper'
-  const rows = (isOper ? operRows.value : loginRows.value).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 两个 Tab 两套列（系统日志 / 登录日志），故显式声明 useDataColumns。
+// 「内容」是页面组合出来的展示列、「状态/登录方式」在屏幕上是默认隐藏列，原打印一直带 → 按原口径补回。
+function printColumns() {
+  if (activeTab.value === 'oper') {
+    return operColumns.map(c => {
+      if (c.key === 'content') return { ...c, formatter: (_v: any, r: any) => operContent(r) }
+      if (c.key === 'status') return { ...c, defaultHidden: false, formatter: (_v: any, r: any) => (r.status === 0 ? '成功' : '失败') }
+      return c
+    })
   }
-  const title = isOper ? '系统日志' : '登录日志'
-  const body = isOper
-    ? (rows as OperLogRow[]).map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(fmtDateTime(r.operTime))}</td>
-      <td>${escapeHtml(r.username || '')}</td>
-      <td>${escapeHtml(r.realName || '')}</td>
-      <td>${escapeHtml(operContent(r))}</td>
-      <td>${escapeHtml(r.status === 0 ? '成功' : '失败')}</td>
-    </tr>`).join('')
-    : (rows as LoginLogRow[]).map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(fmtDateTime(r.loginTime))}</td>
-      <td>${escapeHtml(r.username || '')}</td>
-      <td>${escapeHtml(r.realName || '')}</td>
-      <td>${escapeHtml(loginTypeContent(r))}</td>
-      <td>${escapeHtml(LOGIN_TYPE_MAP[r.loginType as number] || '未知')}</td>
-    </tr>`).join('')
-  const head = isOper
-    ? '<tr><th>#</th><th>时间</th><th>操作员</th><th>姓名</th><th>内容</th><th>状态</th></tr>'
-    : '<tr><th>#</th><th>时间</th><th>操作员</th><th>姓名</th><th>登录类型</th><th>登录方式</th></tr>'
-  const filterText = isOper
+  return loginColumns.map(c => {
+    if (c.key === 'loginType') return { ...c, formatter: (_v: any, r: any) => loginTypeContent(r) }
+    if (c.key === 'loginTypeName') return { ...c, defaultHidden: false }
+    return c
+  })
+}
+function printFilterText() {
+  return activeTab.value === 'oper'
     ? `模块：${operForm.module || '全部'}｜操作类型：${operForm.operationType ? actionText(operForm.operationType) : '全部'}｜操作员：${operForm.operatorName || '全部'}`
     : `登录日期：${loginForm.startDate || '-'} ~ ${loginForm.endDate || '-'}｜操作员：${loginForm.username || '全部'}`
-
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>操作日志-${title}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>操作日志 - ${title}</h2>
-    <div class="meta">
-      <span>筛选条件：${escapeHtml(filterText)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}（当前页）</span>
-    </div>
-    <table><thead>${head}</thead><tbody>${body}</tbody></table></body></html>`
-
-  const win = window.open('', '_blank', 'width=1200,height=760')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
 }
+const printableRows = () => (activeTab.value === 'oper' ? operRows.value : loginRows.value).filter((r: any) => !r.__ghost)
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'set-operation-log',
+  title: () => `操作日志 - ${activeTab.value === 'oper' ? '系统日志' : '登录日志'}`,
+  rows: () => printableRows(),
+  columns: () => printColumns(),
+  useDataColumns: true,
+  totalText: () => `筛选条件：${printFilterText()} ｜ 共 ${printableRows().length} 条（当前页）`,
+  emptyTip: '没有可打印的数据',
+})
 
 /** F8 快捷键打印（与 ql361 / 其他金标准页一致） */
 function handleF8Key(e: KeyboardEvent) {

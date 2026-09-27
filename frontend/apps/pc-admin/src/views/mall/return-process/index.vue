@@ -828,13 +828,18 @@
         />
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="mall-return-process"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import {
   ReloadOutlined, DownloadOutlined, PrinterOutlined, SettingOutlined
 } from '@ant-design/icons-vue'
@@ -847,6 +852,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { saleReturnApi } from '@/api/erp'
 import { exportCsv } from '@/utils/exportCsv'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MallReturnProcess' })
 
@@ -1408,73 +1415,54 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8)：window.open + 内联 HTML 打印模板 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
-function buildPrintHtml(rows: ReturnRow[]): string {
-  const isDoc = activeTab.value === 'doc'
-  const head = isDoc
-    ? ['#', '单据日期', '单据编号', '来源订单', '单据状态', '结算状态', '退货类型', '退货数量', '已结金额', '仓库', '客户', '本单金额', '经手人', '退货原因']
-    : ['#', '单据日期', '单据编号', '来源单据', '客户', '商品名称', '货号', '规格', '单位', '退货数量', '单价', '退货金额', '明细备注']
-  const body = rows.map((r, i) => {
-    const cells = isDoc
-      ? [
-          fmtDateTime(r.orderDate), r.returnNo, r.sourceOrder,
-          STATUS_MAP[r.status ?? -1]?.label || '',
-          SETTLE_STATUS_MAP[r.settleStatus || '']?.label || r.settleStatus,
-          RETURN_TYPE_MAP[r.returnType ?? -1] || r.returnTypeDesc,
-          fmtQty(r.returnQuantityTotal), fmtMoney(r.settledAmount), r.warehouseName,
-          r.customerName, fmtMoney(r.billAmount), r.handlerName, r.reason
-        ]
-      : [
-          fmtDateTime(r.orderDate), r.returnNo, r.sourceOrder, r.customerName, r.productName,
-          r.productCode, r.specification, r.unit, fmtQty(r.returnQuantity),
-          fmtMoney(r.unitPrice), fmtMoney(r.lineAmount), r.itemRemark
-        ]
-    return `<tr><td>${i + 1}</td>${cells.map(v => `<td>${escapeHtml(v ?? '')}</td>`).join('')}</tr>`
-  }).join('')
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>退货申请处理</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>退货申请处理（${isDoc ? '按单据' : '按明细'}）</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>${head.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-}
-
-function handlePrint() {
-  const rows = tableData.value.filter(r => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+// 两套表头随 Tab 切换，故用 printColumns() + useDataColumns 覆盖模板列。
+function printColumns(): any[] {
+  if (activeTab.value === 'doc') {
+    return [
+      { title: '单据日期', key: 'orderDate', formatter: (v: any) => fmtDateTime(v) },
+      { title: '单据编号', key: 'returnNo' },
+      { title: '来源订单', key: 'sourceOrder' },
+      { title: '单据状态', key: 'status', formatter: (v: any) => STATUS_MAP[v ?? -1]?.label || '' },
+      { title: '结算状态', key: 'settleStatus', formatter: (v: any) => SETTLE_STATUS_MAP[v || '']?.label || v || '' },
+      { title: '退货类型', key: 'returnType', formatter: (v: any, record: any) => RETURN_TYPE_MAP[v ?? -1] || record.returnTypeDesc || '' },
+      { title: '退货数量', key: 'returnQuantityTotal', align: 'right' },
+      { title: '已结金额', key: 'settledAmount', align: 'right' },
+      { title: '仓库', key: 'warehouseName' },
+      { title: '客户', key: 'customerName' },
+      { title: '本单金额', key: 'billAmount', align: 'right' },
+      { title: '经手人', key: 'handlerName' },
+      { title: '退货原因', key: 'reason' },
+    ]
   }
-  const win = window.open('', '_blank', 'width=1100,height=720')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(buildPrintHtml(rows))
-  win.document.close()
-  win.focus()
-  win.print()
+  return [
+    { title: '单据日期', key: 'orderDate', formatter: (v: any) => fmtDateTime(v) },
+    { title: '单据编号', key: 'returnNo' },
+    { title: '来源单据', key: 'sourceOrder' },
+    { title: '客户', key: 'customerName' },
+    { title: '商品名称', key: 'productName' },
+    { title: '货号', key: 'productCode' },
+    { title: '规格', key: 'specification' },
+    { title: '单位', key: 'unit' },
+    { title: '退货数量', key: 'returnQuantity', align: 'right' },
+    { title: '单价', key: 'unitPrice', align: 'right' },
+    { title: '退货金额', key: 'lineAmount', align: 'right' },
+    { title: '明细备注', key: 'itemRemark' },
+  ]
 }
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'mall-return-process',
+  title: '退货申请处理',
+  rows: () => tableData.value.filter((r: any) => !r.__ghost),
+  columns: () => printColumns(),
+  useDataColumns: true,
+  // 原打印抬头的 记录数 元信息行（打印时间由模板 pageHeader 自动带）
+  totalText: () => `${activeTab.value === 'doc' ? '按单据' : '按明细'}，记录数：${tableData.value.filter((r: any) => !r.__ghost).length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

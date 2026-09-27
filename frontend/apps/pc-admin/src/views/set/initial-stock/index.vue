@@ -355,6 +355,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="set-initial-stock"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -381,6 +387,8 @@ import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { initialStockApi, type InitialStockInfo, type InitialStockQuery } from '@/api/set/initial'
 import { productApi, productCategoryApi } from '@/api/erp/product'
 import { warehouseApi } from '@/api/wms/warehouse'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'SetInitialStock' })
 
@@ -895,67 +903,19 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8)：与列表同口径的打印模板 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.productName)}</td>
-      <td>${escapeHtml(r.productCode)}</td>
-      <td>${escapeHtml(r.barcode)}</td>
-      <td>${escapeHtml(r.spec)}</td>
-      <td>${escapeHtml(r.model)}</td>
-      <td>${escapeHtml(r.origin)}</td>
-      <td>${escapeHtml(r.unit)}</td>
-      <td style="text-align:right">${escapeHtml(formatQty(r.quantity))}</td>
-      <td style="text-align:right">${escapeHtml(formatPrice(r.unitPrice))}</td>
-      <td style="text-align:right">${escapeHtml(formatAmount(r.amount))}</td>
-      <td>${escapeHtml(r.warehouseName)}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>库存期初</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>库存期初</h2>
-    <div class="meta">
-      <span>当前路径：${escapeHtml(currentCategoryPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>商品名称</th><th>货号</th><th>条码</th><th>规格</th><th>型号</th>
-        <th>产地</th><th>小单位</th><th>期初数量</th><th>期初成本单价</th><th>期初金额</th><th>仓库</th>
-      </tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 原打印带「仓库」列（仓库只是查询条件，不在屏幕列里），这里按原口径补上这一列。
+const printColumns = () => [...columns, { key: 'warehouseName', title: '仓库' }]
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'set-initial-stock',
+  title: '库存期初',
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  columns: () => printColumns(),
+  useDataColumns: true,
+  totalText: () => `当前路径：${currentCategoryPath.value} ｜ 共 ${tableData.value.filter((r: any) => !r.__ghost).length} 条`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

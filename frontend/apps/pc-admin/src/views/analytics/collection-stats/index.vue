@@ -170,6 +170,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-collection-stats"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -192,6 +198,8 @@ import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 import { QUICK_DATES, quickDateRange } from '../shared/docTypes'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
 import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsCollectionStats' })
 
@@ -446,29 +454,17 @@ function cellText(c: DetailColumnConfig, r: any): string {
   return c.formatter ? c.formatter(raw, r) : (raw === null || raw === undefined || raw === '' ? '-' : String(raw))
 }
 
-function handlePrint() {
-  const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '回款统计'
-  const html = `<html><head><meta charset="utf-8"><title>回款统计-${tabLabel}</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>回款统计 · ${tabLabel}（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列随 Tab 变（按职员/按部门，computed）→ 冻结不进模板，明确按数据列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-collection-stats',
+  title: () => `回款统计 · ${TABS.find(t => t.key === activeTab.value)?.label || '回款统计'}（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）`,
+  useDataColumns: true,
+  columns: () => printableColumns.value,
+  rows: () => rows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

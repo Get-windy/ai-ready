@@ -768,6 +768,13 @@
         </div>
       </a-modal>
     </Teleport>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="sale-retail"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </div>
 </template>
 
@@ -794,6 +801,7 @@ import { retailOrderApi, memberApi, userPageConfigApi } from '@/api/erp'
 import optionsApi from '@/api/options'
 import { PRODUCT_RETAIL_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1919,60 +1927,20 @@ function handleAction(actionKey: string, _parentKey?: string) {
 }
 
 // ── 打印：渲染当前单据（含明细与小票金额）后调用浏览器打印，并累加打印次数 ──
-async function handlePrint() {
-  const rows = (formData.products || [])
-    .filter((p: any) => p.productId != null || p.productName)
-    .map((p: any, i: number) => `<tr>
-        <td>${i + 1}</td><td>${escapeHtml(p.productName || '')}</td><td>${escapeHtml(p.barcode || '')}</td>
-        <td class="num">${fmtNum(p.quantity)}</td><td class="num">${fmtNum(p.unitPrice)}</td><td class="num">${fmtNum((p.quantity || 0) * (p.unitPrice || 0))}</td>
-      </tr>`).join('')
-  const payRows = buildPayments()
-    .map(p => `<tr><td>${payMethodLabel(p.paymentMethod)}</td><td class="num">${fmtNum(p.paymentAmount)}</td></tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>零售单 ${escapeHtml(formData.orderNo || '')}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}.num{text-align:right}
-      .totals{margin-top:8px;font-size:13px;text-align:right}.totals span{margin-left:16px}
-    </style></head><body>
-    <h2>零售单</h2>
-    <div class="meta">
-      <span>单据编号：${escapeHtml(formData.orderNo || '')}</span>
-      <span>单据日期：${escapeHtml(formData.orderDate || '')}</span>
-      <span>客户：${escapeHtml(formData.customerName || '散客')}</span>
-      <span>仓库：${escapeHtml(formData.warehouseName || '')}</span>
-      <span>经手人：${escapeHtml(formData.handlerName || '')}</span>
-      <span>制单人：${escapeHtml(formData.creatorName || currentUserName.value || '')}</span>
-    </div>
-    <table><thead><tr><th>#</th><th>商品名称</th><th>条码</th><th>数量</th><th>单价</th><th>金额</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="6">无明细</td></tr>'}</tbody></table>
-    <div class="totals">
-      <span>商品金额：${fmtNum(totalAmount.value)}</span>
-      <span>优惠金额：${fmtNum(totalDiscount.value)}</span>
-      <span>本单应收：${fmtNum(payableAmount.value)}</span>
-      <span>收款合计：${fmtNum(totalPaid.value)}</span>
-      <span>找零：${fmtNum(changeAmount.value)}</span>
-    </div>
-    ${payRows ? `<table style="margin-top:8px"><thead><tr><th>收款方式</th><th>金额</th></tr></thead><tbody>${payRows}</tbody></table>` : ''}
-    </body></html>`
-  const win = window.open('', '_blank', 'width=900,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+// ═══ 打印（按单据打印） ═══
+// 零售单：后端已为 pageCode='sale-retail' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+function handlePrint() {
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
     return
   }
-  win.document.write(`${html}`)
-  win.document.close()
-  win.focus()
-  win.print()
-  if (formData.id) {
-    try {
-      await retailOrderApi.afterPrint(formData.id)
-      formData.printCount = (formData.printCount || 0) + 1
-    } catch { /* 计数失败不影响打印 */ }
-  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
 }
 
 // ── 导出：当前单据明细导出 CSV（真实数据） ──

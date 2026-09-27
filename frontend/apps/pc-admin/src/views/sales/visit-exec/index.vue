@@ -439,6 +439,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="sales-visit-exec"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -466,6 +472,8 @@ import {
   type VisitPlan, type VisitRecord
 } from '@/api/crm'
 import { userApi } from '@/api/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'SalesVisitExec' })
 
@@ -875,61 +883,44 @@ function handleExport() {
   exportCsv()
 }
 
-// ═══ 打印(F8) ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：拜访执行 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、计划标签、拜访方式/结果中文都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '关联计划', key: 'planLabel' },
+  { title: '客户', key: 'customerName' },
+  { title: '负责人', key: 'salesPersonName' },
+  { title: '拜访方式', key: 'visitTypeText' },
+  { title: '打卡时间', key: 'visitTimeText' },
+  { title: '拜访地点', key: 'location' },
+  { title: '拜访内容', key: 'content' },
+  { title: '拜访结果', key: 'resultText' },
+]
+
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return (tableData.value || []).filter((r: any) => !r.__ghost).map((r: any, i: number) => ({
+    __seq: i + 1,
+    planLabel: planLabelById(r.planId),
+    customerName: r.customerName || '',
+    salesPersonName: r.salesPersonName || '',
+    visitTypeText: VISIT_TYPE_MAP[r.visitType]?.label || '-',
+    visitTimeText: formatTime(r.visitTime),
+    location: r.location || '',
+    content: r.content || '',
+    resultText: RESULT_MAP[r.result]?.label || '-',
+  }))
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(planLabelById(r.planId))}</td>
-      <td>${escapeHtml(r.customerName || '')}</td>
-      <td>${escapeHtml(r.salesPersonName || '')}</td>
-      <td>${escapeHtml(VISIT_TYPE_MAP[r.visitType]?.label || '-')}</td>
-      <td>${escapeHtml(formatTime(r.visitTime))}</td>
-      <td>${escapeHtml(r.location || '')}</td>
-      <td>${escapeHtml(r.content || '')}</td>
-      <td>${escapeHtml(RESULT_MAP[r.result]?.label || '-')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>拜访执行</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>拜访执行</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>关联计划</th><th>客户</th><th>负责人</th><th>拜访方式</th>
-      <th>打卡时间</th><th>拜访地点</th><th>拜访内容</th><th>拜访结果</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'sales-visit-exec',
+  // 原打印抬头的「记录数」元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `拜访执行（记录数：${printRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

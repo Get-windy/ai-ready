@@ -611,6 +611,12 @@
         @select="handleFormCustomerPicked"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-member-manage"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -632,6 +638,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import PartnerSelectModal from '@/components/PartnerSelectModal/index.vue'
 import { memberManageApi, couponTemplateApi, smsMarketingApi, type CouponTemplate, type SmsTemplate } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import { partnerApi, partnerCategoryApi } from '@/api/erp/partner'
 import { optionsApi } from '@/api/options'
 
@@ -1201,12 +1209,6 @@ async function handleIssueCoupon() {
 }
 
 // ═══ 打印(F8) / 导出 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
 const PRINT_COLUMNS = [
   { key: 'memberName', title: '会员名称' },
   { key: 'memberCardNo', title: '会员卡号' },
@@ -1230,41 +1232,25 @@ function printCell(row: any, key: string): string {
   return row[key] == null ? '' : String(row[key])
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
-    PRINT_COLUMNS.map(c => `<td>${escapeHtml(printCell(r, c.key))}</td>`).join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>会员名册</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>会员名册</h2>
-    <div class="meta">
-      <span>客户分类：${escapeHtml(currentPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table><thead><tr><th>#</th>${PRINT_COLUMNS.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-member-manage',
+  title: '会员名册',
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  // 列与导出一致；有效时间/卡状态/最近交易列在送打印机前先按页面口径格式化
+  columns: () => PRINT_COLUMNS.map(c => ({
+    key: c.key,
+    title: c.title,
+    formatter: (_v: any, row: any) => printCell(row, c.key),
+  })),
+  // 原先表头下方那行「客户分类 / 打印时间 / 记录数」元信息：打印时间模板自带，其余并入页脚文字
+  totalText: () => {
+    const count = (tableData.value || []).filter((r: any) => !r.__ghost).length
+    return `客户分类：${currentPath.value}；记录数：${count}`
+  },
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

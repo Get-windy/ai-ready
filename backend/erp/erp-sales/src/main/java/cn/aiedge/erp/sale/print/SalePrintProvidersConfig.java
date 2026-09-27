@@ -2,6 +2,8 @@ package cn.aiedge.erp.sale.print;
 
 import cn.aiedge.erp.printing.spi.PrintDataProvider;
 import cn.aiedge.erp.printing.support.GenericPrintDataProvider;
+import cn.aiedge.erp.sale.retail.mapper.RetailOrderItemMapper;
+import cn.aiedge.erp.sale.retail.mapper.RetailOrderMapper;
 import cn.aiedge.erp.sale.salereturn.mapper.SaleReturnItemMapper;
 import cn.aiedge.erp.sale.salereturn.mapper.SaleReturnMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,5 +29,12 @@ public class SalePrintProvidersConfig {
     PrintDataProvider saleReturnApplyPrintProvider(SaleReturnMapper docMapper, SaleReturnItemMapper itemMapper,
                                                    ObjectMapper objectMapper) {
         return new GenericPrintDataProvider("sale-return-apply", docMapper, itemMapper, "return_id", objectMapper);
+    }
+
+    /** 零售单（门店零售）：主表 + 商品明细（外键 order_id） */
+    @Bean
+    PrintDataProvider saleRetailPrintProvider(RetailOrderMapper docMapper, RetailOrderItemMapper itemMapper,
+                                              ObjectMapper objectMapper) {
+        return new GenericPrintDataProvider("sale-retail", docMapper, itemMapper, "order_id", objectMapper);
     }
 }

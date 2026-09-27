@@ -722,6 +722,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="hr-salary-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -760,6 +766,8 @@ import {
   type HrSalaryPayment,
   type HrSalaryStructure,
 } from '@/api/hr'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'HrSalaryList' })
 
@@ -1301,12 +1309,6 @@ function cellText(col: DetailColumnConfig, record: any): string {
   return value === null || value === undefined || value === '' ? '' : String(value)
 }
 
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
 function tabLabel(): string {
   return TABS.find(t => t.key === activeTab.value)?.label || '薪资管理'
 }
@@ -1326,49 +1328,31 @@ function buildFilterSummary(): string {
   return parts.join('　')
 }
 
-function handlePrint() {
-  const cols = printableColumns.value
-  const rows = tableData.value.filter(r => !r.__ghost)
-  if (!cols.length || !rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const header = cols.map(c => `<th>${escapeHtml(c.title)}</th>`).join('')
-  const body = rows.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      ${cols.map(c => `<td>${escapeHtml(cellText(c, r))}</td>`).join('')}
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>${escapeHtml(tabLabel())}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>${escapeHtml(tabLabel())}${activeTab.value === 'payment' ? '（工资表）' : ''}</h2>
-    <div class="meta">
-      <span>${escapeHtml(buildFilterSummary())}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th>${header}</tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 可打印行（去掉树形占位行）——标题里的记录数与表格行同源 */
+function printableRows(): any[] {
+  return tableData.value.filter((r: any) => !r.__ghost)
 }
+
+// ═══ 打印（结果集打印）：工资表 / 薪资结构 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列是 computed（随 Tab 与列配置变），静态生成器写不进模板 → 明确按数据列打；
+// 单元格文本仍走 cellText（与导出同一口径），逐列还原原来的中文/日期/金额格式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'hr-salary-list',
+  useDataColumns: true,
+  // 原打印抬头的筛选摘要/记录数元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `${tabLabel()}${activeTab.value === 'payment' ? '（工资表）' : ''}（${buildFilterSummary()}，记录数：${printableRows().length}）`,
+  columns: () => [
+    { key: '__seq', title: '#', align: 'center' },
+    ...printableColumns.value.map(c => ({ key: c.key, title: c.title, align: c.align })),
+  ],
+  rows: () => printableRows().map((r: any, i: number) => {
+    const out: Record<string, any> = { __seq: i + 1 }
+    printableColumns.value.forEach(c => { out[c.key] = cellText(c, r) })
+    return out
+  }),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (activeTab.value !== 'payment') return

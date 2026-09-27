@@ -344,6 +344,7 @@
         v-model:open="drawerVisible"
         :route-id="activeRouteId"
         @changed="fetchList"
+        @print="handlePrint"
       />
 
       <!-- ═══ 配送需求归集（围栏自动 + 手动添加围栏外单据） ═══ -->
@@ -365,6 +366,13 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="dms-route-list"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -393,6 +401,7 @@ import { deliveryRouteApi, type DeliveryRouteQuery } from '@/api/dms/route'
 import { mdRouteApi } from '@/api/md'
 import { riderApi } from '@/api/dms/rider'
 import { vehicleApi } from '@/api/dms/vehicle'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'DmsRouteList' })
 
@@ -705,45 +714,28 @@ function handleBatch(action: 'start' | 'complete' | 'cancel') {
 }
 
 // ═══ 打印 ═══
-function handlePrint() {
-  if (tableData.value.length === 0) {
-    message.warning('没有可打印的数据')
+// ═══ 打印（按单据打印） ═══
+// 这页是**配送路线列表**（没有 formData）——打印的是「选中/打开的那条路线」：
+// 后端已为 pageCode='dms-route-list' 登记装配器（路线主档 + 它的点位），页面只给路线主键。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+/** 打一条路线；没传就取勾选的第一条 */
+function handlePrint(record?: any) {
+  const id = record?.id ?? selectedIds.value?.[0]
+  if (!id) {
+    message.warning('请先勾选一条配送路线再打印')
     return
   }
-  window.print()
+  printData.value = { id }
+  printDialogRef.value?.open?.()
 }
 
-/** 行级「打印路线单」：打印窗口输出单据抬头（点位明细在详情抽屉打印） */
+// 行级「打印路线单」：与工具栏、详情抽屉三个入口走同一条路（都是「按单据打印」），
+// 一律自己拼 HTML 之外交给 PrintDialog；装配器按路线带出主档 + 全部点位，无需抽屉另打一份。
 function printRoute(record: any) {
-  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8" />
-    <title>配送路线单 ${record.routeCode || ''}</title>
-    <style>
-      body { font-family: "Microsoft YaHei", sans-serif; padding: 16px; font-size: 12px; }
-      h2 { text-align: center; margin: 0 0 12px; }
-      .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px; }
-      .meta div { border-bottom: 1px dotted #ccc; padding: 2px 0; }
-    </style></head><body>
-    <h2>配送路线单</h2>
-    <div class="meta">
-      <div>路线编号：${record.routeCode || ''}</div>
-      <div>配送线路：${record.routeName || ''}</div>
-      <div>线路类型：${record.routeTypeText || ''}</div>
-      <div>配送员：${record.deliveryPersonName || ''}</div>
-      <div>车辆：${record.vehicleNo || ''}</div>
-      <div>计划日期：${record.planDate || ''}</div>
-      <div>状态：${record.statusText || ''}</div>
-      <div>完成进度：${record.progress || ''}</div>
-    </div>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=900,height=600')
-  if (!win) {
-    message.warning('打印窗口被浏览器拦截，请允许弹出窗口')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  setTimeout(() => win.print(), 300)
+  handlePrint(record)
 }
 
 function handleF8Key(e: KeyboardEvent) {

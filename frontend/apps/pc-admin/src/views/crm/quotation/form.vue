@@ -822,6 +822,13 @@
         </a-spin>
       </a-drawer>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="crm-quotation"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -851,6 +858,7 @@ import {
   SettingOutlined,
   DownOutlined,
 } from '@ant-design/icons-vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'CrmQuotationForm' })
 
@@ -1749,61 +1757,20 @@ function escapeHtml(v: any): string {
   ))
 }
 
+// ═══ 打印（按单据打印） ═══
+// 报价单：后端已为 pageCode='crm-quotation' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是自建 HTML + window.print()（打的是自己拼的那张表）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
 function handlePrint() {
-  const rows = form.items.map((i: any, index: number) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(i.productCode || '')}</td>
-      <td>${escapeHtml(i.productName || '')}</td>
-      <td>${escapeHtml(i.productSpec || '')}</td>
-      <td>${escapeHtml(i.productUnit || '')}</td>
-      <td style="text-align:right">${i.quantity ?? 0}</td>
-      <td style="text-align:right">${formatAmount(i.unitPrice)}</td>
-      <td style="text-align:right">${i.discountRate || 0}%</td>
-      <td style="text-align:right">${formatAmount(i.lineTotal)}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>报价单</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-      .sum{margin-top:8px;text-align:right;font-size:13px}
-    </style></head><body>
-    <h2>报价单</h2>
-    <div class="meta">
-      <span>报价单号：${escapeHtml(form.quotationNo || '（未保存）')}</span>
-      <span>报价名称：${escapeHtml(form.title || '')}</span>
-      <span>客户：${escapeHtml(form.customerName || '')}</span>
-      <span>报价日期：${escapeHtml(form.quotationDate || '')}</span>
-      <span>有效期至：${escapeHtml(computedValidTo.value || '')}</span>
-      <span>状态：${escapeHtml(getStatusText(form.status))}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>商品编码</th><th>商品名称</th><th>规格型号</th><th>单位</th>
-      <th>数量</th><th>单价</th><th>折扣%</th><th>行小计</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="sum">
-      产品金额：¥${formatAmount(calcTotalAmount())}
-      折扣金额：¥${formatAmount(calcDiscountAmount())}
-      税额：¥${formatAmount(calcTaxAmount())}
-      <strong>报价总额：¥${formatAmount(calcFinalAmount())}</strong>
-    </div>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+  if (!form.id) {
+    message.warning('请先保存单据后再打印')
     return
   }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  printData.value = { id: form.id }
+  printDialogRef.value?.open?.()
 }
 
 function handleF8Key(e: KeyboardEvent) {

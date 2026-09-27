@@ -271,6 +271,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="trade-external-order-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -290,6 +296,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { externalOrderApi, CHANNEL_CODE_MAP, type ExternalOrderRaw } from '@/api/trade'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'TradeExternalOrder' })
 
@@ -517,65 +525,47 @@ function showRawData(record: any) {
   rawDataModalVisible.value = true
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印）：外部订单 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、渠道/处理状态中文、时间格式都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '渠道', key: 'channelLabel' },
+  { title: '外部订单号', key: 'externalOrderId' },
+  { title: '接收时间', key: 'receiveTimeText' },
+  { title: '处理状态', key: 'processStatusText' },
+  { title: '内部订单ID', key: 'internalOrderId' },
+  { title: '重试次数', key: 'retryCount', align: 'right' },
+  { title: '错误信息', key: 'errorMsg' },
+]
 
+/** 可打印行（去掉树形占位行） */
 function printableRows(): any[] {
   return tableData.value.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = printableRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '')}</td>
-      <td>${escapeHtml(r.externalOrderId || '')}</td>
-      <td>${escapeHtml(fmtTime(r.receiveTime))}</td>
-      <td>${escapeHtml(STATUS_TEXT_MAP[r.processStatus] || '')}</td>
-      <td>${escapeHtml(r.internalOrderId ?? '')}</td>
-      <td style="text-align:right">${escapeHtml(r.retryCount ?? 0)}</td>
-      <td>${escapeHtml(r.errorMsg || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>外部订单</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>外部订单</h2>
-    <div class="meta">
-      <span>渠道：${escapeHtml(searchForm.channelCode || '全部')}</span>
-      <span>处理状态：${escapeHtml(searchForm.status != null ? STATUS_TEXT_MAP[searchForm.status] : '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>渠道</th><th>外部订单号</th><th>接收时间</th><th>处理状态</th><th>内部订单ID</th><th>重试次数</th><th>错误信息</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return printableRows().map((r: any, i: number) => ({
+    __seq: i + 1,
+    channelLabel: CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '',
+    externalOrderId: r.externalOrderId || '',
+    receiveTimeText: fmtTime(r.receiveTime),
+    processStatusText: STATUS_TEXT_MAP[r.processStatus] || '',
+    internalOrderId: r.internalOrderId ?? '',
+    retryCount: r.retryCount ?? 0,
+    errorMsg: r.errorMsg || '',
+  }))
 }
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'trade-external-order-list',
+  // 原打印抬头的筛选/记录数元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `外部订单（渠道：${searchForm.channelCode || '全部'}，处理状态：${searchForm.status != null ? STATUS_TEXT_MAP[searchForm.status] : '全部'}，记录数：${printRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

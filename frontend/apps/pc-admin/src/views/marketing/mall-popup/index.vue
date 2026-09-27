@@ -260,6 +260,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-mall-popup"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -275,6 +281,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { popupAdApi, POPUP_STATUS_MAP, SHOW_TYPE_MAP, TARGET_USER_MAP } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MarketingMallPopup' })
 
@@ -437,11 +445,6 @@ async function handleMore(e: any, record: any) {
   }
 }
 
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
 const PRINT_COLUMNS = [
   { key: 'title', title: '活动名称' },
   { key: 'startTime', title: '起始时间' },
@@ -455,32 +458,20 @@ function printCell(row: any, key: string): string {
   return row[key] == null ? '' : String(row[key])
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
-    PRINT_COLUMNS.map(c => `<td>${escapeHtml(printCell(r, c.key))}</td>`).join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>商城弹窗广告</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>商城弹窗广告</h2>
-    <table><thead><tr><th>#</th>${PRINT_COLUMNS.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-mall-popup',
+  title: '商城弹窗广告',
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  // 列与导出一致；状态/时间列在送打印机前先按页面口径格式化
+  columns: () => PRINT_COLUMNS.map(c => ({
+    key: c.key,
+    title: c.title,
+    formatter: (_v: any, row: any) => printCell(row, c.key),
+  })),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

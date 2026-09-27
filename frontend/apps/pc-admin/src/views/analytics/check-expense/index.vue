@@ -172,6 +172,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-check-expense"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -187,6 +193,8 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { expenseAnalyticsApi } from '@/api/analytics-finance'
 import { useExport } from '@/composables/useExport'
@@ -478,29 +486,50 @@ function cellText(c: DetailColumnConfig, r: any): string {
   return c.formatter ? c.formatter(raw, r) : fmtText(raw)
 }
 
-function handlePrint() {
+/**
+ * 打印视图：把「屏幕上的这批列 + 这批行」拍平成引擎能画的一张平表。
+ *
+ * 为什么必须自己拍（透视矩阵在纸上没法原样表达，Jasper crosstab / SSRS 打印时也是拍平）：
+ * ① 默认页签是分组透视矩阵（行 = 费用科目，列 = 部门/职员指标列）。矩阵列在组件里统一借
+ *    `key='checkbox'` 复用「锁定列」判定，即**多列共用一个 key**。若把这批列原样交给
+ *    useListPrint，`toPrintColumns` 会照 key 发 8 条 field 全为 `checkbox` 的列定义，
+ *    `normalizeRow` 也只产出 `checkbox` 一个字段 —— 模板逐列读同一个字段，
+ *    屏幕上的 1231.04/117.21/39.16 全部丢失，整批矩阵列打出来是空的。
+ *    这里按位次给每列一个唯一 key（c0/c1…），彻底避开 key 复用。
+ * ② 列 = [分组/维度列（费用名称·费用编号·费用金额），…该透视当前的指标列]，顺序照屏幕；
+ *    行 = 叶子行，每行一个分组 + 各指标取值。取值口径逐字沿用改造前自建 HTML 打印所用的
+ *    `cellText`（矩阵列读 `record.cells[列名]`、金额走 fmtMoney…），故列数与每格文本与改造前一致。
+ * ③ 值在拍平这步就格式化成最终文本（引擎未给 digits 时原样输出）。本页模板没有 agg 合计
+ *    （合计走 totalText），故前置格式化不会破坏任何求和。
+ */
+const printView = computed(() => {
   const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '查费用'
-  const html = `<html><head><meta charset="utf-8"><title>查费用-${tabLabel}</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>查费用 · ${tabLabel}（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+  const columns = cols.map((c, i) => ({ key: `c${i}`, title: c.title, align: c.align }))
+  const rows = rows.value.map(r => {
+    const out: Record<string, any> = {}
+    cols.forEach((c, i) => { out[`c${i}`] = cellText(c, r) })
+    return out
+  })
+  return { columns, rows }
+})
+
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口（打当前页签的透视列，行只打当前页）。
+// 现在交给 PrintDialog：列/行由页面给（列随页签/筛选变 → 显式 useDataColumns 按数据列打），
+// 标题（页签名 + 日期区间）与底部合计分别由模板 pageHeader / pageFooter 承载。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-check-expense',
+  title: () => {
+    const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '查费用'
+    return `查费用 · ${tabLabel}（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）`
+  },
+  useDataColumns: true,
+  columns: () => printView.value.columns,
+  rows: () => printView.value.rows,
+  // 屏幕底部合计行（后端 summary，本页仅「费用金额」一列）→ 模板 pageFooter
+  totalText: () => `合计：费用金额 ${fmtMoney(Number(summary.value.amount) || 0)}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

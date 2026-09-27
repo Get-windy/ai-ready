@@ -141,6 +141,9 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+
+    <!-- 打印：结果集打印 -->
+    <PrintDialog ref="printDialogRef" page-code="analytics-staff-commission" :print-data="printData" />
   </ErrorBoundary>
 </template>
 
@@ -161,6 +164,8 @@ import { commissionApi } from '@/api/analytics'
 import { useExport } from '@/composables/useExport'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
 import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsStaffCommission' })
 
@@ -345,32 +350,25 @@ function cellText(col: DetailColumnConfig, r: any): string {
   return MONEY_KEYS.includes(col.key) ? formatMoney(r[col.key]) : formatNumber(r[col.key])
 }
 
-// ═══ 打印(F8) ═══
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 再调浏览器打印，现在交给 PrintDialog：
+// 列与行由页面给，模板负责版式（列随「打印/导出列」变化，故 useDataColumns）。
+const { printDialogRef, printData, handlePrint: doPrint } = useListPrint({
+  pageCode: 'analytics-staff-commission',
+  title: () => `业务员提成（${dateRange.value?.[0] || ''} ~ ${dateRange.value?.[1] || ''}）`,
+  rows: () => dataSource.value,
+  columns: () => printableColumns.value,
+  useDataColumns: true,
+  emptyTip: '没有可打印的数据',
+})
+
+// 保留原有前置校验：未点「查询」不出数（界面会先提示）
 function handlePrint() {
   if (!queried.value) {
     message.warning('请先点「查询」计算提成统计数据')
     return
   }
-  const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = dataSource.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const html = `<html><head><meta charset="utf-8"><title>业务员提成</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>业务员提成（${dateRange.value?.[0] || ''} ~ ${dateRange.value?.[1] || ''}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  doPrint()
 }
 
 /** F8 快捷键（对标工具栏「打印(F8)」） */

@@ -104,6 +104,12 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-customer-active"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -119,6 +125,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { saleAnalyticsApi } from '@/api/analytics'
 import { useExport } from '@/composables/useExport'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsCustomerActive' })
 
@@ -253,29 +261,16 @@ const printableColumns = computed<DetailColumnConfig[]>(() =>
   columns.filter(c => c.key !== 'rowNo')
 )
 
-// ═══ 打印(F8) ═══
-function handlePrint() {
-  const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = dataSource.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const html = `<html><head><meta charset="utf-8"><title>客户活跃分析</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>客户活跃分析</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列已冻结进模板（模板说了算）；columns 只用于把「未交易天数/客户编号」等派生文本喂给行数据。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-customer-active',
+  title: '客户活跃分析',
+  columns: () => printableColumns.value.map(c => ({ ...c, formatter: (_v: any, r: any) => cellText(c, r) })),
+  rows: () => dataSource.value,
+  emptyTip: '没有可打印的数据',
+})
 
 /** F8 快捷键（对标工具栏「打印(F8)」） */
 function handleF8Key(e: KeyboardEvent) {

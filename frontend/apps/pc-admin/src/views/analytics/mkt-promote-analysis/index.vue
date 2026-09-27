@@ -145,12 +145,14 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
+
+    <!-- 打印：结果集打印 -->
+    <PrintDialog ref="printDialogRef" page-code="analytics-mkt-promote-analysis" :print-data="printData" />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { message } from 'ant-design-vue'
 import { DownloadOutlined, PrinterOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -163,6 +165,8 @@ import { couponApi, groupBuyApi, flashSaleApi } from '@/api/marketing'
 import { productApi } from '@/api/erp/product'
 import { useExport } from '@/composables/useExport'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsMktPromoteAnalysis' })
 
@@ -475,33 +479,17 @@ function printableColumns(): DetailColumnConfig[] {
   return columns.value.filter(c => c.type !== 'rowNo')
 }
 
-// ═══ 打印(F8)（对标有打印按钮） ═══
-function handlePrint() {
-  const cols = printableColumns()
-  const rows = dataSource.value.filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const html = `<html><head><meta charset="utf-8"><title>营销推广分析</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
-    th{background:#f2f2f2}</style></head><body>
-    <h3>营销推广分析 · ${TABS.find(t => t.key === activeTab.value)?.label || ''}</h3>
-    <table><thead><tr>${cols.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${cellText(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 再调浏览器打印，现在交给 PrintDialog：
+// 列随 Tab 变化（computed），按当前列配置打，故 useDataColumns。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-mkt-promote-analysis',
+  title: () => `营销推广分析 · ${TABS.find(t => t.key === activeTab.value)?.label || ''}`,
+  rows: () => dataSource.value.filter((r: any) => !r.__ghost),
+  columns: () => printableColumns(),
+  useDataColumns: true,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

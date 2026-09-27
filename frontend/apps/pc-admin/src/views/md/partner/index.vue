@@ -424,6 +424,12 @@
       :import-params="{ partnerType: 'other' }"
       @success="handleImportSuccess"
     />
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-partner"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -461,6 +467,8 @@ import {
   type PartnerCategory,
 } from '@/api/erp/partner'
 import dayjs from 'dayjs'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdPartner' })
 
@@ -937,62 +945,29 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8)：按当前查询结果渲染后打印 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-function handlePrint() {
-  if (!tableData.value.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const rows = tableData.value.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.partnerCode)}</td>
-      <td>${escapeHtml(r.partnerName)}</td>
-      <td>${escapeHtml(r.categoryName)}</td>
-      <td>${escapeHtml(r.contactPerson)}</td>
-      <td>${escapeHtml(r.contactPhone)}</td>
-      <td>${escapeHtml(r.address)}</td>
-      <td>${escapeHtml(r.status === 'ENABLED' ? '启用' : '停用')}</td>
-      <td>${escapeHtml(r.remark)}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>其他往来单位</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;gap:24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>其他往来单位</h2>
-    <div class="meta">
-      <span>当前路径：${escapeHtml(currentPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${tableData.value.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>序号</th><th>单位编号</th><th>单位名称</th><th>单位类别</th><th>联系人</th>
-        <th>联系电话</th><th>联系地址</th><th>状态</th><th>备注</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </body></html>`
-  const w = window.open('', '_blank', 'width=1200,height=800')
-  if (!w) {
-    message.warning('打印窗口被浏览器拦截，请允许弹出窗口')
-    return
-  }
-  w.document.write(html)
-  w.document.close()
-  w.focus()
-  setTimeout(() => w.print(), 300)
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「序号」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '单位编号', key: 'partnerCode' },
+  { title: '单位名称', key: 'partnerName' },
+  { title: '单位类别', key: 'categoryName' },
+  { title: '联系人', key: 'contactPerson' },
+  { title: '联系电话', key: 'contactPhone' },
+  { title: '联系地址', key: 'address' },
+  { title: '状态', key: 'status', formatter: (v: any) => (v === 'ENABLED' ? '启用' : '停用') },
+  { title: '备注', key: 'remark' },
+]
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-partner',
+  title: '其他往来单位',
+  rows: () => tableData.value,
+  columns: () => printColumns,
+  // 原打印抬头的一行元信息（打印时间由模板 pageHeader 负责）
+  totalText: () => `当前路径：${currentPath.value}，记录数：${tableData.value.length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 附件查看（列表「附件」列入口） ═══
 const attachModalVisible = ref(false)

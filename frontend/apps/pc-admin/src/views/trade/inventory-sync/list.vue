@@ -264,6 +264,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="trade-inventory-sync-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -282,6 +288,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { inventorySyncApi, CHANNEL_CODE_MAP, type InventorySyncRecord } from '@/api/trade'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'TradeInventorySync' })
 
@@ -529,67 +537,51 @@ async function handleBatchRetry() {
   }
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印）：库存同步记录 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、渠道/同步类型/状态中文、时间格式都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '渠道', key: 'channelLabel' },
+  { title: 'SKU编码', key: 'skuCode' },
+  { title: '内部库存', key: 'internalQty', align: 'right' },
+  { title: '外部库存', key: 'externalQty', align: 'right' },
+  { title: '同步数量', key: 'syncQty', align: 'right' },
+  { title: '同步类型', key: 'syncTypeText' },
+  { title: '状态', key: 'syncStatusText' },
+  { title: '同步时间', key: 'syncTimeText' },
+  { title: '错误信息', key: 'errorMsg' },
+]
 
+/** 可打印行（去掉树形占位行） */
 function printableRows(): any[] {
   return tableData.value.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = printableRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '')}</td>
-      <td>${escapeHtml(r.skuCode || '')}</td>
-      <td style="text-align:right">${escapeHtml(r.internalQty ?? '')}</td>
-      <td style="text-align:right">${escapeHtml(r.externalQty ?? '')}</td>
-      <td style="text-align:right">${escapeHtml(r.syncQty ?? '')}</td>
-      <td>${escapeHtml(SYNC_TYPE_MAP[r.syncType]?.label || r.syncType || '')}</td>
-      <td>${escapeHtml(SYNC_STATUS_MAP[r.syncStatus]?.label || '')}</td>
-      <td>${escapeHtml(fmtTime(r.syncTime))}</td>
-      <td>${escapeHtml(r.errorMsg || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>库存同步记录</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>库存同步记录</h2>
-    <div class="meta">
-      <span>渠道：${escapeHtml(searchForm.channelCode || '全部')}</span>
-      <span>SKU编码：${escapeHtml(searchForm.skuCode || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>渠道</th><th>SKU编码</th><th>内部库存</th><th>外部库存</th><th>同步数量</th><th>同步类型</th><th>状态</th><th>同步时间</th><th>错误信息</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return printableRows().map((r: any, i: number) => ({
+    __seq: i + 1,
+    channelLabel: CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '',
+    skuCode: r.skuCode || '',
+    internalQty: r.internalQty ?? '',
+    externalQty: r.externalQty ?? '',
+    syncQty: r.syncQty ?? '',
+    syncTypeText: SYNC_TYPE_MAP[r.syncType]?.label || r.syncType || '',
+    syncStatusText: SYNC_STATUS_MAP[r.syncStatus]?.label || '',
+    syncTimeText: fmtTime(r.syncTime),
+    errorMsg: r.errorMsg || '',
+  }))
 }
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'trade-inventory-sync-list',
+  // 原打印抬头的筛选/记录数元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `库存同步记录（渠道：${searchForm.channelCode || '全部'}，SKU编码：${searchForm.skuCode || '全部'}，记录数：${printRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

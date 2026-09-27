@@ -753,6 +753,12 @@
         </template>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-warehouse-plan"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -777,6 +783,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { warehousePlanApi, warehouseCategoryApi, warehouseLocationApi, type ErpWarehouse, type WarehouseCategory } from '@/api/erp/warehousePlan'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdWarehousePlan' })
 
@@ -1425,68 +1433,39 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8) ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 两套表头（仓库 / 货位）随 Tab 变 → 列与行都用函数按当前 Tab 返回，并显式 useDataColumns 覆盖模板；
+// 原「#」行号列由模板/引擎处理，不再由页面拼。
+function printColumns(): any[] {
+  if (activeTab.value === 'warehouse') {
+    return [
+      { title: '仓库编号', key: 'warehouseCode' },
+      { title: '仓库名称', key: 'warehouseName' },
+      { title: '联系人', key: 'contactPerson' },
+      { title: '联系电话', key: 'contactPhone' },
+      { title: '地址', key: 'address' },
+    ]
+  }
+  return [
+    { title: '所属仓库', key: 'warehouseName' },
+    { title: '货位编号', key: 'locationCode' },
+    { title: '备注', key: 'remark' },
+  ]
 }
 
-function handlePrint() {
-  const isWarehouse = activeTab.value === 'warehouse'
-  const rows = isWarehouse ? warehouseRows.value : locationRows.value
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const title = isWarehouse ? '仓库规划' : '货位'
-  const bodyRows = isWarehouse
-    ? warehouseRows.value.map((r, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(r.warehouseCode)}</td>
-        <td>${escapeHtml(r.warehouseName)}</td>
-        <td>${escapeHtml(r.contactPerson)}</td>
-        <td>${escapeHtml(r.contactPhone)}</td>
-        <td>${escapeHtml(r.address)}</td>
-      </tr>`).join('')
-    : locationRows.value.map((r, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(r.warehouseName)}</td>
-        <td>${escapeHtml(r.locationCode)}</td>
-        <td>${escapeHtml(r.remark)}</td>
-      </tr>`).join('')
-  const head = isWarehouse
-    ? '<th>#</th><th>仓库编号</th><th>仓库名称</th><th>联系人</th><th>联系电话</th><th>地址</th>'
-    : '<th>#</th><th>所属仓库</th><th>货位编号</th><th>备注</th>'
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>${title}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>${title}</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table><thead><tr>${head}</tr></thead><tbody>${bodyRows}</tbody></table>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const printableRows = () => (activeTab.value === 'warehouse' ? warehouseRows.value : locationRows.value)
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-warehouse-plan',
+  title: () => (activeTab.value === 'warehouse' ? '仓库规划' : '货位'),
+  rows: printableRows,
+  columns: () => printColumns(),
+  useDataColumns: true,
+  // 原打印抬头的记录数元信息行（打印时间由模板 pageHeader 负责）
+  totalText: () => `记录数：${printableRows().length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'F8') {

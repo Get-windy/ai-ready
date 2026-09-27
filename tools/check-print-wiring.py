@@ -378,10 +378,16 @@ def check_fields():
 
         refs = template_field_refs(tpl)
         top, row = provider_keys(os.path.join(ROOT, rels[0]))
-        if not top and not row:
-            # 委托型装配器（自己不产出键，转调另一个装配器，见 PurchaseReceivePrintDataProvider）：
-            # 静态看不出来，跳过而不是误报一片「字段缺失」
-            print(f'  · {page_code}: 装配器是委托实现（{rels[0]}），无法静态核对字段，跳过')
+        provider_src = read(os.path.join(ROOT, rels[0]))
+        # 静态看不出键的装配器，跳过而不是误报一片「字段缺失」：
+        #   · Jackson 摊平型：objectMapper.convertValue(entity, …) 把实体属性名当键，
+        #     没有 data.put("x", …) 可扫（见 AnnualBudgetPrintDataProvider）；
+        #   · 委托型：自己不产出键，转调另一个装配器（见 PurchaseReceivePrintDataProvider）。
+        # ⚠️ 判据不能是「top/row 是否为空」—— 摊平型也会写一两个字段（如 items / lineNo），
+        #    那样就漏进比对了，反而报出一片假缺失（2026-09-27 实测）。
+        if 'convertValue(' in provider_src or (not top and not row):
+            why = 'Jackson 摊平（convertValue），键就是实体属性名' if 'convertValue(' in provider_src else '委托实现'
+            print(f'  · {page_code}: 装配器无法静态核对字段（{why}）← {rels[0]}')
             continue
         # 结果集字段：页面模板里凡是明细列引用，都应由 itemRow 给；其余按单据头算
         item_refs = set()

@@ -500,6 +500,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-coupon"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -518,6 +524,8 @@ import {
   couponTemplateApi, smsMarketingApi, COUPON_TYPE_MAP, COUPON_STATUS_MAP,
   type CouponTemplate,
 } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MarketingCoupon' })
 
@@ -930,11 +938,6 @@ async function handleSendSms() {
 }
 
 // ── 打印 / 导出 ──
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
 const PRINT_COLUMNS_TEMPLATE = [
   { key: 'couponName', title: '优惠券名称' },
   { key: 'openReceiveText', title: '开放领取' },
@@ -989,33 +992,24 @@ function currentPrintRows() {
   return { isTemplate, cols: isTemplate ? PRINT_COLUMNS_TEMPLATE : PRINT_COLUMNS_RECORD, rows: (src || []).filter((r: any) => !r.__ghost) }
 }
 
-function handlePrint() {
-  const { isTemplate, cols, rows } = currentPrintRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const title = isTemplate ? '优惠券设置' : '优惠券领用明细'
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
-    cols.map(c => `<td>${escapeHtml(printCell(r, c.key, isTemplate))}</td>`).join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>${title}</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>${title}</h2>
-    <table><thead><tr><th>#</th>${cols.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ── 打印（结果集打印） ──
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-coupon',
+  // 列/行/标题随 Tab（券模板 / 领用明细）变，静态生成器写不进模板 → 明确按数据列打
+  useDataColumns: true,
+  title: () => (activeTab.value === 'template' ? '优惠券设置' : '优惠券领用明细'),
+  columns: () => {
+    const { isTemplate, cols } = currentPrintRows()
+    return cols.map(c => ({
+      key: c.key,
+      title: c.title,
+      formatter: (_v: any, row: any) => printCell(row, c.key, isTemplate),
+    }))
+  },
+  rows: () => currentPrintRows().rows,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

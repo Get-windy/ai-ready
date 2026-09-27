@@ -271,6 +271,12 @@
         />
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="mall-buyer-apply"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -290,6 +296,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { shopUserApi, type ShopUser } from '@/api/erp/mall'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MallBuyerApply' })
 
@@ -451,64 +459,32 @@ async function handleRejectConfirm() {
   }
 }
 
-// ═══ 打印(F8)：与列表同口径渲染后打印 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '公司名称', key: 'companyName', formatter: (v: any) => v || '' },
+  { title: '联系人姓名', key: 'contactName', formatter: (v: any) => v || '' },
+  { title: '地址', key: 'address', formatter: (v: any) => v || '' },
+  { title: '手机号码', key: 'phone', formatter: (v: any) => v || '' },
+  { title: '状态', key: 'auditStatus', formatter: (v: any) => AUDIT_STATUS_MAP[v]?.label || '' },
+  { title: '绑定客户', key: 'customerName', formatter: (v: any, record: any) => v || (record.erpCustomerId ? '#' + record.erpCustomerId : '') },
+  { title: '申请时间', key: 'createTime', formatter: (v: any) => fmtTime(v) },
+]
 
 function currentRows(): ShopUser[] {
   return (tableData.value || []).filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = currentRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.companyName || '')}</td>
-      <td>${escapeHtml(r.contactName || '')}</td>
-      <td>${escapeHtml(r.address || '')}</td>
-      <td>${escapeHtml(r.phone || '')}</td>
-      <td>${escapeHtml(AUDIT_STATUS_MAP[r.auditStatus]?.label || '')}</td>
-      <td>${escapeHtml(r.customerName || (r.erpCustomerId ? '#' + r.erpCustomerId : ''))}</td>
-      <td>${escapeHtml(fmtTime(r.createTime))}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>买家申请管理</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>买家申请管理</h2>
-    <div class="meta">
-      <span>筛选条件：${escapeHtml(searchForm.keyword || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>公司名称</th><th>联系人姓名</th><th>地址</th><th>手机号码</th><th>状态</th><th>绑定客户</th><th>申请时间</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'mall-buyer-apply',
+  title: '买家申请管理',
+  rows: () => currentRows(),
+  columns: () => printColumns,
+  // 原打印抬头的筛选/记录数元信息行（打印时间由模板 pageHeader 负责）
+  totalText: () => `筛选条件：${searchForm.keyword || '全部'}，记录数：${currentRows().length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 导出（前端 CSV，\uFEFF BOM 保证 Excel 中文不乱码） ═══
 function handleExport() {

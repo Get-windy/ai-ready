@@ -203,6 +203,12 @@
       </a-form>
       <div class="scheme-tip">选择科目后跳转《明细账》，按期初 + 逐笔发生额核对核算项余额</div>
     </a-modal>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="finance-aux-balance"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -221,6 +227,8 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { auxiliaryBalanceApi, ledgerApi } from '@/api/finance'
 import { exportCsv } from '@/utils/exportCsv'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'FinanceAuxBalance' })
 
@@ -555,90 +563,35 @@ function handleExport() {
   message.success('导出成功')
 }
 
-// ═══ 打印（F8）：独立窗口输出分组表头 + 合计行 ═══
-function handlePrint() {
-  if (!tableData.value.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const s = summary.value
-  const bodyRows = tableData.value.map(r => `
-    <tr>
-      <td>${r.subjectCode ?? ''}</td>
-      <td>${r.subjectName ?? ''}</td>
-      <td>${r.auxCode ?? ''}</td>
-      <td>${r.auxName ?? ''}</td>
-      <td class="r">${moneyFormatter(r.beginDebit)}</td>
-      <td class="r">${moneyFormatter(r.beginCredit)}</td>
-      <td class="r">${moneyFormatter(r.periodDebit)}</td>
-      <td class="r">${moneyFormatter(r.periodCredit)}</td>
-      <td class="r">${moneyFormatter(r.yearDebit)}</td>
-      <td class="r">${moneyFormatter(r.yearCredit)}</td>
-      <td class="r">${moneyFormatter(r.endDebit)}</td>
-      <td class="r">${moneyFormatter(r.endCredit)}</td>
-    </tr>`).join('')
-  const totalRow = s ? `
-    <tr class="total">
-      <td colspan="4">合计</td>
-      <td class="r">${moneyFormatter(s.beginDebit)}</td>
-      <td class="r">${moneyFormatter(s.beginCredit)}</td>
-      <td class="r">${moneyFormatter(s.periodDebit)}</td>
-      <td class="r">${moneyFormatter(s.periodCredit)}</td>
-      <td class="r">${moneyFormatter(s.yearDebit)}</td>
-      <td class="r">${moneyFormatter(s.yearCredit)}</td>
-      <td class="r">${moneyFormatter(s.endDebit)}</td>
-      <td class="r">${moneyFormatter(s.endCredit)}</td>
-    </tr>` : ''
-
-  const html = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<title>辅助核算余额表</title>
-<style>
-  body { font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 12px; color: #262626; }
-  h2 { text-align: center; margin: 0 0 4px; }
-  .meta { text-align: center; color: #666; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #999; padding: 3px 6px; }
-  th { background: #f2f2f2; text-align: center; }
-  td.r { text-align: right; }
-  tr.total td { font-weight: 700; background: #fafafa; }
-</style>
-</head>
-<body>
-  <h2>辅助核算余额表</h2>
-  <div class="meta">会计月：${startMonth.value} ~ ${endMonth.value} ｜ 核算项：${currentAuxTypeLabel.value} ｜ 制表时间：${dayjs().format('YYYY-MM-DD HH:mm')}</div>
-  <table>
-    <thead>
-      <tr>
-        <th rowspan="2">科目编码</th>
-        <th rowspan="2">科目名称</th>
-        <th rowspan="2">核算项编码</th>
-        <th rowspan="2">核算项名称</th>
-        <th colspan="2">期初余额</th>
-        <th colspan="2">本期发生额</th>
-        <th colspan="2">本年累计</th>
-        <th colspan="2">期末余额</th>
-      </tr>
-      <tr><th>借方</th><th>贷方</th><th>借方</th><th>贷方</th><th>借方</th><th>贷方</th><th>借方</th><th>贷方</th></tr>
-    </thead>
-    <tbody>${bodyRows}${totalRow}</tbody>
-  </table>
-  <div class="meta" style="margin-top:8px;">${balancedText.value}</div>
-</body>
-</html>`
-
-  const win = window.open('', '_blank', 'width=1280,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 表格列是分组的（期初/本期/本年/期末四段），模板列只认平铺一项一列，这里拍平后再交出去。
+const printColumns = computed(() => columns.flatMap((c: any) => (c.children ? c.children : [c])))
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'finance-aux-balance',
+  title: '辅助核算余额表',
+  rows: () => tableData.value,
+  columns: () => printColumns.value,
+  useDataColumns: true,
+  // 表尾合计（后端 summary 口径，含四段借贷八列）+ 勾稽校验：模板算不了，作为页脚一行文字打印
+  totalText: () => {
+    const s = summary.value
+    const parts = [
+      `共 ${tableData.value.length} 条`,
+      `会计月：${startMonth.value} ~ ${endMonth.value}`,
+      `核算项：${currentAuxTypeLabel.value}`,
+    ]
+    if (s) {
+      parts.push(`合计 期初借 ${moneyFormatter(s.beginDebit)} / 期初贷 ${moneyFormatter(s.beginCredit)}`
+        + ` / 本期借 ${moneyFormatter(s.periodDebit)} / 本期贷 ${moneyFormatter(s.periodCredit)}`
+        + ` / 本年借 ${moneyFormatter(s.yearDebit)} / 本年贷 ${moneyFormatter(s.yearCredit)}`
+        + ` / 期末借 ${moneyFormatter(s.endDebit)} / 期末贷 ${moneyFormatter(s.endCredit)}`)
+    }
+    if (balancedText.value) parts.push(balancedText.value)
+    return parts.join(' ｜ ')
+  },
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 快捷键 F8 = 打印 ═══
 function handleKeydown(e: KeyboardEvent) {

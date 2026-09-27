@@ -589,6 +589,13 @@
         </a-form>
       </a-modal>
     </PageContainer>
+
+    <!-- 打印：结果集打印（列/行随页签变，见 script 里的 currentPrint） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-sms-send"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -604,6 +611,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PartnerSelectModal from '@/components/PartnerSelectModal/index.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import { smsMarketingApi, type SmsSetting, type SmsTemplate } from '@/api/marketing'
 
 defineOptions({ name: 'MarketingSmsSend' })
@@ -689,7 +698,6 @@ function pickTemplate(tpl: SmsTemplate) {
   pickedTemplate.value = tpl
   sendForm.content = tpl.templateContent || ''
   sendForm.smsType = tpl.smsType || 'NOTICE'
-  if (tpl.updateTime) sendForm.agreed = sendForm.agreed
   templatePickerOpen.value = false
 }
 
@@ -990,51 +998,71 @@ function handleTemplateDelete(record: any) {
 function fmtTime(v: any): string {
   return v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+
+/**
+ * 打印列按**当前页签的行数据形状**给。
+ *
+ * ⚠️ 这里修的是一个历史缺陷：旧打印只有「短信历史」和「短信模板管理」两套列，
+ * 退订页签落到了模板那套列（模版标题/模版内容/短信类型/最后修改时间），
+ * 而退订行的字段是 mobile / receiverName / source / optOutTime / remark ——
+ * 字段对不上，退订页签打出来是空列 + `-`。现在三个页签各给各的列。
+ * （手机号沿用原打印口径不打码，屏幕上的掩码只是展示层的最小化处理。）
+ */
+const PRINT_COLUMNS_HISTORY = [
+  { key: 'receiverName', title: '接收人' },
+  { key: 'mobile', title: '手机号' },
+  { key: 'sendTime', title: '发送时间' },
+  { key: 'handlerName', title: '经手人' },
+  { key: 'content', title: '短信内容' },
+  { key: 'sendStatus', title: '发送状态' },
+  { key: 'failReason', title: '失败原因' },
+]
+const PRINT_COLUMNS_TEMPLATE = [
+  { key: 'templateTitle', title: '模版标题' },
+  { key: 'templateContent', title: '模版内容' },
+  { key: 'smsType', title: '短信类型' },
+  { key: 'updateTime', title: '最后修改时间' },
+]
+const PRINT_COLUMNS_OPTOUT = [
+  { key: 'mobile', title: '手机号' },
+  { key: 'receiverName', title: '客户名称' },
+  { key: 'source', title: '退订来源' },
+  { key: 'optOutTime', title: '退订时间' },
+  { key: 'remark', title: '备注' },
+]
+
+function printCell(row: any, key: string): string {
+  if (key === 'sendTime' || key === 'optOutTime' || key === 'updateTime') return fmtTime(row[key])
+  if (key === 'source') return OPT_OUT_SOURCE_MAP[row.source] || row.source || ''
+  if (key === 'smsType') return SMS_TYPE_MAP[row.smsType] || row.smsType || ''
+  return row[key] == null ? '' : String(row[key])
 }
 
-function handlePrint() {
-  const isHistory = activeTab.value === 'history'
-  const isOptOut = activeTab.value === 'optout'
-  const src = isHistory ? historyData.value : (isOptOut ? optOutData.value : templateData.value)
-  const rows = src.filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const title = isHistory ? '短信历史' : (isOptOut ? '短信退订名单' : '短信模板管理')
-  const cols = isHistory
-    ? ['接收人', '手机号', '发送时间', '经手人', '短信内容', '发送状态', '失败原因']
-    : ['模版标题', '模版内容', '短信类型', '最后修改时间']
-  const cell = (r: any, i: number) => {
-    if (isHistory) {
-      return [r.receiverName, r.mobile, fmtTime(r.sendTime), r.handlerName, r.content, r.sendStatus, r.failReason]
-    }
-    return [r.templateTitle, r.templateContent, SMS_TYPE_MAP[r.smsType] || r.smsType, fmtTime(r.updateTime)]
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
-    cell(r, i).map(v => `<td>${escapeHtml(v)}</td>`).join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>${title}</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>${title}</h2>
-    <table><thead><tr><th>#</th>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 当前页签的打印列 / 标题 / 行（发短信页签没有表格，不出打印） */
+function currentPrint() {
+  const tab = activeTab.value
+  const isHistory = tab === 'history'
+  const isOptOut = tab === 'optout'
+  const cols = isHistory ? PRINT_COLUMNS_HISTORY : (isOptOut ? PRINT_COLUMNS_OPTOUT : PRINT_COLUMNS_TEMPLATE)
+  const src: any[] = isHistory ? historyData.value : (isOptOut ? optOutData.value : templateData.value)
+  const title = isHistory ? '短信历史' : (isOptOut ? '短信退订记录' : '短信模板管理')
+  return { cols, title, rows: (src || []).filter((r: any) => !r.__ghost) }
 }
+
+// 打印走统一模板引擎：列与行由页面给，版式交给 sys_print_template。
+// 列/行/标题随页签变（短信历史 / 短信模板 / 退订名单是三套不同的列），静态模板写不进 → 明确按数据列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-sms-send',
+  useDataColumns: true,
+  title: () => currentPrint().title,
+  columns: () => currentPrint().cols.map(c => ({
+    key: c.key,
+    title: c.title,
+    formatter: (_v: any, row: any) => printCell(row, c.key),
+  })),
+  rows: () => currentPrint().rows,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

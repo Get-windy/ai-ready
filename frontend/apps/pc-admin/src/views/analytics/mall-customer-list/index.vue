@@ -195,13 +195,15 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+
+    <!-- 打印：结果集打印 -->
+    <PrintDialog ref="printDialogRef" page-code="analytics-mall-customer-list" :print-data="printData" />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
 import {
   DownloadOutlined, PrinterOutlined, ReloadOutlined, SettingOutlined
 } from '@ant-design/icons-vue'
@@ -218,6 +220,8 @@ import { useExport } from '@/composables/useExport'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
 import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsMallCustomerList' })
 
@@ -409,37 +413,16 @@ const {
   defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
 })
 
-// ═══ 打印(F8) ═══
-function handlePrint() {
-  const cols = columns.filter(c => c.type !== 'rowNo')
-  const rows = dataSource.value.filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const cell = (c: DetailColumnConfig, r: any) => {
-    const fn = c.formatter
-    return fn ? fn(r[c.key], r) : (r[c.key] ?? '-')
-  }
-  const html = `<html><head><meta charset="utf-8"><title>商城客户列表</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
-    th{background:#f2f2f2}</style></head><body>
-    <h3>商城客户列表（${currentPath.value}）</h3>
-    <table><thead><tr>${cols.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${cell(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 再调浏览器打印，现在交给 PrintDialog：
+// 列与行由页面给，模板负责版式（本页列定义已冻结进模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-mall-customer-list',
+  title: () => `商城客户列表（${currentPath.value}）`,
+  rows: () => dataSource.value.filter((r: any) => !r.__ghost),
+  columns: () => columns,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

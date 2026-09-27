@@ -1246,7 +1246,7 @@
       :footer="null"
     >
       <a-alert
-        :message="`当前积分：${pointsCurrent}　累计消费额：${formatMoney(pointsConsume)}`"
+        :message="`当前积分：${pointsCurrent}\u3000累计消费额：${formatMoney(pointsConsume)}`"
         type="info"
         show-icon
         style="margin-bottom: 12px"
@@ -1259,6 +1259,13 @@
         row-key="id"
       />
     </a-modal>
+
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-customer"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -1304,6 +1311,8 @@ import {
   type PartnerCategory,
 } from '@/api/erp/partner'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdCustomer' })
 
@@ -1765,10 +1774,6 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return bytes + 'B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB'
   return (bytes / 1024 / 1024).toFixed(1) + 'MB'
-}
-function escapeHtml(v: any): string {
-  if (v === null || v === undefined) return ''
-  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 }
 
 // ═══ 分类树 ═══
@@ -2501,7 +2506,7 @@ async function handleRegionSave() {
 }
 
 // ═══ 打印 / 导出 ═══
-function currentPrintColumns(): Array<{ title: string; key: string; fmt?: (v: any, r: any) => string }> {
+function currentPrintColumns(): Array<{ title: string; key: string; formatter?: (v: any, r: any) => string }> {
   if (activeTab.value === 'member') {
     return [
       { title: '会员名称', key: 'memberName' },
@@ -2509,10 +2514,11 @@ function currentPrintColumns(): Array<{ title: string; key: string; fmt?: (v: an
       { title: '客户名称', key: 'partnerName' },
       { title: '会员级别', key: 'memberLevel' },
       { title: '会员卡状态', key: 'memberCardStatusDesc' },
-      { title: '会员生日', key: 'birthday', fmt: (v: any) => formatDate(v) },
+      { title: '会员生日', key: 'birthday', formatter: (v: any) => formatDate(v) },
       { title: '当前积分', key: 'points' },
-      { title: '累计消费额', key: 'memberTotalConsume', fmt: (v: any) => formatMoney(v) },
-      { title: '最近交易时间', key: 'lastTradeTime', fmt: (v: any) => formatDateTime(v) },
+      // 金额语义列不格式化：原样传数值，模板用 digits/agg 显示与求和
+      { title: '累计消费额', key: 'memberTotalConsume' },
+      { title: '最近交易时间', key: 'lastTradeTime', formatter: (v: any) => formatDateTime(v) },
       { title: '备注', key: 'remark' },
     ]
   }
@@ -2567,45 +2573,20 @@ const TAB_TITLE: Record<string, string> = {
   region: '区域管理',
 }
 
-function handlePrint() {
-  if (!tableData.value.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const cols = currentPrintColumns()
-  const rows = tableData.value.map((r, i) => `<tr><td>${i + 1}</td>${cols
-    .map(c => `<td>${escapeHtml(c.fmt ? c.fmt(r[c.key], r) : r[c.key])}</td>`)
-    .join('')}</tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>${TAB_TITLE[activeTab.value]}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;gap:24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>${TAB_TITLE[activeTab.value]}</h2>
-    <div class="meta">
-      <span>当前路径：${escapeHtml(currentPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${tableData.value.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>序号</th>${cols.map(c => `<th>${escapeHtml(c.title)}</th>`).join('')}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </body></html>`
-  const w = window.open('', '_blank', 'width=1200,height=800')
-  if (!w) {
-    message.warning('打印窗口被浏览器拦截，请允许弹出窗口')
-    return
-  }
-  w.document.write(html)
-  w.document.close()
-  w.focus()
-  setTimeout(() => w.print(), 300)
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列随 Tab 变（currentPrintColumns），必须显式 useDataColumns 覆盖模板里写死的列清单；
+// 原「序号」行号列由模板/引擎处理，不再由页面拼。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-customer',
+  title: () => TAB_TITLE[activeTab.value] || '客户',
+  rows: () => tableData.value,
+  columns: () => currentPrintColumns(),
+  useDataColumns: true,
+  // 原打印抬头的当前路径/记录数元信息行（打印时间由模板 pageHeader 负责）
+  totalText: () => `当前路径：${currentPath.value}，记录数：${tableData.value.length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 async function handleExport() {
   exporting.value = true
@@ -2644,7 +2625,7 @@ async function handleExport() {
       const lines = tableData.value.map((r, i) => [
         i + 1,
         ...cols.map(c => {
-          const v = c.fmt ? c.fmt(r[c.key], r) : r[c.key]
+          const v = c.formatter ? c.formatter(r[c.key], r) : r[c.key]
           const s = v === null || v === undefined ? '' : String(v)
           return `"${s.replace(/"/g, '""')}"`
         }),

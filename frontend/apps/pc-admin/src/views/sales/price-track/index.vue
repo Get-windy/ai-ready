@@ -236,6 +236,13 @@
 
     <!-- ═══ 导入隐藏文件输入 ═══ -->
     <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFileChange" />
+
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="sales-price-track"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -258,6 +265,8 @@ import { salesPriceTrackApi } from '@/api/erp'
 import { exportCsvWithLoading } from '@/utils/exportCsv'
 import request from '@/utils/request'
 import * as XLSX from 'xlsx'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'SalesPriceTrack' })
 
@@ -738,58 +747,44 @@ async function handleExport() {
   await exportCsvWithLoading(headers, rows, `销售价格跟踪-${dayjs().format('YYYYMMDD')}`)
 }
 
-// ═══ 打印(F8)：按当前查询结果渲染列表后打印 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：销售价格跟踪 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、金额千分位、日期截断都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '商品名称', key: 'productName' },
+  { title: '货号', key: 'productCode' },
+  { title: '商品单位', key: 'unit' },
+  { title: '往来单位编号', key: 'partnerCode' },
+  { title: '往来单位名称', key: 'partnerName' },
+  { title: '最近销售价', key: 'salePrice', align: 'right' },
+  { title: '最近销售折扣（%）', key: 'discountRate', align: 'right' },
+  { title: '最近销售日期', key: 'saleDate' },
+]
+
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return tableData.value.map((r: any, i: number) => ({
+    __seq: i + 1,
+    productName: r.productName,
+    productCode: r.productCode,
+    unit: r.unit,
+    partnerCode: r.partnerCode,
+    partnerName: r.partnerName,
+    salePrice: formatMoney(r.salePrice),
+    discountRate: formatMoney(r.discountRate),
+    saleDate: formatDate(r.saleDate),
+  }))
 }
-function handlePrint() {
-  if (!tableData.value.length) { message.warning('没有可打印的数据'); return }
-  const rows = tableData.value.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.productName)}</td>
-      <td>${escapeHtml(r.productCode)}</td>
-      <td>${escapeHtml(r.unit)}</td>
-      <td>${escapeHtml(r.partnerCode)}</td>
-      <td>${escapeHtml(r.partnerName)}</td>
-      <td class="num">${formatMoney(r.salePrice)}</td>
-      <td class="num">${formatMoney(r.discountRate)}</td>
-      <td>${formatDate(r.saleDate)}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>销售价格跟踪</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-      .num{text-align:right}
-    </style></head><body>
-    <h2>销售价格跟踪</h2>
-    <div class="meta">
-      <span>统计日期：${escapeHtml(dateRange.value?.[0] || '')} ~ ${escapeHtml(dateRange.value?.[1] || '')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${tableData.value.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>商品名称</th><th>货号</th><th>商品单位</th>
-        <th>往来单位编号</th><th>往来单位名称</th>
-        <th>最近销售价</th><th>最近销售折扣（%）</th><th>最近销售日期</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) { message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试'); return }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'sales-price-track',
+  // 原打印抬头的「统计日期/记录数」元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `销售价格跟踪（统计日期：${dateRange.value?.[0] || ''} ~ ${dateRange.value?.[1] || ''}，记录数：${tableData.value.length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ F8 快捷键 ═══
 function onKeydown(e: KeyboardEvent) {

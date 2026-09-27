@@ -497,6 +497,12 @@
         @select="handleCustomerPicked"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-stored-card"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -517,6 +523,8 @@ import {
   SETTLE_ACCOUNT_OPTIONS,
   type StoredCard, type StoredCardFlow,
 } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MarketingStoredCard' })
 
@@ -817,42 +825,38 @@ async function openDetail(record: any) {
   }
 }
 
-// ═══ 打印(F8) ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const PRINT_COLUMNS = [
+  { key: 'cardNo', title: '卡号' },
+  { key: 'partnerName', title: '会员/客户' },
+  { key: 'cardType', title: '卡类型' },
+  { key: 'faceValue', title: '面值' },
+  { key: 'balance', title: '当前余额' },
+  { key: 'status', title: '状态' },
+  { key: 'issueTime', title: '开卡时间' },
+]
+function printCell(row: any, key: string): string {
+  if (key === 'cardType') return STORED_CARD_TYPE_MAP[row.cardType] || ''
+  if (key === 'faceValue' || key === 'balance') return fmtMoney(row[key])
+  if (key === 'status') return STORED_CARD_STATUS_MAP[row.status]?.text || ''
+  if (key === 'issueTime') return fmtTime(row.issueTime)
+  return row[key] == null ? '' : String(row[key])
 }
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>
-    <td>${escapeHtml(r.cardNo)}</td><td>${escapeHtml(r.partnerName || '')}</td>
-    <td>${escapeHtml(STORED_CARD_TYPE_MAP[r.cardType] || '')}</td>
-    <td>${escapeHtml(fmtMoney(r.faceValue))}</td><td>${escapeHtml(fmtMoney(r.balance))}</td>
-    <td>${escapeHtml(STORED_CARD_STATUS_MAP[r.status]?.text || '')}</td>
-    <td>${escapeHtml(fmtTime(r.issueTime))}</td></tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>储值卡台账</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>储值卡台账</h2>
-    <table><thead><tr><th>#</th><th>卡号</th><th>会员/客户</th><th>卡类型</th><th>面值</th>
-    <th>当前余额</th><th>状态</th><th>开卡时间</th></tr></thead><tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-stored-card',
+  // 列是原打印函数里写死的清单，静态生成器写不进模板 → 明确按数据列打
+  useDataColumns: true,
+  title: '储值卡台账',
+  columns: () => PRINT_COLUMNS.map(c => ({
+    key: c.key,
+    title: c.title,
+    formatter: (_v: any, row: any) => printCell(row, c.key),
+  })),
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

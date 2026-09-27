@@ -171,6 +171,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="trade-cart-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -190,6 +196,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { mallCartApi } from '@/api/erp/mall'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'TradeCartList' })
 
@@ -372,62 +380,47 @@ function handleBatchDelete() {
 // （`DELETE /v1/mall/cart`），该端点按**调用者本人**清空，与管理端列表口径不符，
 // 点了对列表无影响（审计报告 P1-8）。清空需求用「勾选行 → 批量删除」覆盖。
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径，打印当前页） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：购物车 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、单价/小计金额口径都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '商品名称', key: 'productName' },
+  { title: '商品编码', key: 'productCode' },
+  { title: '规格', key: 'specification' },
+  { title: '数量', key: 'quantity', align: 'right' },
+  { title: '单价', key: 'price', align: 'right' },
+  { title: '小计', key: 'totalPrice', align: 'right' },
+  { title: '会员', key: 'memberLabel' },
+]
+
+/** 可打印行（去掉树形占位行） */
+function printableRows(): any[] {
+  return tableData.value.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = tableData.value.filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.productName || '')}</td>
-      <td>${escapeHtml(r.productCode || '')}</td>
-      <td>${escapeHtml(r.specification || '')}</td>
-      <td style="text-align:right">${escapeHtml(r.quantity ?? '')}</td>
-      <td style="text-align:right">${formatAmount(r.price)}</td>
-      <td style="text-align:right">${formatAmount(r.totalPrice)}</td>
-      <td>${escapeHtml(r.memberName || r.memberAccount || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>购物车</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>购物车</h2>
-    <div class="meta">
-      <span>商品名称：${escapeHtml(searchForm.productKeyword || '全部')}</span>
-      <span>共(全部)：${pagination.total}</span>
-      <span>本页商品总数：${totalItems.value}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>商品名称</th><th>商品编码</th><th>规格</th><th>数量</th><th>单价</th><th>小计</th><th>会员</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return printableRows().map((r: any, i: number) => ({
+    __seq: i + 1,
+    productName: r.productName || '',
+    productCode: r.productCode || '',
+    specification: r.specification || '',
+    quantity: r.quantity ?? '',
+    price: formatAmount(r.price),
+    totalPrice: formatAmount(r.totalPrice),
+    memberLabel: r.memberName || r.memberAccount || '',
+  }))
 }
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'trade-cart-list',
+  // 原打印抬头的筛选/合计/记录数元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `购物车（商品名称：${searchForm.productKeyword || '全部'}，共(全部)：${pagination.total}，本页商品总数：${totalItems.value}，记录数：${printRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

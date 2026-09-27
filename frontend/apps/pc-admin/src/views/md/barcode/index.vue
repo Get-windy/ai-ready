@@ -580,7 +580,9 @@ function handlePrint() {
   printDialogRef.value?.open?.()
 }
 
-// ── 条码打印 ──
+// ── 条码打印（标签打印，不走报表模板引擎） ──
+// 这条与上面的「打印(F8)」是两种东西：那是**结果集报表**（PrintDialog + 模板引擎），
+// 这是**条码标签**——Code128 矢量条码 + 标签纸尺寸 + 每行份数，模板引擎画不了矢量条码，故保留独立实现。
 const barcodePrintVisible = ref(false)
 const barcodeCopies = ref(1)
 const barcodePrintRows = ref<ProductBarcodeRow[]>([])

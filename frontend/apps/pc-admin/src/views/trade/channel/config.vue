@@ -319,6 +319,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="trade-channel-config"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -337,6 +343,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { channelConfigApi, CHANNEL_CODE_MAP, CHANNEL_TYPE_MAP, type ExternalChannelConfig } from '@/api/trade'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'TradeChannelConfig' })
 
@@ -671,65 +679,49 @@ async function openSecret(record: any) {
   }
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印）：渠道配置 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、渠道/类型中文、连接/同步开关文案都在 printRows 里先算好）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '渠道', key: 'channelLabel' },
+  { title: '渠道名称', key: 'channelName' },
+  { title: '类型', key: 'channelTypeText' },
+  { title: '连接状态', key: 'connectionText' },
+  { title: '同步开关', key: 'syncSwitchText' },
+  { title: '同步间隔', key: 'syncInterval', align: 'right' },
+  { title: '最后同步', key: 'lastSyncText' },
+  { title: '状态', key: 'statusText' },
+]
 
+/** 可打印行（去掉树形占位行） */
 function printableRows(): any[] {
   return tableData.value.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = printableRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '')}</td>
-      <td>${escapeHtml(r.channelName || '')}</td>
-      <td>${escapeHtml(CHANNEL_TYPE_MAP[r.channelType]?.name || r.channelType || '')}</td>
-      <td>${r.accessToken ? '已连接' : '待配置'}</td>
-      <td>${r.syncEnabled === 1 ? '开' : '关'}</td>
-      <td style="text-align:right">${escapeHtml(r.syncInterval ?? '')}</td>
-      <td>${escapeHtml(fmtTime(r.lastSyncTime))}</td>
-      <td>${r.status === 1 ? '正常' : '禁用'}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>渠道配置</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>渠道配置</h2>
-    <div class="meta">
-      <span>渠道筛选：${escapeHtml(searchForm.keyword || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>渠道</th><th>渠道名称</th><th>类型</th><th>连接状态</th><th>同步开关</th><th>同步间隔</th><th>最后同步</th><th>状态</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+/** 打印行：先把单元格文本按原打印口径算好，模板只负责排版 */
+function printRows(): any[] {
+  return printableRows().map((r: any, i: number) => ({
+    __seq: i + 1,
+    channelLabel: CHANNEL_CODE_MAP[r.channelCode]?.name || r.channelCode || '',
+    channelName: r.channelName || '',
+    channelTypeText: CHANNEL_TYPE_MAP[r.channelType]?.name || r.channelType || '',
+    connectionText: r.accessToken ? '已连接' : '待配置',
+    syncSwitchText: r.syncEnabled === 1 ? '开' : '关',
+    syncInterval: r.syncInterval ?? '',
+    lastSyncText: fmtTime(r.lastSyncTime),
+    statusText: r.status === 1 ? '正常' : '禁用',
+  }))
 }
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'trade-channel-config',
+  // 原打印抬头的筛选/记录数元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `渠道配置（渠道筛选：${searchForm.keyword || '全部'}，记录数：${printRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printRows(),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

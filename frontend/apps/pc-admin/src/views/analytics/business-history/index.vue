@@ -161,6 +161,12 @@
         <a-textarea v-model:value="remarkText" :rows="4" placeholder="请输入单据备注" />
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-business-history"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -187,6 +193,8 @@ import { useDocQueryTable } from '../shared/useDocQueryTable'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
 import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsBusinessHistory' })
 
@@ -372,41 +380,18 @@ function onSortChange(key: string | null, order: 'asc' | 'desc' | null) {
   else handleSort('bizDate', 'desc', sortState)
 }
 
-// ═══ 打印(F8) ═══
-/** 打印列（不含隐藏列，按当前列配置取可见列更贴近「所见即所打」） */
-function printRows(): { header: string[]; body: string[][] } {
-  const visible = columns.filter(c => c.key !== 'action' && c.key !== 'rowNo')
-  const header = visible.map(c => c.title)
-  const body = dataSource.value.map((r: any) => visible.map(c => {
-    if (c.key === 'amount') return formatMoney(r.amount)
-    if (c.key === 'hasAttachment') return r.hasAttachment ? '有' : ''
-    return r[c.key] ?? ''
-  }))
-  return { header, body }
-}
-
-function handlePrint() {
-  const { header, body } = printRows()
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const html = `<html><head><meta charset="utf-8"><title>经营历程</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
-    tfoot td{font-weight:600}</style></head><body>
-    <h3>经营历程（${query.startDate} ~ ${query.endDate}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    <tfoot><tr>${header.map((h, i) => `<td>${i === header.indexOf('金额') ? '合计 ' + formatMoney(summaryAmount.value) : (i === 0 ? '合计' : '')}</td>`).join('')}</tr></tfoot>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列已冻结进模板（模板说了算）；这里的 columns 只用于按列口径整理行数据（默认隐藏列不进打印）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-business-history',
+  title: () => `经营历程（${query.startDate} ~ ${query.endDate}）`,
+  columns: () => columns.filter(c => c.key !== 'action' && c.key !== 'rowNo'),
+  rows: () => dataSource.value,
+  // 原合计是后端全量口径（非本页求和），交给页脚打一行文字
+  totalText: () => `合计：${formatMoney(summaryAmount.value)}`,
+  emptyTip: '没有可打印的数据',
+})
 
 /** F8 快捷键（对标工具栏「打印(F8)」） */
 function handleF8Key(e: KeyboardEvent) {

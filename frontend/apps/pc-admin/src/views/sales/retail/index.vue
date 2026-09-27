@@ -276,6 +276,14 @@
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="sale-retail"
+    :document-id="printData.id"
+    :print-data="printData"
+    @print-success="handlePrintSuccess"
+  />
   </ErrorBoundary>
 </template>
 <script setup lang="ts">
@@ -298,6 +306,7 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { retailOrderApi, userPageConfigApi } from '@/api/erp'
 import { useRouter } from 'vue-router'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 const router = useRouter()
 
@@ -825,78 +834,30 @@ function handleUnhold(record: any) {
 }
 
 // ═══ 打印(F8)：取选中单据的真实打印数据，渲染小票后调用打印并累加打印次数 ═══
+// ═══ 打印（按单据打印） ═══
+// 打印的是**一条零售单**：后端已为 pageCode='sale-retail' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端（原先是自己拼 HTML 再 win.print()）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+const printingOrderId = ref<number | null>(null)
+
 async function handlePrintF8(record?: any) {
-  const id = record?.id ?? selectedRowKeys.value[0]
+  const id = record?.id ?? selectedRowKeys.value?.[0]
   if (!id) {
-    message.warning('请先勾选要打印的零售单')
+    message.warning('请先选择一条零售单')
     return
   }
-  try {
-    const detail: any = await retailOrderApi.getPrintData(id)
-    const order = detail?.order || {}
-    const items: any[] = detail?.items || []
-    const payments: any[] = detail?.payments || []
-    const rows = items.map((it: any, i: number) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(it.productName || '')}</td>
-        <td>${escapeHtml(it.barcode || '')}</td>
-        <td class="num">${fmtNum(it.quantity)}</td>
-        <td class="num">${fmtNum(it.unitPrice)}</td>
-        <td class="num">${fmtNum(it.amount)}</td>
-      </tr>`).join('')
-    const payRows = payments.map((p: any) => `
-      <tr><td>${escapeHtml(p.paymentMethodLabel || paymentMethodLabel(p.paymentMethod))}</td><td class="num">${fmtNum(p.paymentAmount)}</td></tr>`).join('')
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-      <title>零售单 ${escapeHtml(order.retailNo || '')}</title>
-      <style>
-        body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-        h2{text-align:center;margin:0 0 12px;font-size:18px}
-        .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-        th{background:#f2f2f2}
-        .num{text-align:right}
-        .totals{margin-top:8px;font-size:13px;text-align:right}
-        .totals span{margin-left:16px}
-      </style></head><body>
-      <h2>零售单</h2>
-      <div class="meta">
-        <span>单据编号：${escapeHtml(order.retailNo || '')}</span>
-        <span>单据日期：${escapeHtml(order.orderDate || '')}</span>
-        <span>客户：${escapeHtml(order.customerName || '散客')}</span>
-        <span>仓库：${escapeHtml(order.warehouseName || '')}</span>
-        <span>经手人：${escapeHtml(order.handlerName || '')}</span>
-        <span>制单人：${escapeHtml(order.creatorName || '')}</span>
-      </div>
-      <table>
-        <thead><tr><th>#</th><th>商品名称</th><th>条码</th><th>数量</th><th>单价</th><th>金额</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6">无明细</td></tr>'}</tbody>
-      </table>
-      <div class="totals">
-        <span>商品金额：${fmtNum(order.amount)}</span>
-        <span>优惠金额：${fmtNum(order.totalDiscount)}</span>
-        <span>本单应收：${fmtNum(order.payableAmount)}</span>
-        <span>收款合计：${fmtNum(order.totalReceived)}</span>
-        <span>找零：${fmtNum(order.changeAmount)}</span>
-      </div>
-      ${payRows ? `<table style="margin-top:8px"><thead><tr><th>收款方式</th><th>金额</th></tr></thead><tbody>${payRows}</tbody></table>` : ''}
-      </body></html>`
-    const win = window.open('', '_blank', 'width=900,height=700')
-    if (!win) {
-      message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-      return
-    }
-    win.document.write(html)
-    win.document.close()
-    win.focus()
-    win.print()
-    // 打印计数走真实接口
-    await retailOrderApi.afterPrint(id)
-    fetchData()
-  } catch (e: any) {
-    message.error(e?.response?.data?.message || e?.message || '打印失败')
-  }
+  printingOrderId.value = Number(id)
+  printData.value = { id }
+  printDialogRef.value?.open?.()
+}
+
+/** 打印成功 → 回写打印次数（次数只在真的出纸之后加） */
+async function handlePrintSuccess() {
+  const id = printingOrderId.value
+  printingOrderId.value = null
+  if (!id) return
+  try { await retailOrderApi.afterPrint(id) } catch (e) { console.warn('[零售单] 打印次数回写失败', e) }
 }
 
 // ═══ 导出：按当前 Tab 口径导出列表数据（真实查询结果，非桩）═══

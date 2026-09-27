@@ -464,6 +464,7 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { taskApi } from '@/api/dms/task'
 import { mdRouteApi } from '@/api/md'
+import { printDocuments } from '@/utils/printDocuments'
 
 defineOptions({ name: 'DispatchOrderList' })
 
@@ -991,19 +992,15 @@ function handleBatchPrint() {
     okText: '开始打印',
     cancelText: '取消',
     onOk: async () => {
-      const rows = selectedRows.value.slice()
+      // 逐张走后端渲染（挑模板 / 取数 / 渲染都在服务端），再合并成一次打印。
+      // 语义保持原样：只打勾选行，不勾选时不打。
+      const ids = [...selectedRowKeys.value]
+      const done = await printDocuments('dispatch-task', ids, '配送任务单')
+      if (!done) return
+      // 次数回写放在真的出纸之后 —— 原来先 +1 再打印，渲染失败也会把次数记上
       try {
-        await Promise.all(rows.map(r => taskApi.print(r.id).catch(() => null)))
+        await Promise.all(ids.map(id => taskApi.print(id).catch(() => null)))
       } catch { /* 打印次数失败不阻断打印 */ }
-      const win = window.open('', '_blank')
-      if (!win) {
-        message.warning('浏览器拦截了打印窗口，请允许弹出窗口后重试')
-        return
-      }
-      win.document.write(buildPrintHtml(rows))
-      win.document.close()
-      win.focus()
-      win.print()
       fetchData()
     },
   })
@@ -1048,28 +1045,6 @@ function round4(val: number): number {
 function formatDateTime(val: any): string {
   if (!val) return '-'
   return dayjs(val).format('YYYY-MM-DD HH:mm')
-}
-
-function buildPrintHtml(rows: any[]): string {
-  const head = ['指定配送日期', '任务编号', '配送状态', '司机名称', '配送车辆', '发货数量', '发货金额', '收货客户', '收货地址']
-  const body = rows.map(r => [
-    r.deliveryDate || '', r.taskNo || '', getStatusText(r.status), r.riderName || '',
-    r.vehicleName || '', formatQty(r.totalQuantity), formatMoney(r.goodsAmount),
-    r.customerName || '', r.customerAddress || '',
-  ])
-  return `<html><head><meta charset="utf-8"><title>配送单打印</title>
-    <style>
-      body{font-family:"Microsoft YaHei",sans-serif;padding:12px}
-      h3{text-align:center;margin:8px 0}
-      table{width:100%;border-collapse:collapse;font-size:12px;page-break-after:always}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    ${body.map((cells, i) => `<h3>配送单 ${rows[i].taskNo}</h3><table>
-      <tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>
-      <tr>${cells.map(c => `<td>${String(c ?? '')}</td>`).join('')}</tr>
-    </table>`).join('')}
-    </body></html>`
 }
 
 function handleError(error: Error) {

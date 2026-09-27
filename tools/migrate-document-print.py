@@ -48,9 +48,14 @@ PAGES = [
     ('finance/ar-ap-adjust/form.vue', 'finance-ar-ap-adjust', '应收应付调整单'),
     ('finance/cash-transfer/form/index.vue', 'finance-cash-transfer', '资金调拨单'),
     ('finance/expense-doc/form.vue', 'finance-expense-doc', '费用单'),
+    ('finance/budget-plan/form.vue', 'finance-budget-plan', '年度预算单'),
     # —— 其他 ——
     ('sales/return-apply/form.vue', 'sale-return-apply', '退货申请单'),
     ('quality/standard/form.vue', 'quality-standard', '质量标准'),
+    ('crm/quotation/form.vue', 'crm-quotation', '报价单'),
+    ('finance/invoice/form.vue', 'finance-invoice', '发票'),
+    ('sales/retail/form.vue', 'sale-retail', '零售单'),
+    ('dms/route-list/index.vue', 'dms-route-list', '配送路线'),
     # 调度单：复用已注册的 dispatch-task 装配器（同一张 dms_task），不新登记
     ('dispatch/dispatch-order/form/index.vue', 'dispatch-task', '配送任务单'),
 ]
@@ -69,7 +74,8 @@ def find_print_fn(src: str):
             elif src[i] == '}':
                 depth -= 1
                 if depth == 0:
-                    if 'window.print()' in src[start:i + 1]:
+                    # 有的页面是自建 HTML 后 `win.print()`（自己开的窗口），也算
+                    if re.search(r'(?:window|win|w)\.print\(\)', src[start:i + 1]):
                         return m.group(1), m.start(), i + 1
                     break
             i += 1

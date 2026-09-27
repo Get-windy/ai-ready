@@ -519,13 +519,18 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="mall-product-shelf"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import type { Rule } from 'ant-design-vue/es/form'
 import {
   ReloadOutlined, DownloadOutlined, PrinterOutlined, SettingOutlined,
@@ -541,6 +546,8 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { mallProductApi, type MallProduct } from '@/api/erp/mall'
 import { productCategoryApi, productApi, mallTagApi, type MallTag } from '@/api/erp/product'
 import { exportCsv } from '@/utils/exportCsv'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MallProductShelf' })
 
@@ -1336,60 +1343,28 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8)：window.open + 内联 HTML 打印模板 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '商品货号', key: 'productCode', formatter: (v: any, record: any) => v || record.productId || '' },
+  { title: '商品名称', key: 'productName' },
+  { title: '规格', key: 'specification' },
+  { title: '单位', key: 'unitName' },
+  { title: '可用库存', key: 'stockQuantity', align: 'right' },
+  { title: '零售价', key: 'salePrice', align: 'right' },
+  { title: '上架', key: 'status', formatter: (v: any) => (String(v ?? '').trim().toUpperCase() === 'ON_SHELF' ? '上架' : '下架') },
+]
 
-function handlePrint() {
-  const rows = tableData.value.filter(r => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.productCode || r.productId || '')}</td>
-      <td>${escapeHtml(r.productName || '')}</td>
-      <td>${escapeHtml(r.specification || '')}</td>
-      <td>${escapeHtml(r.unitName || '')}</td>
-      <td>${fmtQty(r.stockQuantity)}</td>
-      <td>${fmtMoney(r.salePrice)}</td>
-      <td>${isOnShelf(r) ? '上架' : '下架'}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>商品上架</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>商品上架</h2>
-    <div class="meta">
-      <span>分类：${escapeHtml(currentCategoryPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>商品货号</th><th>商品名称</th><th>规格</th><th>单位</th><th>可用库存</th><th>零售价</th><th>上架</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=720')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'mall-product-shelf',
+  title: '商品上架',
+  rows: () => tableData.value.filter((r: any) => !r.__ghost),
+  columns: () => printColumns,
+  // 原打印抬头的 分类/记录数 元信息行（打印时间由模板 pageHeader 自动带）
+  totalText: () => `分类：${currentCategoryPath.value}，记录数：${tableData.value.filter((r: any) => !r.__ghost).length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

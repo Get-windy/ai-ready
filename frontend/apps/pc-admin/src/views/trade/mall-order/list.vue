@@ -1218,6 +1218,18 @@
           :maxlength="500"
         />
       </a-modal>
+
+      <!-- ═══ 打印弹窗（结果集打印）：按单据 / 按明细各一份，各自一套列与模板 ═══ -->
+      <PrintDialog
+        ref="docPrintDialogRef"
+        page-code="trade-mall-order-list"
+        :print-data="docPrintData"
+      />
+      <PrintDialog
+        ref="detailPrintDialogRef"
+        page-code="trade-mall-order-list-detail"
+        :print-data="detailPrintData"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -1225,7 +1237,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import {
   ReloadOutlined, DownloadOutlined, PrinterOutlined, SettingOutlined
 } from '@ant-design/icons-vue'
@@ -1238,6 +1249,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { mallOrderApi, type MallTradeSummary } from '@/api/erp/mall'
 import { exportCsv } from '@/utils/exportCsv'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'TradeMallOrderView' })
 
@@ -2116,83 +2129,125 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8) / 批量打印：window.open + 内联 HTML 打印模板 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印(F8) / 批量打印：结果集打印（列与行交给 PrintDialog，模板负责版式） ═══
+// 原先是 window.open + 自拼 HTML；现在两个入口各走一条结果集打印：
+//   · 按单据表 → pageCode `trade-mall-order-list`；按明细表 → `trade-mall-order-list-detail`；
+//   · 打印列沿用改造前那套表头（与页面 columns 无关），列随 Tab 变化故 useDataColumns；
+//   · handlePrint 打「当前表全量」，handleBatchPrint 打「勾选行」，语义与改造前一致。
 
-function buildPrintHtml(rows: OrderRow[]): string {
-  const isDoc = activeTab.value === 'doc'
-  const head = isDoc
-    ? ['#', '单据编号', '单据日期', '客户', '订单金额', '已结金额', '单据状态', '支付方式', '收货人', '联系电话', '收货地址', '卖家备注']
-    : ['#', '单据日期', '单据编号', '客户', '商品名称', '商品货号', '规格', '单位', '销售数量', '单价', '金额', '备注']
-  const body = rows.map((r, i) => {
-    const cells = isDoc
-      ? [
-          r.orderNo, fmtDateTime(r.orderDate), r.customerName, fmtMoney(r.totalAmount),
-          fmtMoney(r.settledAmount ?? r.receivedAmount),
-          MALL_STATUS_MAP[mallStatusOf(r)]?.label || mallStatusOf(r) || '',
-          PAYMENT_METHOD_MAP[r.paymentMethod || ''] || r.paymentMethod,
-          r.consignee, r.consigneePhone,
-          r.consigneeAddress || r.shippingAddress, r.orderRemark || r.remark
-        ]
-      : [
-          fmtDateTime(r.orderDate), r.orderNo, r.customerName, r.productName, r.productCode,
-          r.specification, r.unit, fmtQty(r.saleQuantity), fmtMoney(r.unitPrice),
-          fmtMoney(r.amount), r.itemRemark
-        ]
-    return `<tr><td>${i + 1}</td>${cells.map(v => `<td>${escapeHtml(v ?? '')}</td>`).join('')}</tr>`
-  }).join('')
+/** 按单据打印列（与改造前自拼 HTML 的表头逐列一致） */
+const docPrintColumns: any[] = [
+  { title: '#', key: '__seq', align: 'center' },
+  { title: '单据编号', key: 'orderNo' },
+  { title: '单据日期', key: 'orderDate' },
+  { title: '客户', key: 'customerName' },
+  { title: '订单金额', key: 'totalAmount', align: 'right' },
+  { title: '已结金额', key: 'settledAmount', align: 'right' },
+  { title: '单据状态', key: 'status' },
+  { title: '支付方式', key: 'paymentMethod' },
+  { title: '收货人', key: 'consignee' },
+  { title: '联系电话', key: 'consigneePhone' },
+  { title: '收货地址', key: 'consigneeAddress' },
+  { title: '卖家备注', key: 'orderRemark' },
+]
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>商城订单</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>商城订单（${isDoc ? '按单据' : '按明细'}）</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>${head.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-}
+/** 按明细打印列（与改造前自拼 HTML 的表头逐列一致） */
+const detailPrintColumns: any[] = [
+  { title: '#', key: '__seq', align: 'center' },
+  { title: '单据日期', key: 'orderDate' },
+  { title: '单据编号', key: 'orderNo' },
+  { title: '客户', key: 'customerName' },
+  { title: '商品名称', key: 'productName' },
+  { title: '商品货号', key: 'productCode' },
+  { title: '规格', key: 'specification' },
+  { title: '单位', key: 'unit' },
+  { title: '销售数量', key: 'saleQuantity', align: 'right' },
+  { title: '单价', key: 'unitPrice', align: 'right' },
+  { title: '金额', key: 'amount', align: 'right' },
+  { title: '备注', key: 'itemRemark' },
+]
 
-function openPrintWindow(rows: OrderRow[]) {
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
+/** 打印行：单元格文本按改造前的口径先算好，模板只负责排版 */
+function printRowsOf(rows: OrderRow[], tab: string): any[] {
+  if (tab === 'doc') {
+    return rows.map((r, i) => ({
+      __seq: i + 1,
+      orderNo: r.orderNo ?? '',
+      orderDate: fmtDateTime(r.orderDate),
+      customerName: r.customerName ?? '',
+      totalAmount: fmtMoney(r.totalAmount),
+      settledAmount: fmtMoney(r.settledAmount ?? r.receivedAmount),
+      status: MALL_STATUS_MAP[mallStatusOf(r)]?.label || mallStatusOf(r) || '',
+      paymentMethod: PAYMENT_METHOD_MAP[r.paymentMethod || ''] || r.paymentMethod || '',
+      consignee: r.consignee ?? '',
+      consigneePhone: r.consigneePhone ?? '',
+      consigneeAddress: r.consigneeAddress || r.shippingAddress || '',
+      orderRemark: r.orderRemark || r.remark || '',
+    }))
   }
-  const win = window.open('', '_blank', 'width=1100,height=720')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(buildPrintHtml(rows))
-  win.document.close()
-  win.focus()
-  win.print()
+  return rows.map((r, i) => ({
+    __seq: i + 1,
+    orderDate: fmtDateTime(r.orderDate),
+    orderNo: r.orderNo ?? '',
+    customerName: r.customerName ?? '',
+    productName: r.productName ?? '',
+    productCode: r.productCode ?? '',
+    specification: r.specification ?? '',
+    unit: r.unit ?? '',
+    saleQuantity: fmtQty(r.saleQuantity),
+    unitPrice: fmtMoney(r.unitPrice),
+    amount: fmtMoney(r.amount),
+    itemRemark: r.itemRemark ?? '',
+  }))
 }
 
+/** 本次要打印的勾选行：handlePrint 打全量时置空，handleBatchPrint 前填入勾选行 */
+const printSelection = ref<OrderRow[]>([])
+
+const {
+  printDialogRef: docPrintDialogRef,
+  printData: docPrintData,
+  handlePrint: printDocList,
+} = useListPrint({
+  pageCode: 'trade-mall-order-list',
+  title: '商城订单（按单据）',
+  rows: () => (activeTab.value === 'doc' ? printRowsOf(tableData.value, 'doc') : []),
+  selectedRows: () => (activeTab.value === 'doc' ? printRowsOf(printSelection.value, 'doc') : []),
+  columns: () => docPrintColumns,
+  useDataColumns: true,
+  totalText: () => `记录数：${printSelection.value.length || tableData.value.length}`,
+  emptyTip: '没有可打印的数据',
+})
+
+const {
+  printDialogRef: detailPrintDialogRef,
+  printData: detailPrintData,
+  handlePrint: printDetailList,
+} = useListPrint({
+  pageCode: 'trade-mall-order-list-detail',
+  title: '商城订单（按明细）',
+  rows: () => (activeTab.value === 'detail' ? printRowsOf(tableData.value, 'detail') : []),
+  selectedRows: () => (activeTab.value === 'detail' ? printRowsOf(printSelection.value, 'detail') : []),
+  columns: () => detailPrintColumns,
+  useDataColumns: true,
+  totalText: () => `记录数：${printSelection.value.length || tableData.value.length}`,
+  emptyTip: '没有可打印的数据',
+})
+
+/** 打印(F8)：打当前表全量（按单据 / 按明细各用自己那套列） */
 function handlePrint() {
-  openPrintWindow(tableData.value)
+  printSelection.value = []
+  ;(activeTab.value === 'doc' ? printDocList : printDetailList)()
 }
 
+/** 批量打印：打勾选行，未勾选时不打（语义与改造前一致） */
 function handleBatchPrint() {
   if (!checkedRecords.value.length) {
     message.warning('请先勾选要打印的单据')
     return
   }
-  openPrintWindow(checkedRecords.value)
+  printSelection.value = checkedRecords.value
+  ;(activeTab.value === 'doc' ? printDocList : printDetailList)()
 }
 
 function handleF8Key(e: KeyboardEvent) {

@@ -838,6 +838,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="hr-employee-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -877,6 +883,8 @@ import {
   type HrContract,
   type HrEmployeeChange,
 } from '@/api/hr'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'HrEmployeeList' })
 
@@ -1489,66 +1497,36 @@ async function handleOpenChanges(record: HrEmployee) {
   }
 }
 
-// ═══ 打印(F8)：员工花名册 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：员工花名册 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、类型/状态/性别/学历中文都在 formatter 里还原）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '工号', key: 'employeeNo' },
+  { title: '姓名', key: 'employeeName' },
+  { title: '部门', key: 'deptName', formatter: (v: any) => v || '' },
+  { title: '岗位', key: 'positionName', formatter: (v: any) => v || '' },
+  { title: '类型', key: 'employeeType', formatter: (_v: any, r: any) => EMPLOYEE_TYPE_MAP[r.employeeType] || '' },
+  { title: '入职日期', key: 'hireDate', formatter: (_v: any, r: any) => formatDate(r.hireDate) },
+  { title: '状态', key: 'status', formatter: (_v: any, r: any) => employeeStatusText(r.status) },
+  { title: '性别', key: 'gender', formatter: (_v: any, r: any) => GENDER_MAP[r.gender] || '' },
+  { title: '学历', key: 'education', formatter: (_v: any, r: any) => EDUCATION_MAP[r.education] || '' },
+  { title: '手机号', key: 'phone', formatter: (v: any) => v || '' },
+]
+
+/** 可打印行（去掉树形占位行）——标题里的记录数与表格行同源 */
+function printableRows(): any[] {
+  return (tableData.value || []).filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.employeeNo)}</td>
-      <td>${escapeHtml(r.employeeName)}</td>
-      <td>${escapeHtml(r.deptName || '')}</td>
-      <td>${escapeHtml(r.positionName || '')}</td>
-      <td>${escapeHtml(EMPLOYEE_TYPE_MAP[r.employeeType] || '')}</td>
-      <td>${escapeHtml(formatDate(r.hireDate))}</td>
-      <td>${escapeHtml(employeeStatusText(r.status))}</td>
-      <td>${escapeHtml(GENDER_MAP[r.gender] || '')}</td>
-      <td>${escapeHtml(EDUCATION_MAP[r.education] || '')}</td>
-      <td>${escapeHtml(r.phone || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>员工花名册</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>员工花名册</h2>
-    <div class="meta">
-      <span>部门：${escapeHtml(currentDeptPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>工号</th><th>姓名</th><th>部门</th><th>岗位</th><th>类型</th>
-        <th>入职日期</th><th>状态</th><th>性别</th><th>学历</th><th>手机号</th>
-      </tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'hr-employee-list',
+  // 原打印抬头的「部门/记录数」元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `员工花名册（部门：${currentDeptPath.value}，记录数：${printableRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printableRows().map((r: any, i: number) => ({ ...r, __seq: i + 1 })),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

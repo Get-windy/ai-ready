@@ -530,6 +530,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="hr-leave-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -570,6 +576,8 @@ import {
   type HrLeaveRequest,
   type HrLeaveQuota,
 } from '@/api/hr'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'HrLeaveList' })
 
@@ -1026,67 +1034,37 @@ async function handleLoadBalance() {
   }
 }
 
-// ═══ 打印(F8)：请假申请列表 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：请假申请列表 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、类型/状态中文、天数口径都在 formatter 里还原）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '工号', key: 'employeeNo' },
+  { title: '姓名', key: 'employeeName', formatter: (v: any) => v || '' },
+  { title: '部门', key: 'deptName', formatter: (v: any) => v || '' },
+  { title: '请假类型', key: 'leaveType', formatter: (_v: any, r: any) => LEAVE_TYPE_MAP[r.leaveType] || r.leaveType || '' },
+  { title: '开始日期', key: 'startDate', formatter: (_v: any, r: any) => formatDate(r.startDate) },
+  { title: '结束日期', key: 'endDate', formatter: (_v: any, r: any) => formatDate(r.endDate) },
+  { title: '天数', key: 'days', formatter: (_v: any, r: any) => formatDays(r.days) },
+  { title: '状态', key: 'status', formatter: (_v: any, r: any) => LEAVE_STATUS_MAP[r.status]?.text || '' },
+  { title: '审批人', key: 'approveName', formatter: (_v: any, r: any) => r.approveName || r.approveId || '' },
+  { title: '审批意见', key: 'approveComment', formatter: (v: any) => v || '' },
+  { title: '请假原因', key: 'reason', formatter: (v: any) => v || '' },
+]
+
+/** 可打印行（去掉树形占位行）——标题里的记录数与表格行同源 */
+function printableRows(): any[] {
+  return (tableData.value || []).filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.employeeNo)}</td>
-      <td>${escapeHtml(r.employeeName || '')}</td>
-      <td>${escapeHtml(r.deptName || '')}</td>
-      <td>${escapeHtml(LEAVE_TYPE_MAP[r.leaveType] || r.leaveType || '')}</td>
-      <td>${escapeHtml(formatDate(r.startDate))}</td>
-      <td>${escapeHtml(formatDate(r.endDate))}</td>
-      <td>${escapeHtml(formatDays(r.days))}</td>
-      <td>${escapeHtml(LEAVE_STATUS_MAP[r.status]?.text || '')}</td>
-      <td>${escapeHtml(r.approveName || r.approveId || '')}</td>
-      <td>${escapeHtml(r.approveComment || '')}</td>
-      <td>${escapeHtml(r.reason || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>请假申请单</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>请假申请单</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>工号</th><th>姓名</th><th>部门</th><th>请假类型</th>
-        <th>开始日期</th><th>结束日期</th><th>天数</th><th>状态</th>
-        <th>审批人</th><th>审批意见</th><th>请假原因</th>
-      </tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'hr-leave-list',
+  // 原打印抬头的「记录数」元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `请假申请单（记录数：${printableRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printableRows().map((r: any, i: number) => ({ ...r, __seq: i + 1 })),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

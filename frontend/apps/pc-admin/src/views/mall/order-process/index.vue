@@ -1078,13 +1078,18 @@
         />
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="mall-order-process"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import {
   ReloadOutlined, DownloadOutlined, PrinterOutlined, SettingOutlined
 } from '@ant-design/icons-vue'
@@ -1097,6 +1102,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { mallAdminOrderApi, mallOrderApi, mallTradeApi, type MallOrderAdmin } from '@/api/erp/mall'
 import { exportCsv } from '@/utils/exportCsv'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MallOrderProcess' })
 
@@ -1852,83 +1859,65 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8) / 批量打印：window.open + 内联 HTML 打印模板 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
-function buildPrintHtml(rows: OrderRow[]): string {
-  const isDoc = activeTab.value === 'doc'
-  const head = isDoc
-    ? ['#', '单据编号', '单据日期', '客户', '订单金额', '已结金额', '单据状态', '支付方式', '收货人', '联系电话', '收货地址', '卖家备注']
-    : ['#', '单据日期', '单据编号', '客户', '商品名称', '商品货号', '规格', '单位', '销售数量', '单价', '金额', '备注']
-  const body = rows.map((r, i) => {
-    const cells = isDoc
-      ? [
-          r.orderNo, fmtDateTime(r.orderDate), r.customerName, fmtMoney(r.totalAmount),
-          fmtMoney(r.settledAmount ?? r.receivedAmount),
-          MALL_STATUS_MAP[mallStatusOf(r)]?.label || mallStatusOf(r),
-          PAYMENT_METHOD_MAP[r.paymentMethod || ''] || r.paymentMethod,
-          r.consignee, r.consigneePhone,
-          r.consigneeAddress || r.shippingAddress, r.orderRemark || r.remark
-        ]
-      : [
-          fmtDateTime(r.orderDate), r.orderNo, r.customerName, r.productName, r.productCode,
-          r.specification, r.unit, fmtQty(r.saleQuantity), fmtMoney(r.unitPrice),
-          fmtMoney(r.amount), r.itemRemark
-        ]
-    return `<tr><td>${i + 1}</td>${cells.map(v => `<td>${escapeHtml(v ?? '')}</td>`).join('')}</tr>`
-  }).join('')
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>订单处理</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>订单处理（${isDoc ? '按单据' : '按明细'}）</h2>
-    <div class="meta">
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>${head.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-}
-
-function openPrintWindow(rows: OrderRow[]) {
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+// 两套表头随 Tab 切换，故用 printColumns() + useDataColumns 覆盖模板列。
+function printColumns(): any[] {
+  if (activeTab.value === 'doc') {
+    return [
+      { title: '单据编号', key: 'orderNo' },
+      { title: '单据日期', key: 'orderDate', formatter: (v: any) => fmtDateTime(v) },
+      { title: '客户', key: 'customerName' },
+      { title: '订单金额', key: 'totalAmount', align: 'right' },
+      { title: '已结金额', key: 'settledAmount', align: 'right' },
+      { title: '单据状态', key: 'status', formatter: (v: any, record: any) => MALL_STATUS_MAP[mallStatusOf(record)]?.label || mallStatusOf(record) },
+      { title: '支付方式', key: 'paymentMethod', formatter: (v: any) => PAYMENT_METHOD_MAP[v || ''] || v || '' },
+      { title: '收货人', key: 'consignee' },
+      { title: '联系电话', key: 'consigneePhone' },
+      { title: '收货地址', key: 'consigneeAddress', formatter: (v: any, record: any) => v || record.shippingAddress || '' },
+      { title: '卖家备注', key: 'orderRemark', formatter: (v: any, record: any) => v || record.remark || '' },
+    ]
   }
-  const win = window.open('', '_blank', 'width=1100,height=720')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(buildPrintHtml(rows))
-  win.document.close()
-  win.focus()
-  win.print()
+  return [
+    { title: '单据日期', key: 'orderDate', formatter: (v: any) => fmtDateTime(v) },
+    { title: '单据编号', key: 'orderNo' },
+    { title: '客户', key: 'customerName' },
+    { title: '商品名称', key: 'productName' },
+    { title: '商品货号', key: 'productCode' },
+    { title: '规格', key: 'specification' },
+    { title: '单位', key: 'unit' },
+    { title: '销售数量', key: 'saleQuantity', align: 'right' },
+    { title: '单价', key: 'unitPrice', align: 'right' },
+    { title: '金额', key: 'amount', align: 'right' },
+    { title: '备注', key: 'itemRemark' },
+  ]
 }
 
-function handlePrint() {
-  openPrintWindow(tableData.value)
+/** 打印行：已结金额缺失时回落「已收金额」（复刻原打印的 settledAmount ?? receivedAmount 口径） */
+function toPrintRows(rows: OrderRow[]): OrderRow[] {
+  return (rows || []).map(r => ({ ...r, settledAmount: r.settledAmount ?? r.receivedAmount }))
 }
 
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'mall-order-process',
+  title: '订单处理',
+  rows: () => toPrintRows(tableData.value),
+  selectedRows: () => toPrintRows(checkedRecords.value),
+  columns: () => printColumns(),
+  useDataColumns: true,
+  // 原打印抬头的 记录数 元信息行（打印时间由模板 pageHeader 自动带）
+  totalText: () => `${activeTab.value === 'doc' ? '按单据' : '按明细'}，记录数：${(checkedRecords.value.length ? checkedRecords.value : tableData.value).length}`,
+  emptyTip: '没有可打印的数据',
+})
+
+/** 批量打印：勾选行优先（与打印(F8) 同一入口，useListPrint 已按勾选行取数） */
 function handleBatchPrint() {
   if (!checkedRecords.value.length) {
     message.warning('请先勾选要打印的单据')
     return
   }
-  openPrintWindow(checkedRecords.value)
+  handlePrint()
 }
 
 function handleF8Key(e: KeyboardEvent) {

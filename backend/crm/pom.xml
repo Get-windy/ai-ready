@@ -24,6 +24,12 @@
             <groupId>cn.aiedge</groupId>
             <artifactId>core-base</artifactId>
         </dependency>
+    <!-- 打印服务依赖（登记单据打印装配器）⚠️ 依赖方向 crm → erp-printing 不成环 -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-printing</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
         <!-- 信用归属 ERP：CRM 客户页的「信用额度 / 当前欠款」按 md_partner_id 取往来单位的值 -->
         <dependency>

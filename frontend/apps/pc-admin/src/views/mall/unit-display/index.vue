@@ -284,6 +284,12 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="mall-unit-display"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -303,6 +309,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { productApi, productCategoryApi, type Product } from '@/api/erp/product'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MallUnitDisplay' })
 
@@ -610,67 +618,34 @@ async function handleBatchDisplay(target: number) {
   }
 }
 
-// ═══ 打印(F8)：与列表同口径渲染后打印 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
 function currentRows(): Product[] {
   return (tableData.value || []).filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = currentRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${isUnitDisplayed(r) ? '√' : '×'}</td>
-      <td>${escapeHtml(r.productName)}</td>
-      <td>${escapeHtml(r.productCodeAlias || r.productCode || '')}</td>
-      <td>${escapeHtml(formatMoney(r.retailPrice))}</td>
-      <td>${escapeHtml(formatMoney(r.wholesalePrice))}</td>
-      <td>${escapeHtml(r.barcode || '')}</td>
-      <td>${escapeHtml(r.spec || '')}</td>
-      <td>${escapeHtml(r.model || '')}</td>
-      <td>${escapeHtml(r.unit || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>单位显示</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>单位显示</h2>
-    <div class="meta">
-      <span>当前路径：${escapeHtml(currentPath.value)}</span>
-      <span>筛选条件：${escapeHtml(searchForm.keyword || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>单位显示</th><th>商品名称</th><th>商品货号</th><th>零售价</th><th>批发价</th><th>条码</th><th>规格</th><th>型号</th><th>单位</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '单位显示', key: 'unitDisplay', align: 'center', formatter: (v: any) => (v !== 0 ? '√' : '×') },
+  { title: '商品名称', key: 'productName' },
+  { title: '商品货号', key: 'productCode', formatter: (v: any, record: any) => record.productCodeAlias || v || '' },
+  { title: '零售价', key: 'retailPrice', align: 'right' },
+  { title: '批发价', key: 'wholesalePrice', align: 'right' },
+  { title: '条码', key: 'barcode' },
+  { title: '规格', key: 'spec' },
+  { title: '型号', key: 'model' },
+  { title: '单位', key: 'unit' },
+]
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'mall-unit-display',
+  title: '单位显示',
+  rows: () => currentRows(),
+  columns: () => printColumns,
+  // 原打印抬头的 路径/筛选/记录数 元信息行（打印时间由模板 pageHeader 自动带）
+  totalText: () => `当前路径：${currentPath.value}，筛选条件：${searchForm.keyword || '全部'}，记录数：${currentRows().length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 导出（前端 CSV，\uFEFF BOM 保证 Excel 中文不乱码） ═══
 function handleExport() {

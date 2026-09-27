@@ -427,6 +427,12 @@
         </div>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="marketing-auto-campaign"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -446,6 +452,8 @@ import {
   AUTO_TRIGGER_MAP, AUTO_ACTION_MAP, AUTO_TRIGGER_PARAM_LABEL,
   type AutoCampaign,
 } from '@/api/marketing'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MarketingAutoCampaign' })
 
@@ -796,44 +804,39 @@ function handleMore(e: any, record: any) {
   }
 }
 
-// ═══ 打印(F8) ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open()，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const PRINT_COLUMNS = [
+  { key: 'name', title: '规则名称' },
+  { key: 'triggerType', title: '触发点' },
+  { key: 'triggerDays', title: '触发参数' },
+  { key: 'actionType', title: '动作' },
+  { key: 'status', title: '状态' },
+  { key: 'lastRunTime', title: '最近执行' },
+  { key: 'lastRunSuccess', title: '最近成功数' },
+]
+function printCell(row: any, key: string): string {
+  if (key === 'triggerType') return AUTO_TRIGGER_MAP[row.triggerType] || ''
+  if (key === 'actionType') return AUTO_ACTION_MAP[row.actionType] || ''
+  if (key === 'status') return row.status === 1 ? '启用' : '停用'
+  if (key === 'lastRunTime') return fmtTime(row.lastRunTime)
+  if (key === 'lastRunSuccess') return String(row.lastRunSuccess ?? 0)
+  return row[key] == null ? '' : String(row[key])
 }
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>
-    <td>${escapeHtml(r.name)}</td>
-    <td>${escapeHtml(AUTO_TRIGGER_MAP[r.triggerType] || '')}</td>
-    <td>${escapeHtml(r.triggerDays ?? '')}</td>
-    <td>${escapeHtml(AUTO_ACTION_MAP[r.actionType] || '')}</td>
-    <td>${r.status === 1 ? '启用' : '停用'}</td>
-    <td>${escapeHtml(fmtTime(r.lastRunTime))}</td>
-    <td>${escapeHtml(r.lastRunSuccess ?? 0)}</td></tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>营销自动化规则</title>
-    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
-    h2{text-align:center;margin:0 0 12px;font-size:18px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
-    <h2>营销自动化规则</h2>
-    <table><thead><tr><th>#</th><th>规则名称</th><th>触发点</th><th>触发参数</th><th>动作</th>
-    <th>状态</th><th>最近执行</th><th>最近成功数</th></tr></thead><tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'marketing-auto-campaign',
+  // 列是原打印函数里写死的清单（与屏幕列不同），静态生成器写不进模板 → 明确按数据列打
+  useDataColumns: true,
+  title: '营销自动化规则',
+  columns: () => PRINT_COLUMNS.map(c => ({
+    key: c.key,
+    title: c.title,
+    formatter: (_v: any, row: any) => printCell(row, c.key),
+  })),
+  rows: () => (tableData.value || []).filter((r: any) => !r.__ghost),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

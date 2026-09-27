@@ -323,6 +323,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="payment-request-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -342,6 +348,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { paymentApi, PAYMENT_CHANNEL_MAP, PAYMENT_STATUS_MAP } from '@/api/payment'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'PaymentRequestList' })
 
@@ -567,65 +575,20 @@ function handleView(record: any) {
   detailVisible.value = true
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
 function printableRows(): any[] {
   return tableData.value.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = printableRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.bizType || '')}</td>
-      <td>${escapeHtml(r.bizNo || '')}</td>
-      <td style="text-align:right">${formatAmount(r.amount)}</td>
-      <td>${escapeHtml(PAYMENT_CHANNEL_MAP[r.channel]?.name || r.channel || '')}</td>
-      <td>${escapeHtml(r.channelOrderNo || '')}</td>
-      <td>${escapeHtml(PAYMENT_STATUS_MAP[r.status]?.text || '')}</td>
-      <td>${escapeHtml(fmtTime(r.createTime))}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>支付请求</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>支付请求</h2>
-    <div class="meta">
-      <span>业务单号：${escapeHtml(searchForm.bizNo || '全部')}</span>
-      <span>渠道：${escapeHtml(searchForm.channel || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>业务类型</th><th>业务单号</th><th>支付金额</th><th>支付渠道</th><th>渠道订单号</th><th>状态</th><th>创建时间</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'payment-request-list',
+  title: '支付请求',
+  rows: () => printableRows(),
+  columns: () => columns,
+  totalText: () => `业务单号：${searchForm.bizNo || '全部'} ｜ 渠道：${searchForm.channel || '全部'} ｜ 共 ${printableRows().length} 条`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

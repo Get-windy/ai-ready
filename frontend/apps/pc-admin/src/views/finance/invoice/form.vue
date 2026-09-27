@@ -891,6 +891,13 @@
         />
       </a-modal>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="finance-invoice"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -920,6 +927,7 @@ import {
   SettingOutlined,
   DownOutlined,
 } from '@ant-design/icons-vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'CrmInvoiceForm' })
 
@@ -1637,64 +1645,20 @@ function escapeHtml(v: any): string {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
   ))
 }
+// ═══ 打印（按单据打印） ═══
+// 发票：后端已为 pageCode='finance-invoice' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是自建 HTML + window.print()（打的是自己拼的那张表）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
 function handlePrint() {
-  const rows = form.items.map((i: any, index: number) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(i.itemCode || '')}</td>
-      <td>${escapeHtml(i.itemName || '')}</td>
-      <td>${escapeHtml(i.specification || '')}</td>
-      <td>${escapeHtml(i.unit || '')}</td>
-      <td style="text-align:right">${i.quantity ?? 0}</td>
-      <td style="text-align:right">${formatAmount(i.unitPrice)}</td>
-      <td style="text-align:right">${i.taxRate || 0}%</td>
-      <td style="text-align:right">${formatAmount(i.amount)}</td>
-      <td style="text-align:right">${formatAmount(i.taxAmount)}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>发票</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-      .sum{margin-top:8px;text-align:right;font-size:13px}
-    </style></head><body>
-    <h2>发票</h2>
-    <div class="meta">
-      <span>发票号码：${escapeHtml(form.invoiceNumber || '')}</span>
-      <span>发票类型：${escapeHtml(INVOICE_TYPE_TEXT[String(form.invoiceType)] || '')}</span>
-      <span>客户/供应商：${escapeHtml(form.customerName || form.supplierName || '')}</span>
-      <span>开票日期：${escapeHtml(form.invoiceDate || '')}</span>
-      <span>到期日：${escapeHtml(form.dueDate || '')}</span>
-      <span>状态：${escapeHtml(getStatusText(form.invoiceStatus))}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>商品编码</th><th>商品名称</th><th>规格型号</th><th>单位</th>
-      <th>数量</th><th>单价</th><th>税率%</th><th>金额</th><th>税额</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="sum">
-      不含税金额：¥${formatAmount(effectiveSubtotal.value)}
-      折扣：¥${formatAmount(form.discountAmount)}
-      运费：¥${formatAmount(form.shippingAmount)}
-      其他费用：¥${formatAmount(form.otherAmount)}
-      税额：¥${formatAmount(effectiveTax.value)}
-      <strong>价税合计：¥${formatAmount(effectiveTotal.value)}</strong>
-    </div>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=1200,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+  if (!form.id) {
+    message.warning('请先保存单据后再打印')
     return
   }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  printData.value = { id: form.id }
+  printDialogRef.value?.open?.()
 }
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

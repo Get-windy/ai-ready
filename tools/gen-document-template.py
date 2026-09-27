@@ -56,6 +56,14 @@ LABELS = {
     'location': '货位', 'storageLocation': '货位', 'remark': '备注', 'gift': '赠品', 'isGift': '赠品',
     'productionDate': '生产日期', 'expiryDate': '到期日期', 'shelfLife': '保质期',
     # 主数据/单表单据（页面的明细列里没有这些名字）
+    # 预算模块（JPA 模型，字段名自成一套）
+    'budgetNo': '预算单号', 'fiscalYear': '年度', 'templateName': '预算模板', 'departmentName': '部门',
+    'departmentId': '部门', 'totalApprovedAmount': '已下达', 'totalUsedAmount': '已使用',
+    'totalRemainingAmount': '剩余', 'totalFrozenAmount': '冻结', 'executionRate': '执行率',
+    'auditorName': '审核人', 'auditTime': '审核时间', 'auditRemark': '审核意见', 'budgetDate': '编制日期',
+    'subjectCode': '科目编码', 'subjectName': '科目名称', 'budgetAmount': '预算金额',
+    'usedAmount': '已用金额', 'remainingAmount': '剩余金额', 'frozenAmount': '冻结金额',
+    'sortOrder': '序号', 'budgetId': '预算单',
     'standardCode': '标准编号', 'standardName': '标准名称', 'inspectionType': '检验类型',
     'inspectionItems': '检验项目', 'sampleRate': '抽检比例(%)', 'passThreshold': '合格阈值',
     'description': '描述', 'status': '状态', 'docNo': '单号', 'docDate': '单据日期',

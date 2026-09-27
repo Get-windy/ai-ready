@@ -180,6 +180,12 @@
         />
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-ar-balance-sheet"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -199,6 +205,8 @@ import { partnerLedgerApi } from '@/api/analytics-finance'
 import { useExport } from '@/composables/useExport'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 import { QUICK_DATES, quickDateRange } from '../shared/docTypes'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsArBalanceSheet' })
 
@@ -454,28 +462,18 @@ function cellText(c: DetailColumnConfig, r: any): string {
   return c.formatter ? c.formatter(raw, r) : fmtText(raw)
 }
 
-function handlePrint() {
-  const cols = printableColumns.value
-  const header = cols.map(c => c.title)
-  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
-  const win = window.open('', '_blank', 'width=1400,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const html = `<html><head><meta charset="utf-8"><title>往来余额表</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
-    <h3>往来余额表（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列是 computed（多级表头叶子列按当前列配置过滤）→ 冻结不进模板，明确按数据列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-ar-balance-sheet',
+  // 标题带日期区间（与原打印抬头一致）
+  title: () => `往来余额表（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）`,
+  useDataColumns: true,
+  columns: () => printableColumns.value,
+  rows: () => rows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

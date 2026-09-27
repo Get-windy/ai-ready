@@ -574,6 +574,12 @@
         </template>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="set-initial-finance"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -597,6 +603,7 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import {
   initialFinanceApi,
+  type InitialFinanceDirection,
   type InitialFinanceQuery,
   type InitialFinanceType,
   type PeriodStatusResult,
@@ -604,6 +611,8 @@ import {
 } from '@/api/set/initial'
 import { accountSubjectApi } from '@/api/finance'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'SetInitialFinance' })
 
@@ -1551,68 +1560,18 @@ function formatAmount(value: any): string {
   return Number.isFinite(num) ? num.toFixed(2) : String(value)
 }
 
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
-/** 打印当前 Tab 的当前页（与屏幕同口径；F8 亦触发本方法） */
-function handlePrint() {
-  const tab = activeTabConfig.value
-  const rows = (tableData.value || []).filter(r => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const head = tab.kind === 'subject'
-    ? `<th>#</th><th>科目编号</th><th>科目名称</th>${tab.key === 'balanceSheet' ? '<th>借贷方向</th>' : ''}<th>期初金额</th>`
-    : `<th>#</th><th>${escapeHtml(tab.partnerLabel)}编号</th><th>${escapeHtml(tab.partnerLabel)}名称</th>`
-      + (tab.key === 'receivable'
-        ? '<th>默认经手人</th><th>应收金额</th><th>预收金额</th>'
-        : '<th>应付金额</th><th>预付金额</th>')
-  const body = rows.map((r: any, i: number) => {
-    const cells = tab.kind === 'subject'
-      ? `<td>${escapeHtml(r.subjectCode)}</td><td>${escapeHtml(r.subjectName)}</td>`
-        + (tab.key === 'balanceSheet' ? `<td>${r.direction === 'CREDIT' ? '贷方' : '借方'}</td>` : '')
-        + `<td style="text-align:right">${escapeHtml(formatAmount(r.openingAmount))}</td>`
-      : `<td>${escapeHtml(r.partnerCode)}</td><td>${escapeHtml(r.partnerName)}</td>`
-        + (tab.key === 'receivable'
-          ? `<td>${escapeHtml(r.defaultHandler)}</td>`
-            + `<td style="text-align:right">${escapeHtml(formatAmount(r.receivableAmount))}</td>`
-            + `<td style="text-align:right">${escapeHtml(formatAmount(r.advanceAmount))}</td>`
-          : `<td style="text-align:right">${escapeHtml(formatAmount(r.payableAmount))}</td>`
-            + `<td style="text-align:right">${escapeHtml(formatAmount(r.prepayAmount))}</td>`)
-    return `<tr><td>${i + 1}</td>${cells}</tr>`
-  }).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>${escapeHtml(tab.label)}</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>${escapeHtml(tab.label)}</h2>
-    <div class="meta">
-      <span>期初年度：${escapeHtml(searchForm.periodYear ?? '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 5 个 Tab 各一套列（科目/往来单位维度），故显式声明 useDataColumns：按当前 Tab 的列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'set-initial-finance',
+  title: () => activeTabConfig.value.label,
+  rows: () => (tableData.value || []).filter(r => !r.__ghost),
+  columns: () => activeColumns.value,
+  useDataColumns: true,
+  totalText: () => `期初年度：${searchForm.periodYear ?? '全部'} ｜ 共 ${(tableData.value || []).filter(r => !r.__ghost).length} 条`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

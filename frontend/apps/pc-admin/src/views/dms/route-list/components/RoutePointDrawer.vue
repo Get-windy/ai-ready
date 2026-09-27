@@ -69,7 +69,7 @@
         </a-button>
         <a-button
           size="small"
-          @click="printRoute"
+          @click="handlePrint"
         >
           <PrinterOutlined /> 打印路线单
         </a-button>
@@ -368,7 +368,19 @@ import RouteMapCanvas from '@/components/business/RouteMapCanvas/index.vue'
 import { geoFenceApi } from '@/api/dms/route'
 
 const props = defineProps<{ open: boolean; routeId?: number | null }>()
-const emit = defineEmits<{ 'update:open': [v: boolean]; changed: [] }>()
+const emit = defineEmits<{
+  'update:open': [v: boolean]
+  changed: []
+  /**
+   * 请求宿主打印当前这条路线。
+   *
+   * 抽屉是共享组件、没有业务上下文，**不自带打印**（与 md/components/PartnerListPage 同一规矩）：
+   * 只把「要打印的主键」交出去，由宿主的 handlePrint 走 `<PrintDialog page-code="dms-route-list">`
+   * ——后端装配器（DeliveryRoutePrintDataProvider）已按路线带出主档 + 全部点位。
+   * 传 { id } 是为了对上宿主 handlePrint(record) 的入参形状。
+   */
+  print: [record: { id: number }]
+}>()
 
 const visible = computed({
   get: () => props.open,
@@ -624,67 +636,16 @@ async function submitSign() {
   }
 }
 
-// ── 打印路线单（打印窗口，无需打印模板） ────────────────
-function printRoute() {
-  const d = detail.value
-  if (!d) {
+// ── 打印路线单：委托宿主 ────────────────────────────────
+// 原先是自拼 HTML + win.print()（打出来只这份抽屉的数据，且与全站模板引擎不一致）。
+// 现在只把主键交给宿主，由宿主调 handlePrint(record) 走 PrintDialog（模板 + 后端装配器）。
+function handlePrint() {
+  const id = detail.value?.id ?? props.routeId
+  if (!id) {
     message.warning('没有可打印的数据')
     return
   }
-  const rows = points.value.map(p => `
-    <tr>
-      <td>${p.pointOrder ?? ''}</td>
-      <td>${POINT_STATUS_MAP[p.status || ''] || p.status || ''}</td>
-      <td>${p.customerName || ''}</td>
-      <td>${p.customerPhone || ''}</td>
-      <td>${p.address || ''}</td>
-      <td>${fmt(p.signTime)}</td>
-      <td>${p.signee || ''}</td>
-      <td>${p.failReason || ''}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8" />
-    <title>配送路线单 ${d.routeCode}</title>
-    <style>
-      body { font-family: "Microsoft YaHei", sans-serif; padding: 16px; font-size: 12px; }
-      h2 { text-align: center; margin: 0 0 12px; }
-      .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px; margin-bottom: 12px; }
-      .meta div { border-bottom: 1px dotted #ccc; padding: 2px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
-      th { background: #f2f2f2; }
-    </style></head><body>
-    <h2>配送路线单</h2>
-    <div class="meta">
-      <div>路线编号：${d.routeCode || ''}</div>
-      <div>配送线路：${d.routeName || ''}</div>
-      <div>线路类型：${d.routeTypeText || ''}</div>
-      <div>配送员：${d.deliveryPersonName || ''}</div>
-      <div>车辆：${d.vehicleNo || ''}</div>
-      <div>计划日期：${d.planDate || ''}</div>
-      <div>状态：${d.statusText || ''}</div>
-      <div>完成进度：${d.completedPoints ?? 0} / ${d.totalPoints ?? 0}</div>
-      <div>总里程：${d.totalDistance != null ? d.totalDistance + ' km' : ''}</div>
-      <div>预计时长：${d.totalDuration != null ? d.totalDuration + ' 分钟' : ''}</div>
-      <div>实际时长：${d.actualDuration != null ? d.actualDuration + ' 分钟' : ''}</div>
-      <div>创建人：${d.createByName || ''}</div>
-    </div>
-    <table>
-      <thead><tr>
-        <th>序号</th><th>状态</th><th>客户名称</th><th>联系电话</th>
-        <th>地址</th><th>签收时间</th><th>签收人</th><th>失败原因</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    </body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) {
-    message.warning('打印窗口被浏览器拦截，请允许弹出窗口')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  setTimeout(() => win.print(), 300)
+  emit('print', { id: Number(id) })
 }
 
 // ── 地图查看（复用 RouteMapCanvas，不自建地图） ─────────

@@ -163,6 +163,12 @@
         @saved="fetchList"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-other-income"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -184,6 +190,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import SubjectEditorModal from '@/components/business/SubjectEditorModal/index.vue'
 import { mdOtherIncomeApi, type MdOtherIncomeInfo } from '@/api/md'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdOtherIncome' })
 
@@ -290,56 +298,26 @@ async function handleToggleEnabled(record: MdOtherIncomeInfo) {
   }
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '科目编号', key: 'subjectCode' },
+  { title: '科目名称', key: 'subjectName' },
+  { title: '核算项', key: 'auxiliaryTypeName' },
+]
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.subjectCode)}</td>
-      <td>${escapeHtml(r.subjectName)}</td>
-      <td>${escapeHtml(r.auxiliaryTypeName || '')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>其他收入</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>其他收入</h2>
-    <div class="meta">
-      <span>是否含停用：${searchForm.includeDisabled ? '是' : '否'}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>科目编号</th><th>科目名称</th><th>核算项</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1000,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const printableRows = () => (tableData.value || []).filter((r: any) => !r.__ghost)
+
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-other-income',
+  title: '其他收入',
+  rows: printableRows,
+  columns: () => printColumns,
+  // 原打印抬头的筛选/记录数元信息行（打印时间由模板 pageHeader 负责）
+  totalText: () => `是否含停用：${searchForm.includeDisabled ? '是' : '否'}，记录数：${printableRows().length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

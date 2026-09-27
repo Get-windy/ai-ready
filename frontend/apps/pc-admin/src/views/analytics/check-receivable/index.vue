@@ -297,6 +297,12 @@
         </div>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="analytics-check-receivable"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -322,6 +328,8 @@ import { formatMoney } from '../shared/docActions'
 import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
 import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
 import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'AnalyticsCheckReceivable' })
 
@@ -687,41 +695,26 @@ async function openReconcile(record: any) {
   }
 }
 
-// ═══ 打印(F8) ═══
 const printColumns = computed(() => activeColumns.value.filter(c => c.key !== 'action' && c.key !== 'rowNo'))
 
-function handlePrint() {
-  const header = printColumns.value.map(c => c.title)
-  const body = dataSource.value.map(r => printColumns.value.map(c => {
-    const v = r[c.key]
-    if (v === undefined || v === null) return ''
-    return c.align === 'right' ? formatMoney(v) : String(v)
-  }))
-  const win = window.open('', '_blank', 'width=1200,height=800')
-  if (!win) {
-    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
-    return
-  }
-  const total = printColumns.value.map(c => {
-    const found = summaryColumns.value.find(s => s.key === c.key)
-    return found ? formatMoney(found.value) : ''
-  })
-  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '查应收'
-  const html = `<html><head><meta charset="utf-8"><title>${tabLabel}</title>
-    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
-    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
-    tfoot td{font-weight:600}</style></head><body>
-    <h3>${tabLabel}（${query.dateRange[0]} ~ ${query.dateRange[1]}）</h3>
-    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-    <tfoot><tr>${total.map((v, i) => `<td>${i === 0 ? '合计' : v}</td>`).join('')}</tr></tfoot>
-    </table></body></html>`
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + window.open 打印窗口，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列随 Tab 变（应收/职员/部门，均 computed）→ 冻结不进模板，明确按数据列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'analytics-check-receivable',
+  title: () => `${TABS.find(t => t.key === activeTab.value)?.label || '查应收'}（${query.dateRange[0]} ~ ${query.dateRange[1]}）`,
+  useDataColumns: true,
+  columns: () => printColumns.value,
+  rows: () => dataSource.value,
+  // 原表尾合计取后端 summary（非本页求和），交给页脚打一行文字
+  totalText: () => {
+    const titleOf = new Map(printColumns.value.map(c => [c.key, c.title]))
+    return '合计：' + summaryColumns.value
+      .map(s => `${titleOf.get(s.key) || s.key} ${formatMoney(s.value)}`)
+      .join('，')
+  },
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if (e.key === 'F8') {

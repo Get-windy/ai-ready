@@ -329,6 +329,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="payment-refund-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -348,6 +354,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { refundApi, PAYMENT_CHANNEL_MAP, REFUND_STATUS_MAP } from '@/api/payment'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'PaymentRefundList' })
 
@@ -669,77 +677,23 @@ function showRecordRaw(record: any) {
   rawModalVisible.value = true
 }
 
-// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
-
 function printableRows(): any[] {
   const source = activeTab.value === 'request' ? tableData.value : recordData.value
   return source.filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = printableRows()
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const isRequest = activeTab.value === 'request'
-  const body = isRequest
-    ? rows.map((r: any, i: number) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(r.paymentId ?? '')}</td>
-        <td style="text-align:right">${formatAmount(r.amount)}</td>
-        <td>${escapeHtml(r.reason || '')}</td>
-        <td>${escapeHtml(r.applicantName || '')}</td>
-        <td>${escapeHtml(REFUND_STATUS_MAP[r.status]?.text || '')}</td>
-        <td>${escapeHtml(r.channelRefundNo || '')}</td>
-        <td>${escapeHtml(fmtTime(r.createTime))}</td>
-      </tr>`).join('')
-    : rows.map((r: any, i: number) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(r.requestId ?? '')}</td>
-        <td>${escapeHtml(PAYMENT_CHANNEL_MAP[r.channel]?.name || r.channel || '')}</td>
-        <td>${escapeHtml(r.channelRefundNo || '')}</td>
-        <td style="text-align:right">${formatAmount(r.amount)}</td>
-        <td>${escapeHtml(REFUND_RECORD_STATUS_MAP[r.status]?.text || '')}</td>
-        <td>${escapeHtml(fmtTime(r.callbackTime))}</td>
-      </tr>`).join('')
-  const head = isRequest
-    ? '<tr><th>#</th><th>支付请求ID</th><th>退款金额</th><th>退款原因</th><th>申请人</th><th>状态</th><th>渠道退款号</th><th>创建时间</th></tr>'
-    : '<tr><th>#</th><th>退款单ID</th><th>渠道</th><th>渠道退款号</th><th>退款金额</th><th>状态</th><th>回调时间</th></tr>'
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>退款管理</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>退款管理 · ${isRequest ? '按退款单' : '按退款明细'}</h2>
-    <div class="meta">
-      <span>渠道：${escapeHtml(searchForm.channel || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table><thead>${head}</thead><tbody>${body}</tbody></table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML 调浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 两个 Tab 两套列（按退款单 / 按退款明细），故显式声明 useDataColumns：按当前 Tab 的列打。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'payment-refund-list',
+  title: () => `退款管理 · ${activeTab.value === 'request' ? '按退款单' : '按退款明细'}`,
+  rows: () => printableRows(),
+  columns: () => (activeTab.value === 'request' ? requestColumns : recordColumns),
+  useDataColumns: true,
+  totalText: () => `渠道：${searchForm.channel || '全部'} ｜ 共 ${printableRows().length} 条`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

@@ -428,6 +428,12 @@
         </a-form-item>
       </a-form>
     </a-modal>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-payment-account"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -448,6 +454,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import type { StatCardItem } from '@/components/ARReportPage/types'
 import { financeAccountApi, type PaymentAccountInfo, type PaymentAccountQuery } from '@/api/md'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdPaymentAccount' })
 
@@ -847,65 +855,31 @@ async function handleExport() {
   }
 }
 
-// ═══ 打印(F8) ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是自己拼 HTML + 新开窗口打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 列取自原打印表格的 <th>（原「#」行号列由模板/引擎处理，不再由页面拼）。
+const printColumns: any[] = [
+  { title: '账户名称', key: 'accountName' },
+  { title: '账户编号', key: 'subjectCode' },
+  { title: '账户类型', key: 'accountType', formatter: (v: any) => ACCOUNT_TYPE_MAP[v]?.label || '' },
+  { title: '账户等级', key: 'accountLevel', formatter: (v: any) => ACCOUNT_LEVEL_MAP[v]?.label || '' },
+  { title: '开户银行', key: 'bankName' },
+  { title: '银行账号', key: 'bankAccount' },
+  // 账户余额是数值语义列：原样传数值，模板用 digits 显示（前端格式化会让模板求不了和）
+  { title: '账户余额', key: 'balance' },
+  { title: '币种', key: 'currency' },
+  { title: '状态', key: 'status', formatter: (v: any) => (v === 1 ? '启用' : '停用') },
+]
 
-function handlePrint() {
-  if (!tableData.value.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const rows = tableData.value.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.accountName)}</td>
-      <td>${escapeHtml(r.subjectCode)}</td>
-      <td>${escapeHtml(ACCOUNT_TYPE_MAP[r.accountType || 0]?.label || '')}</td>
-      <td>${escapeHtml(ACCOUNT_LEVEL_MAP[r.accountLevel || 0]?.label || '')}</td>
-      <td>${escapeHtml(r.bankName)}</td>
-      <td>${escapeHtml(r.bankAccount)}</td>
-      <td class="num">${formatMoney(r.balance)}</td>
-      <td>${escapeHtml(r.currency)}</td>
-      <td>${r.status === 1 ? '启用' : '停用'}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>支付账户</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-      .num{text-align:right}
-    </style></head><body>
-    <h2>支付账户</h2>
-    <div class="meta">
-      <span>筛选条件：${escapeHtml(searchValues.keyword || '全部')}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${tableData.value.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>账户名称</th><th>账户编号</th><th>账户类型</th><th>账户等级</th>
-        <th>开户银行</th><th>银行账号</th><th>账户余额</th><th>币种</th><th>状态</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-payment-account',
+  title: '支付账户',
+  rows: () => tableData.value,
+  columns: () => printColumns,
+  // 原打印抬头的一行元信息（打印时间由模板 pageHeader 负责）
+  totalText: () => `筛选条件：${searchValues.keyword || '全部'}，记录数：${tableData.value.length}`,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

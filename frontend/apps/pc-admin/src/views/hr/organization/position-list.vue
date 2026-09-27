@@ -415,6 +415,12 @@
         @change="handlePageConfigChange"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="hr-organization-position-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -439,6 +445,8 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import FormSection from '@/components/FormSection/index.vue'
 import { departmentApi } from '@/api/department'
 import { hrPositionApi, POSITION_LEVEL_MAP, type HrPosition } from '@/api/hr'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'HrPositionList' })
 
@@ -716,65 +724,35 @@ function handleDelete(record: HrPosition) {
   })
 }
 
-// ═══ 打印(F8)：岗位台账 ═══
-function escapeHtml(v: any): string {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
+// ═══ 打印（结果集打印）：岗位台账 ═══
+// 原先是自己拼 HTML + 浏览器打印，现在交给 PrintDialog：列与行由页面给，模板负责版式。
+// 打印列与原来的表格逐列对齐（# 行号、级别中文、空缺/超编口径都在 formatter 里还原）。
+const printColumns: any[] = [
+  { title: '#', key: '__seq', width: 40, align: 'center' },
+  { title: '岗位编码', key: 'positionCode' },
+  { title: '岗位名称', key: 'positionName' },
+  { title: '部门', key: 'deptName', formatter: (v: any) => v || '' },
+  { title: '岗位级别', key: 'positionLevel', formatter: (_v: any, r: any) => POSITION_LEVEL_MAP[r.positionLevel] || '' },
+  { title: '编制人数', key: 'quotaCount', formatter: (_v: any, r: any) => r.quotaCount ?? 0 },
+  { title: '在岗人数', key: 'currentCount', formatter: (_v: any, r: any) => r.currentCount ?? 0 },
+  { title: '空缺', key: 'vacancy', formatter: (_v: any, r: any) => vacancyOf(r) },
+  { title: '是否超编', key: 'overQuota', formatter: (_v: any, r: any) => (r.overQuota ? '超编' : '正常') },
+  { title: '状态', key: 'status', formatter: (v: any) => (v === 1 ? '启用' : '停用') },
+]
+
+/** 可打印行（去掉树形占位行）——标题里的记录数与表格行同源 */
+function printableRows(): any[] {
+  return (tableData.value || []).filter((r: any) => !r.__ghost)
 }
 
-function handlePrint() {
-  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
-  if (!rows.length) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  const body = rows.map((r: any, i: number) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(r.positionCode)}</td>
-      <td>${escapeHtml(r.positionName)}</td>
-      <td>${escapeHtml(r.deptName || '')}</td>
-      <td>${escapeHtml(POSITION_LEVEL_MAP[r.positionLevel] || '')}</td>
-      <td>${escapeHtml(r.quotaCount ?? 0)}</td>
-      <td>${escapeHtml(r.currentCount ?? 0)}</td>
-      <td>${escapeHtml(vacancyOf(r))}</td>
-      <td>${escapeHtml(r.overQuota ? '超编' : '正常')}</td>
-      <td>${escapeHtml(r.status === 1 ? '启用' : '停用')}</td>
-    </tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
-    <title>岗位台账</title>
-    <style>
-      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
-      h2{text-align:center;margin:0 0 12px;font-size:18px}
-      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
-      th{background:#f2f2f2}
-    </style></head><body>
-    <h2>岗位台账</h2>
-    <div class="meta">
-      <span>部门：${escapeHtml(currentDeptPath.value)}</span>
-      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
-      <span>记录数：${rows.length}</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>岗位编码</th><th>岗位名称</th><th>部门</th><th>岗位级别</th>
-        <th>编制人数</th><th>在岗人数</th><th>空缺</th><th>是否超编</th><th>状态</th>
-      </tr></thead>
-      <tbody>${body}</tbody>
-    </table></body></html>`
-  const win = window.open('', '_blank', 'width=1100,height=700')
-  if (!win) {
-    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-}
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'hr-organization-position-list',
+  // 原打印抬头的「部门/记录数」元信息行并入标题；打印时间由引擎按本次打印时间给
+  title: () => `岗位台账（部门：${currentDeptPath.value}，记录数：${printableRows().length}）`,
+  columns: () => printColumns,
+  rows: () => printableRows().map((r: any, i: number) => ({ ...r, __seq: i + 1 })),
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
