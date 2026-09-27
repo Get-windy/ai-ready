@@ -582,6 +582,10 @@
   - `admin` 用户 → `tenant_id=1`、`is_super_admin=true`、status=1；角色 `SUPER_ADMIN` 也在 `tenant_id=1`。
   - 租户 1 = `SYSTEM / 系统租户`（status=1）⇒ **代码硬编码 `SYSTEM_TENANT_ID=1L` 是正确的，不用改**。
   - 租户 0 = `tenant_mqd4cr9h`，**status=0 已禁用、无 admin_user_id** ⇒ **不是真租户，是注册测试残留**。
+    > ⚠️ **2026-09-27 补精确**：这一行**是存在的**，但 `deleted = 1`（**已软删**）——
+    > 所以它在任何带 `deleted = 0` 的租户列表里都看不见，容易被误述成"`sys_tenant` 里没有 0 号行"
+    > （`DOMAIN-MODEL-USER-PARTY-TENANT-v1.md` §6.5 曾有这处不准确表述，已订正）。
+    > **口径不变**：0 是共享层哨兵、**不是可用租户**。
   - 所以 `tenant_id=0` 的真实身份是**「全局/平台共享数据」的容器**，不是租户。
 - **`tenant_id=0` 上实际混着三类数据（实测分布）**：
 
