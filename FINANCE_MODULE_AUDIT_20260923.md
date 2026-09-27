@@ -463,7 +463,7 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 
 **✅ 本轮已修**：后端补 `POST /erp/receipt/batch-print`（与付款单对称），实测 200。⚠️ 仅消除契约不一致，**真打印仍未实现**（见「本轮修复记录」#3）。
 
-### 3.5 9 个空目录 + 7 个死页面【实测】
+### 3.5 9 个空目录 + 7 个死页面【实测 · 已处理 ✅】
 
 **空目录（`find` 确认 0 文件）**：`capital-flow`、`expense-apply`、`expense-pay`、`expense-reimburse`、`pre-receipt`、`report`、`subject`、`subsidiary-balance`、`trial-balance`（另有空子目录 `reconciliation/components`）。
 
