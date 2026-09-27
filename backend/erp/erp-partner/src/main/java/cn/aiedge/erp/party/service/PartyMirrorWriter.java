@@ -162,13 +162,25 @@ public class PartyMirrorWriter {
         }
     }
 
-    /** 主体被删除（逻辑删除）后调用：同步软删主档与全部贸易边。 */
+    /**
+     * 主体被删除（逻辑删除）后调用：同步软删**主档 + 三张子表 + 全部贸易边**。
+     *
+     * <p>⚠️ 子表必须一起删（2026-09-27 补）：批 2b 把三张子表纳入双写时只加了"写"忘了"删" ⇒
+     * 删掉一个主体后，它的证件/银行/地址行还挂着 `deleted = 0`，指向一个已软删的主体 ——
+     * 而 `V11.520.0`/`V11.521.0` 的迁移自检里**恰好有"子表不悬空"这条断言**
+     * （所以这个洞下次跑迁移就会炸出来，但那是迁移期才发现，已经晚了一步）。
+     * 删主体时一并软删，语义上也才对：证件/银行/地址是主体的附属物，主体没了它们就不该在。</p>
+     */
     public void onDelete(Long partyId) {
         if (partyId == null) {
             return;
         }
         inSavepoint("软删同步", partyId, null, () -> {
             mirrorMapper.softDeleteEdges(partyId);
+            mirrorMapper.softDeleteCert(partyId, CERT_BUSINESS_LICENSE);
+            mirrorMapper.softDeleteCert(partyId, CERT_TAX);
+            mirrorMapper.softDeleteDefaultBank(partyId);
+            mirrorMapper.softDeletePrimaryAddress(partyId);
             mirrorMapper.softDeleteParty(partyId);
         });
     }

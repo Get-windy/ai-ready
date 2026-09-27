@@ -69,8 +69,15 @@ done
 #     于是再跑本脚本就什么都看不到。加 `|| true` 后，空结果会走到下面的
 #     "==> 没有正在运行的后端实例" 分支。
 find_backend_pids() {
+  # ⚠️ 只匹配**jar 文件名**，不要把目录一起写进模式（2026-09-27 实踩）：
+  #   本脚本自己启动时用的是正斜杠相对路径（`backend/core/api/.../target/core-api-X-exec.jar`），
+  #   但**手工启动**的实例命令行里是**反斜杠**绝对路径（`I:\AI-Ready\backend\...\target\core-api-X-exec.jar`）
+  #   ⇒ 模式里带 `target/` 时匹配不到手工实例 ⇒ stop 静默"没找到"⇒ 旧实例还占着 jar
+  #   ⇒ `clean` 报「Failed to delete ...-exec.jar」，看着像磁盘/权限问题，实际是"没停掉旧实例"。
+  #   文件名是唯一的（`tool-results/` 下那两个副本另名 `core-api-mine.jar` / `core-api-verify-run.jar`，
+  #   不会被误伤），所以只按文件名匹配既安全、又与路径分隔符无关。
   powershell -NoProfile -Command \
-    "(Get-CimInstance Win32_Process -Filter \"Name='java.exe'\" | Where-Object { \$_.CommandLine -like '*target/core-api-${VERSION}-exec.jar*' }).ProcessId" \
+    "(Get-CimInstance Win32_Process -Filter \"Name='java.exe'\" | Where-Object { \$_.CommandLine -like '*core-api-${VERSION}-exec.jar*' }).ProcessId" \
     2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' || true
 }
 

@@ -16,7 +16,8 @@
  *      确定性地让 SALE 边写不进去，断言建档仍成功且**真落库**、镜像侧整体回滚；
  *   ⑥ 批 2 的 B 组商务条件 + **方向纯度** —— `credit_days` 是应收、`payment_days` 是应付，
  *      **绝不许跨方向照抄**（DOMAIN-MODEL §6.1 裁定 ⑲「账期不可传递」）；
- *   ⑦ 批 2b 的三张子表（证件/银行/地址）也被双写覆盖 + **清空即软删**（不留陈旧账户）。
+ *   ⑦ 批 2b 的三张子表（证件/银行/地址）也被双写覆盖 + **清空即软删**（不留陈旧账户）；
+ *   ⑧ 删主体时**子表也一起软删**（只加"写"忘加"删"会留下悬空子表行）。
  *
  * 【探针一律硬删】按名称前缀扫库删三张表（软删会占唯一键，第二次跑不通）；
  *   ⑤ 用的诱导约束也在 `finally`/`cleanup` 两处必摘（留在这里会静默停掉所有 SALE 边）。
@@ -379,6 +380,44 @@ function cleanup() {
       num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=0`) === 0
         && num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=1`) === 1,
       `未删=${num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=0`)}`)
+
+    section('⑧ 删除路径：删主体必须把**子表也一起软删**（否则留下悬空行）')
+    // 为什么单列一组：批 2b 把三张子表纳入双写时**只加了"写"、忘了"删"** ⇒
+    // 删掉主体后它的证件/银行/地址行还挂着 deleted=0、指向一个已软删的主体。
+    // 而 V11.520.0/V11.521.0 的迁移自检里恰好有"子表不悬空"这条断言 ⇒ 这个洞会在
+    // **下一次跑迁移**时才炸出来（那时已经隔了一版，难定位）。删主体一并软删才是对的语义：
+    // 证件/银行/地址是主体的附属物，主体没了它们就不该在。
+    const R8 = `${PREFIX}${Date.now()}`
+    const CODE_DEL = `E2EDWDEL${Date.now()}`
+    const r8 = await req('POST', '/erp/md/customer', {
+      token, body: {
+        partnerCode: CODE_DEL, partnerName: R8 + '删', partnerType: 'customer', roles: 'CUSTOMER',
+        taxNumber: '91310000E2EDEL001', bankName: 'E2E待删银行', bankAccount: '6222000000000099',
+        address: 'E2E待删路 9 号', province: '北京市', city: '北京市', district: '朝阳区',
+      },
+    })
+    const id8 = r8.json?.data?.id
+    /** 五类"跟着主体走"的行各还剩几条未删（0 = 已全部软删） */
+    const alive8 = () => ({
+      主档: num(`SELECT count(*) FROM party          WHERE id=${id8}         AND deleted=0`),
+      边: num(`SELECT count(*) FROM party_tenant   WHERE party_id=${id8}   AND deleted=0`),
+      证件: num(`SELECT count(*) FROM party_cert     WHERE party_id=${id8}   AND deleted=0`),
+      银行: num(`SELECT count(*) FROM party_bank     WHERE party_id=${id8}   AND deleted=0`),
+      地址: num(`SELECT count(*) FROM party_address  WHERE party_id=${id8}   AND deleted=0`),
+    })
+    // ⚠️ 删前必须确认这些行**本来就在**：否则"删后都是 0"可能只是因为从来没建过（假绿）
+    const before8 = alive8()
+    ok('删前：主档 + 边 + 证件 + 银行 + 地址五类行都在',
+      Object.values(before8).every(v => v === 1), JSON.stringify(before8))
+
+    const del = await req('DELETE', `/erp/md/customer/${id8}`, { token })
+    ok('删除成功（HTTP 200）', del.status === 200, `status=${del.status}`)
+    const after8 = alive8()
+    ok('主档 / 边 / 证件 / 银行 / 地址**全部**跟着软删（不留悬空行）',
+      Object.values(after8).every(v => v === 0), JSON.stringify(after8))
+    ok('biz_party 自己也软删了',
+      num(`SELECT count(*) FROM biz_party WHERE id=${id8} AND deleted=0`) === 0,
+      `未删=${num(`SELECT count(*) FROM biz_party WHERE id=${id8} AND deleted=0`)}`)
   } finally {
     console.log('\n—— 现场还原（探针一律硬删）——')
     cleanup()
