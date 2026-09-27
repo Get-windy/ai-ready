@@ -148,4 +148,39 @@ DELETE FROM sys_role_permission WHERE create_time >= '<执行时间>' AND create
 
 ---
 
+---
+
+## 七、执行记录（2026-09-27 · 已按方案 B 落地）
+
+**用户裁定：按方案 B 执行。** 实际执行内容：
+
+**① 修复权限模型的两个缺陷**（见 `PERMISSION_MODEL_RESEARCH_20260927.md` §4）
+- 清理 `sys_user_role` 重复数据：删除 1 条（用户 `e2e_route_doc` 重复挂的 SUPER_ADMIN），46 → **45** 行
+- 补唯一约束 `uk_sys_user_role_user_role UNIQUE(user_id, role_id)`
+- 已固化为迁移 `V11.522.0__Unique_User_Role_Constraint.sql`（幂等，含清重 + `DO $$` 判存在加约束）
+
+**② 按岗责新建 4 个财务角色并授权**（脚本 `tools/seed-finance-role-positions.sql`，幂等）
+新建角色（`tenant_id=1`，`scope=TENANT`）：`FINANCE_MANAGER` 财务主管 / `FINANCE_ACCOUNTANT` 会计 /
+`FINANCE_CASHIER` 出纳 / `BUDGET_ADMIN` 预算管理员；共授权 **462** 条 `sys_role_permission`。
+
+**SoD 自检（实测）**：
+
+| 角色 | 总码数 | 制单类 | 审批类 |
+|---|---|---|---|
+| 财务主管 | 102 | **0** ✅ | 11 |
+| 会计 | 156 | 72 | **0** ✅ |
+| 出纳 | 98 | 10 | 0 |
+| 预算管理员 | 106 | 12 | 2 |
+
+> 财务主管持有 `finance:voucher:audit/post/reverse`、各 `*:approve`；会计持有 `*:create/update/submit/delete`。
+> **审批人 ≠ 制单人**，职责分离成立。
+
+**③ 尚未做（需业务决定，非技术问题）**
+- **角色尚未分配给任何员工** —— 「谁是财务主管/会计/出纳」是组织人事决定，脚本只建角色、不分配。
+  分配入口：`sys_user_role`（现在已有唯一约束保护）。
+- **多租户范围**：本次 4 个角色建在 **`tenant_id=1`（系统租户）**。
+  若希望**每个租户**都有这套岗责角色，需在**租户初始化流程**里复制（属产品设计，未擅自决定）。
+- 预算管理员的 2 个审批类码（`budget:*:approve`）：当前设计是"预算岗既编制又审批"。
+  若需**严格 SoD**，预算也应按「编制 / 审批」再拆两个角色。
+
 **待你拍板**：先执行**方案 A**，还是直接上**方案 B**（需要你先给岗位划分）？
