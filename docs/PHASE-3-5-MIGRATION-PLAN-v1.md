@@ -91,8 +91,22 @@
 `mkt_stored_card.partner_id` · `mkt_stored_card_flow.partner_id`（后两者数据仅 1~2 行，**样本太少**，
 靠现有数据无法定性）。**另**：`erp_capital_flow.party_id` 已定性为**多态引用**，须与 `partyType` 一起处理。
 
-⇒ **印证了方案 §3.2 的判断**：**"数据侧成立" ≠ "引用关系成立"**；正因为如此，
-**读路径切换前必须先把上表这 7 处人工确认掉**，不能拿"14 处"当既成事实去改代码。
+**✅ 2026-09-27 结案：这 4 处全部确认为 `biz_party`（往来单位），"样本太少"不再构成障碍。**
+
+| 处 | 结案依据（**代码证据是决定性的那一证**） | 数据 |
+|---|---|---|
+| `erp_partner_attachment.partner_id` | `MdCustomerController:858` 用 `getPartnerId` 按 party id 统计附件、`:878` 随即按**同一个 id** 删主体；`PartyAttachmentController:29` 的路径变量本就叫 `partyId`；前端 `partner.ts:522` 以客户表单 id 调 `getByPartner` | 11/11 命中 `biz_party`；contact 命中 6/11 是**小整数主键重叠噪声**、非语义指向 |
+| `mkt_sms_consent.partner_id` | `SmsSendServiceImpl:103` 取的 `receiverId` 来自 `MarketingQueryMapper:70` 的 `SELECT p.id AS partner_id FROM biz_party p` —— **来源追清了**，不是联系人 | 10/10 命中 `biz_party`、contact 0/10 |
+| `mkt_stored_card.partner_id` | `StoredCardController:93` 收 card；前端 `stored-card/index.vue:675` 写 `issueForm.partnerId = record.id`，而 `record` 出自 `PartnerSelectModal`（数据源 `/erp/md/customer/page`，**往来单位单一口径**）；`StoredCardAccountingServiceImpl:96` 又把它当 `customerId` 推应收 | 1/1（样本虽少但**代码链完整**） |
+| `mkt_stored_card_flow.partner_id` | `StoredCardServiceImpl:223` `setPartnerId(card.getPartnerId())`、`StoredCardExpireJob:105` 同源 ⇒ **纯衍生自卡**、非独立写入 ⇒ 随卡定性 | 1/1 |
+
+结果已回写 `tools/refsurface.csv`（这 4 行的 verdict 从"待人工确认"改为"✅ 指向 biz_party"）。
+
+⇒ **现在只剩 1 处是"不能当 `biz_party.id` 唯一处理"的**：`erp_capital_flow.party_id`（多态，
+须与 `partyType` 一起处理）。**那不是"待确认"，是"待按类型分派"** —— 切读时它要单独一套处理。
+
+⇒ **印证了方案 §3.2 的判断**：**"数据侧成立" ≠ "引用关系成立"**；"样本太少"这个理由本身也说明
+**不能只靠数据**——上面 4 处最后都是被**代码证据**（谁把什么对象的 id 写进去）结掉的。
 
 **三条必须记住的实测警告**：
 

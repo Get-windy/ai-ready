@@ -52,7 +52,7 @@ erp_expense_doc,partner_id,bigint,28,28,25,0,指向 biz_party,铁证：ExpenseDo
 erp_initial_finance_partner,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_loyalty_card,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_loyalty_coupon,partner_id,bigint,44,44,12,0,指向 biz_party,已结案（强证据）：PromotionEngineImpl:349-350 把 coupon.getPartnerId() 与 req.getCustomerId() 直接比较 ⇒ 两者同一域 ⇒ 本列就是**客户**（biz_party.id）；实体注释「关联往来单位联系人」**过时**（数据 44/44 命中 biz_party、contact=0 亦佐证）,（本列留空：留待业务/文档侧确认）
-erp_partner_attachment,partner_id,bigint,11,11,0,6,指向 biz_party,无注释；表名=挂在往来单位上的附件，数据 11/11 命中 biz_party（contact 也命中 6）⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
+erp_partner_attachment,partner_id,bigint,11,11,0,6,✅ 指向 biz_party（2026-09-27 结案）,代码证据：MdCustomerController:858 用 getPartnerId 按 party id 统计附件、:878 随即按同 id 删主体；PartyAttachmentController:29 的路径变量本就叫 partyId；前端 partner.ts:522 以客户表单 id 调 getByPartner。contact 命中 6/11 是小整数主键重叠噪声、非语义指向,PHASE-3-5 §3.2 复核
 erp_partner_contact,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_partner_logistics_ext,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_partner_role,partner_id,bigint,0,0,0,0,全空（无从判定）,,
@@ -66,9 +66,9 @@ mkt_auto_campaign_log,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_coupon_customer,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_points_batch,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 mkt_points_journal,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-mkt_sms_consent,partner_id,bigint,8,8,0,0,指向 biz_party,无注释；同域 AutoCampaignServiceImpl:107 由某 info 的 id 赋值 ⇒ 来源未追清 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
-mkt_stored_card,partner_id,bigint,1,1,0,0,指向 biz_party,无注释；且数据仅 1 行 ⇒ 样本太少 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
-mkt_stored_card_flow,partner_id,bigint,1,1,0,0,指向 biz_party,无注释；数据仅 2 行 ⇒ 样本太少 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
+mkt_sms_consent,partner_id,bigint,10,10,0,0,✅ 指向 biz_party（2026-09-27 结案）,代码证据：SmsSendServiceImpl:103 取的 receiverId 来自 MarketingQueryMapper:70 的 SELECT p.id AS partner_id FROM biz_party p（不是联系人）；数据 10/10 命中 biz_party、contact 0/10 ⇒ 旧「来源未追清」已结案,PHASE-3-5 §3.2 复核
+mkt_stored_card,partner_id,bigint,1,1,0,0,✅ 指向 biz_party（2026-09-27 结案，样本仅 1 行但代码链完整）,代码证据：StoredCardController:93 收 card；前端 stored-card/index.vue:675 写 issueForm.partnerId=record.id、而 record 出自 PartnerSelectModal（数据源 /erp/md/customer/page，往来单位单一口径）；StoredCardAccountingServiceImpl:96 又把它当 customerId 推应收 ⇒ 只能是 biz_party.id,PHASE-3-5 §3.2 复核
+mkt_stored_card_flow,partner_id,bigint,1,1,0,0,✅ 指向 biz_party（2026-09-27 结案）,代码证据：StoredCardServiceImpl:223 setPartnerId(card.getPartnerId()) 、StoredCardExpireJob:105 同源 ⇒ 纯衍生自 mkt_stored_card、非独立写入 ⇒ 随卡定性、不可能单独指向联系人,PHASE-3-5 §3.2 复核
 wms_borrow_order,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 agreement_signature,party_id,bigint,0,0,0,0,全空（无从判定）,,
 biz_party_address,party_id,bigint,0,0,0,0,全空（无从判定）,,
