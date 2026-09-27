@@ -407,7 +407,7 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 
 ## 三、P1 严重问题
 
-### 3.1 17 条财务菜单在普通租户下被整批过滤【实测+读码】
+### 3.1 17 条财务菜单在普通租户下被整批过滤【实测+读码 · 已修 ✅】
 
 `SysMenuServiceImpl.getUserMegaMenus` 对「非系统租户 + 非超管」强制 `wrapper.eq(SysMenu::getMenuLevel, 0)`（`:277-279`）。
 
@@ -416,6 +416,10 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 > 按单收款(80100) · 收款单(80101) · 预收款单(80102) · 提现存现转款(80103) · 待确认款项(80104) · 在线支付对账单(80105) · 按单付款(80110) · 付款单(80111) · 预付款单(80112) · 费用单(80115) · 其他收入(80116) · 应收应付调整(80117) · 会计凭证(80120) · 月结(80121) · 对账(80122) · 预算编制(80130) · 预算执行(80131)
 
 **后果**：普通租户登录后，**收付款、费用、凭证、预算这些核心录入页在导航里根本不出现**。超管（系统租户）不受影响 —— 所以开发/验证时发现不了。
+
+> **✅ 已修（2026-09-27 复核）**：全库 `menu_level` 分布已变为 `0:374 / 1:39`（**不再有取值 3**），
+> 财务域 39 条菜单**全部为 `menu_level=0`**；原 17 条（80101/80111/80115/80120/80130…）
+> 实测均为 `menu_level=0, visible=1, client_type=tenant-admin` ⇒ 普通租户可见。**本条已闭环。**
 
 ### 3.2 财务总览工作台 4/6 快速入口点了必 404【实测 · 本轮已修 ✅】
 
@@ -493,7 +497,7 @@ accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
 | 指标 | 数值 |
 |---|---|
 | 财务语义权限码 | **217**（`finance:` 138） |
-| 仅 SUPER_ADMIN 持有 | **201 / 217** |
+| 仅 SUPER_ADMIN 持有 | **156 / 208**（2026-09-27 复核；审计当时为 201/217，已有改善但仍是大头） |
 | 非超管角色实际持有的财务码 | SYSTEM_ADMIN 与 DEPT_ADMIN **各 16 个、完全相同**（仅月结/其他收入/会计期间/对账） |
 | 库中存在但代码零引用（僵尸码） | 5（与仓内 `permission-effectivity.json` 完全一致） |
 | 未关联任何角色的码 | 0 |
