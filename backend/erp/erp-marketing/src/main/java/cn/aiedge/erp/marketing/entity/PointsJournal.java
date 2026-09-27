@@ -25,6 +25,12 @@ public class PointsJournal {
     public static final String USE = "USE";
     public static final String EXPIRE = "EXPIRE";
     public static final String ADJUST = "ADJUST";
+    /**
+     * **期初入账**：把旧模型存在 `biz_party.points` 上的存量积分为搬迁进台账（`V11.523.0`）。
+     * ⚠️ 单独立一个类型而不是复用 {@code ADJUST}：否则"期初"与"人工调整"在台账里再也分不开，
+     * 而审计/对账恰恰要能单独把期初捞出来（对账口径 = 期初 + 后续变动 = 当前余额）。
+     */
+    public static final String OPENING = "OPENING";
 
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;

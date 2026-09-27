@@ -24,6 +24,27 @@ public interface PointsLedgerService {
     /** 台账：某会员的批次列表（按到期时间升序） */
     List<PointsBatch> listBatches(String memberCardNo);
 
+    // ══════════════════ 按「主体」的一组（`partner_id` 维度） ══════════════════
+    //
+    // 为什么需要它们（2026-09-27 实测出来的真实约束，不是"接口对称好看"）：
+    //   ① **零售结算是按 `party id` 找会员的**（`RetailOrderServiceImpl.applyMemberPoints`
+    //      用 `order.getCustomerId()` 直接 `selectById`），它手里**没有卡号**；
+    //   ② 旧模型允许"客户有积分但没卡"：实测未删的 4 个有积分主体里有 1 个没卡号
+    //      ⇒ 上面那三个按卡号的方法（`earn` 第一行就 `memberCardNo == null → return null`）
+    //      **对它们完全不可用**。
+    // 台账表本来就有 `partner_id` 列（`earn/use` 的签名里也有），所以"按主体"是**账本来就支持、
+    // 只是没暴露**。⚠️ 能拿到卡号时仍写进批次/流水（保持"卡视图"与"主体视图"一致），
+    // 拿不到就写 NULL —— 这正是 V11.523.0 期初搬运时那 1 行的形态。
+
+    /** 按**主体**查可用积分（该主体全部未过期批次剩余之和；没有卡号也能查） */
+    BigDecimal availableByPartner(Long partnerId);
+
+    /** 按**主体**记一笔积分获得（写批次 + EARN 流水；自动带上该主体已有的卡号，没有则空） */
+    Long earnByPartner(Long partnerId, BigDecimal points, String source, String billNo);
+
+    /** 按**主体**记一笔积分使用（FIFO 扣该主体的批次 + USE 流水） */
+    BigDecimal useByPartner(Long partnerId, BigDecimal points, String billNo);
+
     /**
      * 记一笔积分获得（写批次 + EARN 流水）
      *

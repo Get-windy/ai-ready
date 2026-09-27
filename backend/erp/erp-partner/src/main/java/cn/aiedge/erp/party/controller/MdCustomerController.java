@@ -1558,36 +1558,28 @@ public class MdCustomerController {
             party.setOpeningPreReceived(new BigDecimal(body.get("openingPreReceived").toString()));
         }
 
-        // ── 会员信息（会员管理子标签 / 表单会员信息分区） ──
-        String memberName = str(body.getOrDefault("memberName", null));
-        if (memberName != null) party.setMemberName(memberName.isEmpty() ? null : memberName);
-        String memberCardNo = str(body.getOrDefault("memberCardNo", null));
-        if (memberCardNo != null) party.setMemberCardNo(memberCardNo.isEmpty() ? null : memberCardNo);
-        String memberLevel = str(body.getOrDefault("memberLevel", null));
-        if (memberLevel != null) party.setMemberLevel(memberLevel.isEmpty() ? null : memberLevel);
-        String memberCardStatus = str(body.getOrDefault("memberCardStatus", null));
-        if (memberCardStatus != null) party.setMemberCardStatus(memberCardStatus.isEmpty() ? null : memberCardStatus);
-        if (body.get("memberValidStart") != null) {
-            party.setMemberValidStart(parseDate(String.valueOf(body.get("memberValidStart"))));
-        }
-        if (body.get("memberValidEnd") != null) {
-            party.setMemberValidEnd(parseDate(String.valueOf(body.get("memberValidEnd"))));
-        }
-        if (body.get("memberIssueTime") != null) {
-            LocalDateTime mit = parseDateTime(String.valueOf(body.get("memberIssueTime")));
-            if (mit != null) party.setMemberIssueTime(mit);
-        }
+        // ── 会员信息：**本条已按「会员 = 自然人/卡属性」停写（2026-09-27）** ──
+        //
+        // 12 个会员列里停这 10 个：
+        //   `member_card_no` `member_name` `member_level` `member_card_status` `member_valid_start`
+        //   `member_valid_end` `member_issue_time` `points` `member_initial_points` `member_total_consume`
+        // 它们都不是"往来单位主体"的属性，而是**会员/卡**的属性：
+        //   · 积分余额 → 权威载体改为**只追加台账** `mkt_points_batch`/`mkt_points_journal`
+        //     （行业口径：余额绝不落主档 —— 重试会重复发放、并发会丢更新、
+        //      "我的积分去哪了"答不出来、出错没法安全更正）；
+        //   · 卡与等级 → `erp_loyalty_card`（卡号/等级/状态/有效期/发卡时间）+ `erp_member_level`（等级规则）；
+        //   · `member_total_consume` 是**派生量**（从销售单聚合），尤其不该做成能被表单随手改的字段 ——
+        //     它是等级升级判据（`MemberLevelRuleController`），手改它等于手改会员等级。
+        //   ⚠️ **前端必须同批改**（`views/erp/md/customer/form.vue` 会员区、
+        //   `components/MemberCardModal.vue`、`views/marketing/member-manage/index.vue`），
+        //   否则会变成"保存成功但回显丢失"的半死状态。
+        //
+        // 保留两列（**明知而保留**，不是漏改）：
+        //   · `birthday` —— 生日营销按**主体**维度跑（`AutoCampaignQueryMapper.selectBirthday` 读它），
+        //     要挪到自然人侧得先有可靠的自然人主体（`shop_user` 当时才 1 行）⇒ 挪不动，保留；
+        //   · `customer_one_pass` —— 业务标识，预售报表直接用（`PreOrderAnalysisReportServiceImpl`）。
         if (body.get("birthday") != null) {
             party.setBirthday(parseDate(String.valueOf(body.get("birthday"))));
-        }
-        if (body.get("points") instanceof Number) {
-            party.setPoints(((Number) body.get("points")).intValue());
-        }
-        if (body.get("memberInitialPoints") instanceof Number) {
-            party.setMemberInitialPoints(((Number) body.get("memberInitialPoints")).intValue());
-        }
-        if (body.get("memberTotalConsume") instanceof Number) {
-            party.setMemberTotalConsume(new BigDecimal(body.get("memberTotalConsume").toString()));
         }
 
         // 额度

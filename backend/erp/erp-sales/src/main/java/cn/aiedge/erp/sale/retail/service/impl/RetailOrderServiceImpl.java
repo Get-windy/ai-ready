@@ -43,6 +43,12 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     private final RetailOrderItemMapper retailOrderItemMapper;
     private final RetailOrderPaymentMapper retailOrderPaymentMapper;
     private final PartyMapper partyMapper;
+    /**
+     * 积分台账（**余额的权威载体**）。
+     * erp-sales 本来就依赖并已 import erp-marketing（`SaleOrderServiceImpl` 用了它的促销引擎），
+     * 所以这里直接注入，没有新增模块依赖、也不构成循环。
+     */
+    private final cn.aiedge.erp.marketing.service.PointsLedgerService pointsLedgerService;
     private final ProductMapper productMapper;
     private final StockMapper stockMapper;
     private final StockService stockService;
@@ -645,7 +651,24 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
      * 会员积分闭环：
      * 产生积分 = 应收金额（1 元 = 1 分，向下取整；单据显式传入时以单据为准）
      * 使用积分 = 单据传入值（不能超过会员当前可用积分）
-     * 结果写回 erp_retail_order（此前/当前积分）并同步 biz_party.points
+     * 结果写回 erp_retail_order（此前/当前积分）。
+     *
+     * <p>⚠️ **2026-09-27 改口径：余额的权威载体是积分台账，不再是 `biz_party.points`。**</p>
+     * 行业口径（多方一致）：**绝不把可变余额存在主档上** —— 那样会同时坏在四处：
+     * 重试重复发放、并发丢更新、"我的积分去哪了"答不出来、出错没法安全更正。
+     * 正确形态是「**只追加台账 + 派生余额**」；本仓台账（`mkt_points_batch` 批次 +
+     * `mkt_points_journal` 流水，FIFO + 到期）**早就实现了，只是主链路一直绕过它**。
+     *
+     * <p>两处细节不是随手写的：</p>
+     * <ol>
+     *   <li><b>按主体（`partner_id`）而不是按卡号</b>：本方法手里只有 `order.getCustomerId()`
+     *       （= party id），**没有卡号**；而旧数据里存在"有积分没卡"的主体 ⇒ 台账的卡号版 API
+     *       （`earn` 第一行就 `memberCardNo == null → return null`）在这里用不了。</li>
+     *   <li><b>先扣后赚</b>：先用掉本单要抵扣的分，再发放本单产生的分 —— 免得出现
+     *       "用掉刚产生的那一笔"这种说不清的边界；可用额度校验也在扣减之前做。</li>
+     * </ol>
+     * <p>幂等：同一张零售单（`retailNo`）重复调用不会重复入账（台账侧按业务事件判重、
+     * 数据库唯一索引兜底），所以这里不需要额外的状态判断。</p>
      */
     private void applyMemberPoints(RetailOrder order) {
         if (order.getCustomerId() == null) return;
@@ -660,19 +683,26 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
         BigDecimal used = order.getMemberUsedPoints() != null ? order.getMemberUsedPoints() : BigDecimal.ZERO;
         if (used.compareTo(BigDecimal.ZERO) < 0) used = BigDecimal.ZERO;
 
-        int available = member.getPoints() != null ? member.getPoints() : 0;
-        if (used.compareTo(new BigDecimal(available)) > 0) {
-            throw BusinessException.badRequest(String.format("会员积分不足: 可用%d，本次使用%s", available, used.stripTrailingZeros().toPlainString()));
+        // 可用积分以**台账**为准（不再读 biz_party.points）
+        BigDecimal available = pointsLedgerService.availableByPartner(member.getId());
+        if (used.compareTo(available) > 0) {
+            throw BusinessException.badRequest(String.format("会员积分不足: 可用%s，本次使用%s",
+                    available.stripTrailingZeros().toPlainString(), used.stripTrailingZeros().toPlainString()));
         }
 
-        int current = available + generated.intValue() - used.intValue();
-        order.setPrevPoints(available);
+        String billNo = order.getRetailNo();
+        if (used.compareTo(BigDecimal.ZERO) > 0) {
+            pointsLedgerService.useByPartner(member.getId(), used, billNo);
+        }
+        if (generated.compareTo(BigDecimal.ZERO) > 0) {
+            pointsLedgerService.earnByPartner(member.getId(), generated, "RETAIL", billNo);
+        }
+        BigDecimal current = pointsLedgerService.availableByPartner(member.getId());
+
+        order.setPrevPoints(available.intValue());
         order.setMemberGeneratedPoints(generated);
         order.setMemberUsedPoints(used);
-        order.setCurrentPoints(new BigDecimal(current));
-
-        member.setPoints(current);
-        partyMapper.updateById(member);
+        order.setCurrentPoints(current);
     }
 
     /**
