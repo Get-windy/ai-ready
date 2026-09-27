@@ -157,7 +157,11 @@ DELETE FROM sys_role_permission WHERE create_time >= '<执行时间>' AND create
 **① 修复权限模型的两个缺陷**（见 `PERMISSION_MODEL_RESEARCH_20260927.md` §4）
 - 清理 `sys_user_role` 重复数据：删除 1 条（用户 `e2e_route_doc` 重复挂的 SUPER_ADMIN），46 → **45** 行
 - 补唯一约束 `uk_sys_user_role_user_role UNIQUE(user_id, role_id)`
-- 已固化为迁移 `V11.522.0__Unique_User_Role_Constraint.sql`（幂等，含清重 + `DO $$` 判存在加约束）
+- 已固化为迁移 `V11.525.0__Unique_User_Role_Constraint.sql`（幂等，含清重 + `DO $$` 判存在加约束）
+  ⚠️ 2026-09-27 16:2x 改号：原为 `V11.522.0`，与同批积分工作新增的
+  `V11.522.0__Points_Ledger_Idempotency_Keys.sql` 撞号 ⇒ 本迁移让号到 `V11.525.0`
+  （本文件自包含、无内部版本自引用；积分那条被 `V11.523.0` 显式依赖，不动它）。
+  两号撞车时 Flyway 直接拒启 `Found more than one migration with version 11.522.0`。
 
 **② 按岗责新建 4 个财务角色并授权**（脚本 `tools/seed-finance-role-positions.sql`，幂等）
 新建角色（`tenant_id=1`，`scope=TENANT`）：`FINANCE_MANAGER` 财务主管 / `FINANCE_ACCOUNTANT` 会计 /
