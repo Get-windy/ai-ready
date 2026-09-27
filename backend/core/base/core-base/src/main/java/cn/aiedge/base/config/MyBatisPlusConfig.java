@@ -134,6 +134,17 @@ public class MyBatisPlusConfig {
         // "档案所属租户"，由租户拦截器按会话租户过滤**正是我们要的**（⑲ 有向边）。
         // ⇒ 两张表一个进一个不进，不是笔误，是层级不同。
         "party",
+        // ⚠️ 与 `party` 配套的**三张子表**（`V11.506.0` 建）：`party_cert` / `party_bank` / `party_address`
+        // —— 它们记"某个主体的证件/银行/地址"，而主体是**共享层**的 ⇒ 这三张表**本就不该有
+        // `tenant_id` 列**（建表时就没有，真库已核），不是"漏加列"。
+        // ⚠️ 不登记本清单的后果（2026-09-27 双写实测第一例）：拦截器会给 INSERT **自动补一列**
+        // `tenant_id` ⇒ `INSERT INTO party_cert (..., tenant_id) VALUES (..., 1)` ⇒
+        // SQL 报「关系 "party_cert" 的 "tenant_id" 字段不存在」⇒ **整条双写被回滚**。
+        // （有意思的是这次是"写入"先炸，而 `shop_user`/`party` 那两次是"读不出来"——
+        //   同一个根因：表没有租户维度，就不该让拦截器碰它。）
+        "party_cert",
+        "party_bank",
+        "party_address",
         // 开发模板表（系统 → 开发工具 → 模板管理，菜单 62402）：⚠️ **无 tenant_id 列**（真库已核；V6.17.0 建表即无），
         // 平台级共享数据（模板定义不按租户归属 + 代码生成遗留种子同表）。不忽略时拦截器注入 `AND tenant_id = 1`
         // → SQL 报「字段 tenant_id 不存在」→ /api/import-templates 13 个端点全 500（2026-09-19 落库改造引入该表读写）。

@@ -11,12 +11,18 @@
  *   ① `POST /api/erp/md/customer` 建档成功；
  *   ② `party` 出现同一 id 的行（id **复用** `biz_party.id`）；
  *   ③ `party_tenant` 出现 `direction='SALE'` 的边（该客户 roles 含 CUSTOMER）；
- *   ④ **反向对照**：`party.tenant_id` 恒 0（共享层），而边的 `tenant_id` = 建档租户。
+ *   ④ **反向对照**：`party.tenant_id` 恒 0（共享层），而边的 `tenant_id` = 建档租户；
+ *   ⑤ **双写失败不得连累建档**（用户裁定「选项乙」的硬要求）—— 用临时 CHECK 约束
+ *      确定性地让 SALE 边写不进去，断言建档仍成功且**真落库**、镜像侧整体回滚；
+ *   ⑥ 批 2 的 B 组商务条件 + **方向纯度** —— `credit_days` 是应收、`payment_days` 是应付，
+ *      **绝不许跨方向照抄**（DOMAIN-MODEL §6.1 裁定 ⑲「账期不可传递」）；
+ *   ⑦ 批 2b 的三张子表（证件/银行/地址）也被双写覆盖 + **清空即软删**（不留陈旧账户）。
  *
- * 【探针一律硬删】按名称前缀扫库删三张表（软删会占唯一键，第二次跑不通）。
+ * 【探针一律硬删】按名称前缀扫库删三张表（软删会占唯一键，第二次跑不通）；
+ *   ⑤ 用的诱导约束也在 `finally`/`cleanup` 两处必摘（留在这里会静默停掉所有 SALE 边）。
  *
  * 用法：node tools/verify-party-dual-write.cjs
- *   前置：后端在 5655 运行；`V11.497.0`/`V11.506.0`/`V11.507.0` 已应用。
+ *   前置：后端在 5655 运行；`V11.497.0`/`V11.506.0`/`V11.507.x`/`V11.520.0` 已应用。
  *   退出码：0 = 全绿；1 = 有 FAIL；2 = 前置不成立或脚本异常。
  */
 
@@ -56,28 +62,62 @@ function scalar(stmt) {
 }
 const num = (s) => Number(scalar(s))
 
-async function req(method, p, { token, body } = {}) {
-  const res = await fetch(BASE + p, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+/** 当前 token（会因"被别处的 admin 登录顶下线"而失效，见 req 的自动重登） */
+let TOKEN = null
+
+async function req(method, p, { token, body, retried } = {}) {
+  // `token === undefined` ⇒ 用当前会话 token；显式传 null ⇒ 不带（登录接口自己用）
+  const t = token === undefined ? TOKEN : token
+  // ⚠️ 传输层重试：Node 的 fetch(undici) 会复用 keep-alive 连接，而本脚本在两次请求之间
+  //    夹着几十次慢 SQL（spawn 一个 node 进程），空闲连接很容易被服务端先关掉 ⇒
+  //    下一次请求抛 `TypeError: fetch failed`（ECONNRESET）。这与业务无关，
+  //    2026-09-27 实测在完全正常的服务上偶发命中，重试即可，别让它冒充功能 FAIL。
+  let res
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(BASE + p, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      break
+    } catch (e) {
+      if (attempt >= 2) {
+        // 把底层原因带出来：undici 的 `fetch failed` 只是个壳，
+        // 真因在 e.cause（ECONNRESET / ECONNREFUSED / timeout…），不带出来没法定位
+        const c = e.cause
+        throw new Error(`fetch 失败 ${method} ${p}（重试 3 次）：${e.message}` +
+          ` / cause=${c ? (c.code || c.message || JSON.stringify(c)) : '(无)'}`)
+      }
+      await new Promise(r => setTimeout(r, 300))
+    }
+  }
   const text = await res.text()
+  if (res.status === 401 && !retried) {
+    // ⚠️ 本仓 admin 是**单会话**（Sa-Token 后登录的把前一个顶下线，日志里是
+    //    「用户被顶替下线（多地登录）」）⇒ 本仓工作区长期有并行会话，本脚本手里的 token
+    //    随时可能被别处的一次登录作废。不自动重登的话，整段会以 401 假失败，
+    //    把"被顶下线"误报成"双写坏了"（2026-09-27 实踩）。
+    await login(ADMIN)
+    return req(method, p, { token: TOKEN, body, retried: true })
+  }
   let json = null
   try { json = JSON.parse(text) } catch { /* 非 JSON */ }
   return { status: res.status, json, text }
 }
 
 async function login(user) {
-  const cap = await req('GET', '/auth/captcha')
+  const cap = await req('GET', '/auth/captcha', { token: null })
   if (!cap.json?.data?.img) throw new ProbeFailure(`验证码接口异常: ${cap.text.slice(0, 150)}`)
   const code = [...Buffer.from(cap.json.data.img.split(',')[1], 'base64').toString('utf8')
     .matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map(m => m[1]).join('')
   const res = await req('POST', '/auth/login', {
+    token: null,
     body: { username: user.u, password: user.p, tenantName: user.t, captcha: code, captchaKey: cap.json.data.uuid },
   })
   const token = res.json?.data?.token || res.json?.data?.accessToken
   if (!token) throw new ProbeFailure(`${user.u} 登录失败: ${res.text.slice(0, 200)}`)
+  TOKEN = token
   return token
 }
 
@@ -87,6 +127,10 @@ function cleanup() {
   // 而它会**静默**让所有 SALE 边写不进去（建档照旧成功，所以没人会发现）。
   sql(`ALTER TABLE party_tenant DROP CONSTRAINT IF EXISTS zz_e2e_probe_no_sale`, true)
   const ids = `SELECT id FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`
+  // 三张子表（批 2b 起也被双写覆盖）没有外键 ⇒ 必须显式删，否则探针会以"子表孤儿"的形式留下来
+  sql(`DELETE FROM party_cert    WHERE party_id IN (${ids})`, true)
+  sql(`DELETE FROM party_bank    WHERE party_id IN (${ids})`, true)
+  sql(`DELETE FROM party_address WHERE party_id IN (${ids})`, true)
   sql(`DELETE FROM party_tenant WHERE party_id IN (${ids})`, true)
   sql(`DELETE FROM party WHERE id IN (${ids})`, true)
   sql(`DELETE FROM biz_party WHERE party_code LIKE 'E2EDW%' OR party_name LIKE '${PREFIX}%'`, true)
@@ -106,6 +150,14 @@ function cleanup() {
     const seq = scalar(`SELECT column_default FROM information_schema.columns
       WHERE table_schema='public' AND table_name='party_tenant' AND column_name='id'`)
     ok('party_tenant.id 已挂序列默认值（V11.507.0）', /nextval/.test(seq), `实际 ${seq}`)
+
+    const nB = num(`SELECT count(*) FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='party_tenant' AND column_name IN
+        ('default_handler_id','default_handler_name','current_debt','credit_days','payment_days',
+         'payment_term_type','fixed_credit_day','settlement_day','promoter_id','promoter_name',
+         'buyer_account','customer_source','roles','category_id','warehouse_name','last_trade_time')`)
+    ok('party_tenant 已含批 2 的 16 个 B 组列（V11.520.0）', nB === 16, `实际 ${nB} 列`)
+    if (nB !== 16) process.exit(2)
 
     const token = await login(ADMIN)
     console.log(`登录成功: ${ADMIN.u}`)
@@ -218,6 +270,115 @@ function cleanup() {
         && num(`SELECT count(*) FROM party_tenant WHERE party_id=${id2} AND direction='SALE'`) === 1,
       `id=${id2}, party=${num(`SELECT count(*) FROM party WHERE party_code='${CODE_OK}'`)}, ` +
       `边=${id2 == null ? 'n/a' : num(`SELECT count(*) FROM party_tenant WHERE party_id=${id2} AND direction='SALE'`)}`)
+
+    section('⑥ 批 2：B 组商务条件 + ⚠️ 方向纯度（裁定 ⑲「账期不可传递」）')
+    // 这一组钉的是最容易写错、且错了最贵的一条：`credit_days` 是**应收**、`payment_days` 是**应付**
+    // （BusinessAccountingServiceImpl.resolveIntraTenantDueDate 的 receivableSide 分支）。
+    // 若镜像图省事"照抄到每条边"，就会把客户的账期搬到供应商那边 —— 正是 ⑲ 明令禁止的"可传递"。
+    const R6 = `${PREFIX}${Date.now()}`
+    const CODE_SALE = `E2EDWSALE${Date.now()}`
+    const CODE_BUY = `E2EDWBUY${Date.now()}`
+    const rs = await req('POST', '/erp/md/customer', {
+      token, body: {
+        partnerCode: CODE_SALE, partnerName: R6 + '售', partnerType: 'customer', roles: 'CUSTOMER',
+        // 应收侧：这三项是建档入参（⚠️ `currentDebt` **不是**入参 —— 它是账务写入的派生列，
+        // 传了会被静默忽略，别拿它当"传进去了"的证据）
+        creditDays: 30, creditLimit: 100000, fixedCreditDay: 10,
+        // 应付侧两项（**不该**落 SALE 边）
+        paymentDays: 45, fixedPaymentDay: 20,
+        // 逐边照抄项 + A 组此前漏写的 4 列
+        settlementDays: 30, partyLevel: 'VIP', buyerAccount: 'BA001', customerSource: '推荐',
+        warehouseName: 'WH1', promoterName: '推广人甲', defaultHandlerName: '业务员甲',
+        companyFullName: R6 + '有限公司', mnemonicCode: 'MNC1',
+        website: 'https://e2e.example', fax: '021-00000000',
+      },
+    })
+    const idS = rs.json?.data?.id
+    const eS = (col) => scalar(`SELECT ${col} FROM party_tenant WHERE party_id=${idS} AND direction='SALE'`)
+    const cS = (cond) => num(`SELECT count(*) FROM party_tenant WHERE party_id=${idS} AND direction='SALE' AND ${cond}`)
+    ok('建档带回 id', idS != null, `data.id=${idS}`)
+    ok('SALE 边：应收四项都写上了',
+      cS('credit_days = 30') === 1 && cS('credit_limit = 100000') === 1
+        && cS('fixed_credit_day = 10') === 1
+        && cS(`current_debt IS NOT DISTINCT FROM (SELECT current_debt FROM biz_party WHERE id = ${idS})`) === 1,
+      `credit_days=${eS('credit_days')}, credit_limit=${eS('credit_limit')}, ` +
+      `current_debt=${eS('current_debt')}, fixed_credit_day=${eS('fixed_credit_day')}`)
+    ok('⚠️ SALE 边：应付两列**必须是 NULL**（账期不可传递）',
+      cS('payment_days IS NULL') === 1 && cS('fixed_payment_day IS NULL') === 1,
+      `payment_days=${eS('payment_days')}, fixed_payment_day=${eS('fixed_payment_day')}`)
+    ok('settlement_type 落本模块词表（现结）', eS('settlement_type') === '现结', `实际 ${eS('settlement_type')}`)
+    ok('逐边照抄项也在（party_level / buyer_account / customer_source / roles）',
+      eS('party_level') === 'VIP' && eS('buyer_account') === 'BA001'
+        && eS('customer_source') === '推荐' && eS('roles') === 'CUSTOMER',
+      `level=${eS('party_level')}, buyer=${eS('buyer_account')}, ` +
+      `source=${eS('customer_source')}, roles=${eS('roles')}`)
+    ok('A 组补洞：此前漏写的 4 列也进了 party',
+      scalar(`SELECT company_full_name FROM party WHERE id=${idS}`) === R6 + '有限公司'
+        && scalar(`SELECT mnemonic_code FROM party WHERE id=${idS}`) === 'MNC1'
+        && scalar(`SELECT website FROM party WHERE id=${idS}`) === 'https://e2e.example'
+        && scalar(`SELECT fax FROM party WHERE id=${idS}`) === '021-00000000',
+      `company=${scalar(`SELECT company_full_name FROM party WHERE id=${idS}`)}, ` +
+      `mnemonic=${scalar(`SELECT mnemonic_code FROM party WHERE id=${idS}`)}`)
+
+    // 改一次结算方式：验证 updateById 路径把 B 组也刷过去（而不是只在建档时写一次）
+    await req('PUT', `/erp/md/customer/${idS}`, { token, body: { settleType: '挂账' } })
+    ok('改成「挂账」后 settlement_type 跟着变（B 组在写路径上真的通了）',
+      eS('settlement_type') === '挂账', `实际 ${eS('settlement_type')}`)
+
+    // 供应商侧：应付列同样只落自己那条边
+    const rb = await req('POST', '/erp/md/customer', {
+      token, body: {
+        partnerCode: CODE_BUY, partnerName: R6 + '购', partnerType: 'supplier', roles: 'SUPPLIER',
+        paymentDays: 45, fixedPaymentDay: 20,
+        // 反方向的应收项也一起传：**它们必须落不到 PURCHASE 边上**
+        creditDays: 30, creditLimit: 50000, fixedCreditDay: 10,
+      },
+    })
+    const idB = rb.json?.data?.id
+    const cB = (cond) => num(`SELECT count(*) FROM party_tenant WHERE party_id=${idB} AND direction='PURCHASE' AND ${cond}`)
+    ok('PURCHASE 边：应付两项写上了',
+      cB('payment_days = 45') === 1 && cB('fixed_payment_day = 20') === 1,
+      `payment_days=${scalar(`SELECT payment_days FROM party_tenant WHERE party_id=${idB} AND direction='PURCHASE'`)}`)
+    ok('⚠️ PURCHASE 边：应收四项**必须是 NULL**（账期不可传递）',
+      cB('credit_limit IS NULL') === 1 && cB('current_debt IS NULL') === 1
+        && cB('credit_days IS NULL') === 1 && cB('fixed_credit_day IS NULL') === 1,
+      `credit_limit=${scalar(`SELECT credit_limit FROM party_tenant WHERE party_id=${idB} AND direction='PURCHASE'`)}, ` +
+      `credit_days=${scalar(`SELECT credit_days FROM party_tenant WHERE party_id=${idB} AND direction='PURCHASE'`)}`)
+
+    section('⑦ 批 2b：三张子表（证件 / 银行 / 地址）也被双写了')
+    // 为什么单列一组：这三张表批 1 就建好并回填了，但**双写一开始没覆盖**它们 ——
+    // 客户表单里税号/银行/地址都是可编辑项 ⇒ 不覆盖就是"填一次就漂移、切读即丢数据"。
+    const R7 = `${PREFIX}${Date.now()}`
+    const CODE_SUB = `E2EDWSUB${Date.now()}`
+    const r7 = await req('POST', '/erp/md/customer', {
+      token, body: {
+        partnerCode: CODE_SUB, partnerName: R7 + '子', partnerType: 'customer', roles: 'CUSTOMER',
+        taxNumber: '91310000E2E0001X', bankName: 'E2E银行', bankAccount: '6222000000000001',
+        bankAddress: 'E2E开户行地址', address: 'E2E路 1 号', province: '上海市', city: '上海市', district: '浦东新区',
+      },
+    })
+    const id7 = r7.json?.data?.id
+    ok('建档带回 id', id7 != null, `data.id=${id7}`)
+    ok('party_cert：税务登记落成 TAX 一条',
+      num(`SELECT count(*) FROM party_cert
+            WHERE party_id=${id7} AND cert_type='TAX' AND cert_no='91310000E2E0001X' AND deleted=0`) === 1,
+      `cert_no=${scalar(`SELECT cert_no FROM party_cert WHERE party_id=${id7} AND cert_type='TAX'`)}`)
+    ok('party_bank：落成**默认**账户一条（键 = (party_id) WHERE is_default=1）',
+      num(`SELECT count(*) FROM party_bank
+            WHERE party_id=${id7} AND is_default=1 AND bank_account='6222000000000001' AND deleted=0`) === 1,
+      `account=${scalar(`SELECT bank_account FROM party_bank WHERE party_id=${id7} AND is_default=1`)}`)
+    ok('party_address：落成注册地址一条（address_type=1）',
+      num(`SELECT count(*) FROM party_address
+            WHERE party_id=${id7} AND address_type=1 AND city='上海市' AND deleted=0`) === 1,
+      `city=${scalar(`SELECT city FROM party_address WHERE party_id=${id7} AND address_type=1`)}`)
+
+    // ⚠️ 清空语义：只 upsert 不软删的话，用户删掉银行账号后镜像里还留着一条旧账户，
+    //    而这类"多出来的"漂移**对账脚本看不见**（它只比对"缺"）。
+    await req('PUT', `/erp/md/customer/${id7}`, { token, body: { bankName: '', bankAccount: '' } })
+    ok('清空银行信息后，镜像的默认账户被**软删**（不留陈旧账户）',
+      num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=0`) === 0
+        && num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=1`) === 1,
+      `未删=${num(`SELECT count(*) FROM party_bank WHERE party_id=${id7} AND deleted=0`)}`)
   } finally {
     console.log('\n—— 现场还原（探针一律硬删）——')
     cleanup()

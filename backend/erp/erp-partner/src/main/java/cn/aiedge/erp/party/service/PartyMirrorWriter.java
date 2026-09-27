@@ -52,6 +52,11 @@ public class PartyMirrorWriter {
     /** 贸易边方向：我向他买（他是我的供应商） */
     public static final String DIRECTION_PURCHASE = "PURCHASE";
 
+    /** 证件类型：营业执照（与批 1 回填同一套取值，改一处必须两处一起改） */
+    private static final String CERT_BUSINESS_LICENSE = "BUSINESS_LICENSE";
+    /** 证件类型：税务登记 */
+    private static final String CERT_TAX = "TAX";
+
     private final PartyMirrorMapper mirrorMapper;
 
     /**
@@ -105,9 +110,10 @@ public class PartyMirrorWriter {
             log.warn("【双写】主体没有 tenantId ⇒ 本次只写 party 主档、不写贸易边: partyId={}, partyName={}",
                     p.getId(), p.getPartyName());
         }
-        // 主档与边**同生共死**：任一失败即整体回滚，不会留下"边指向不存在的主档"
-        inSavepoint("party 主档 + 贸易边", p.getId(), p.getPartyName(), () -> {
+        // 主档 / 子表 / 边**同生共死**：任一失败即整体回滚，不会留下"边指向不存在的主档"
+        inSavepoint("party 主档 + 子表 + 贸易边", p.getId(), p.getPartyName(), () -> {
             mirrorMapper.upsertParty(p);
+            mirrorSubTables(p);
             if (!canWriteEdges) {
                 return;
             }
@@ -115,6 +121,45 @@ public class PartyMirrorWriter {
                 mirrorMapper.upsertEdge(tenantId, p.getId(), direction, p);
             }
         });
+    }
+
+    /**
+     * 三张子表（证件 / 银行 / 地址）的镜像 —— 批 2b（`V11.521.0`）。
+     *
+     * <p>⚠️ 映射与「只在有值时才建行」的口径**与批 1 的回填完全对齐**（`V11.506.0` §5.2~5.4）：
+     * 证件各 `BUSINESS_LICENSE`/`TAX` 一条、银行一条默认账户、地址一条 `address_type = 1`。
+     * 两条路落出来的行形状必须一样，否则切读时同一主体会出现两种形状。</p>
+     *
+     * <p>⚠️ 源列**被清空时必须软删**镜像行：只 upsert 不软删的话，用户把银行账号删掉之后
+     * 镜像里还留着一条旧账户，而这类"多出来的"漂移**对账脚本看不见**（它只比对"缺").</p>
+     */
+    private void mirrorSubTables(Party p) {
+        Long id = p.getId();
+        // 证件①：营业执照（含到期日）
+        if (StringUtils.hasText(p.getBusinessLicense())) {
+            mirrorMapper.upsertCert(id, CERT_BUSINESS_LICENSE, p.getBusinessLicense(), p.getBusinessLicenseExpiry());
+        } else {
+            mirrorMapper.softDeleteCert(id, CERT_BUSINESS_LICENSE);
+        }
+        // 证件②：税务登记
+        if (StringUtils.hasText(p.getTaxNumber())) {
+            mirrorMapper.upsertCert(id, CERT_TAX, p.getTaxNumber(), null);
+        } else {
+            mirrorMapper.softDeleteCert(id, CERT_TAX);
+        }
+        // 银行：源表那唯一一个账户 = 默认账户
+        if (StringUtils.hasText(p.getBankName()) || StringUtils.hasText(p.getBankAccount())) {
+            mirrorMapper.upsertDefaultBank(id, p);
+        } else {
+            mirrorMapper.softDeleteDefaultBank(id);
+        }
+        // 地址：注册地址
+        if (StringUtils.hasText(p.getAddress()) || StringUtils.hasText(p.getCity())
+                || StringUtils.hasText(p.getProvince())) {
+            mirrorMapper.upsertPrimaryAddress(id, p);
+        } else {
+            mirrorMapper.softDeletePrimaryAddress(id);
+        }
     }
 
     /** 主体被删除（逻辑删除）后调用：同步软删主档与全部贸易边。 */

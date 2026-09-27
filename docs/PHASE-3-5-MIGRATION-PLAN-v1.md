@@ -158,15 +158,155 @@ A 组 27 列若全部塞进 `party` ⇒ **41 列，超本仓"主表 ≤25 列"�
 
 **分批扩列（每批可独立验收、独立回滚）**：
 
-| 批 | 内容 | 前置 |
-|---|---|---|
-| **1** | `party` 补到 22 列（A 组里"单值"的那 14 列）+ 建三张子表并回填 | 无（纯新增） |
-| **2** | `party_tenant` 补 B 组 24 列（关系与商务条件） | 批 1；且**方向已定**（18 条边） |
-| **3** | C 组 12 列**停写**（语义归 `shop_user`）+ 那 4 张会员卡导出留档 | 用户已裁定乙 |
-| **4** | D 组 4 列 ⇒ `party_tenant.opening_*` | **等"与财务口径对齐"**（用户 2026-09-26 裁定） |
-| **5** | 双写 + 读路径逐表切换 + 观察期 | 批 1~4；**且需 `refsurface.csv` 里待确认列定案** |
+| 批 | 内容 | 前置 | 状态 |
+|---|---|---|---|
+| **1** | `party` 补到 22 列（A 组里"单值"的那 14 列）+ 建三张子表并回填 | 无（纯新增） | ✅ `V11.506.0` |
+| **2** | `party_tenant` 补 B 组列（关系与商务条件） | 批 1；且**方向已定**（18 条边） | ✅ `V11.520.0`（见 §3.2d） |
+| **2b** | `party_cert`/`party_bank`/`party_address` 的**双写覆盖** | 批 1；**须先给三张子表补幂等唯一键**（现在只有 IDENTITY 主键 + 普通索引，写不了 `ON CONFLICT`） | ✅ `V11.521.0`（见 §3.2e） |
+| **3** | C 组 12 列**停写**（语义归 `shop_user`）+ 那 4 张会员卡导出留档 | 用户已裁定乙 | 🟡 **部分阻塞**：留档已做；12 列里**只有 4 列能停**，另 8 列被业务逻辑读着 ⇒ 见 §3.2f |
+| **4** | D 组 4 列 ⇒ `party_tenant.opening_*` | **等"与财务口径对齐"**（用户 2026-09-26 裁定） | 🔴 阻塞 |
+| **5** | 读路径逐表切换 + 观察期 | 批 1~4 + 批 2b；**且需 `refsurface.csv` 里待确认列定案** | ⏳ 待做 |
 
-### 3.3 并存期策略（三选一，**推荐 B**）
+> 双写（`PartyServiceImpl` 覆盖 6 个写方法 + `PartyMirrorWriter`/`PartyMirrorMapper`）已随批 1/批 2 同步落地并跑绿：
+> `node tools/verify-party-dual-write.cjs`（建档→镜像→改名→**双写失败不阻断建档**→B 组与方向纯度），
+> 兜底为幂等对账 `node tools/sync-party-from-biz-party.cjs`。
+
+### 3.2d 批 2 落地记录（`V11.520.0`）—— **三个口径在此定案，别在切读时重新猜**
+
+批 2 表面是"补 16 列"，真正的工作量在三处**必须掰开才知道往哪写**的口径上：
+
+**① 方向归位（裁定 ⑲「账期不可传递」）—— 逐列钉死方向，不许"照抄到每条边"**
+
+| 归向 | 列 | 判据（谁说的） |
+|---|---|---|
+| **SALE 独有** | `credit_limit` `current_debt` `credit_days` `fixed_credit_day` | `credit_limit` = 「**我给他的赊销额度**」（§3.4.2 表定义原话，"SALE 方向才有意义"）；`current_debt` 与它同一杆秤（`PartyCreditServiceImpl.getAvailableCredit = creditLimit - currentDebt`）；`credit_days` = **应收**期限（`BusinessAccountingServiceImpl.resolveIntraTenantDueDate`：`receivableSide ? creditDays : paymentDays`） |
+| **PURCHASE 独有** | `payment_days` `fixed_payment_day` | 同上，应付侧取 `payment_days`；`fixed_payment_day` 与 `payment_days` 同词根 |
+| **逐边照抄** | 其余（`party_level` `settlement_type` `settlement_days` `statement_day` `settlement_day` `payment_term_type` `price_track_enabled` `default_handler_*` `promoter_*` `buyer_account` `customer_source` `roles` `category_id` `warehouse_name` `last_trade_time` `status`） | 源表**只有单值**且**当前没有任何代码按方向读它们**；照抄＝不丢信息 |
+
+实现方式：`PartyMirrorMapper.upsertEdge` 里用 `CASE WHEN #{direction} = 'SALE' … END`
+把方向独占列**钉在自己的方向上**，另一方向落 NULL；迁移回填用同一套 CASE。
+机检：`V11.520.0` 自检 4.3 显式断言"应付列不出现在 SALE 边、应收列不出现在 PURCHASE 边"，
+`verify-party-dual-write.cjs` ⑥ 再从**真机建档**这一侧复验一次。
+
+**⚠️ 切读前必须定案（现在就记下来，别到时候当成"方向已定"用）**：
+`settlement_days` `statement_day` `settlement_day` `payment_term_type` 这 4 列**名字上可能也隐含方向**，
+但当前**没有**任何消费方按方向读 ⇒ 本批按"忠实保留"处理。
+**切读之前**要么确认它们确实与方向无关，要么按 ① 的表拆开 —— 不许带着"可能串了"的状态切读。
+
+**② `settlement_type` 的口径（本模块词表，不是协议那套五项枚举）**
+
+源 `biz_party.settlement_type` 是 `V9.14.0` 定下的**历史两值整数**（`0` = 现结；非 0 = 有账期），
+而目标列是 `VARCHAR(32)`，域模型 §3.4.2 里标注的是**文案**「现结 / 账期 / 预付 …」。
+⇒ 取**本模块自己正在用的词表**（`MdCustomerController.resolveSettlementType` 类注释：
+「前端传「挂账/现结」文案，库中存 1/0」）：**`0 → '现结'`、非 0 → `'挂账'`**。
+
+⚠️ 与协议侧的 `SETTLEMENT_TYPE` 字段字典（`V11.492.0`，五项
+`CASH_PREPAY`/`CASH_SPOT`/`CASH_ON_DELIVERY`/`CREDIT`/`ROLLING`，`consumer_point = AR_DUE_DATE`）
+**不是同一套编码** —— `PartySettlementProfile` 类注释对此有明确警告，两边**不许混用**。
+将来若统一到五项编码，这是一次**文本值重映射**（可逆，19 行级别），不是不可逆操作。
+
+**③ 类型/窄化对不齐（双写会直接报错，且报错后果很重）**
+
+- `party_tenant.price_track_enabled` 是 `boolean`，源是 `integer(0/1)` ⇒ 必须 `COALESCE(…,0) <> 0`；
+- `party_level` 建表给的 `VARCHAR(32)` 比源 `VARCHAR(100)` **窄** ⇒ 本批放宽到 100
+  （今天值最长 6 字符，但只要有人录进第 33 个字符，双写就会报错）；
+- 源列宽度是**下限**：新增列一律照抄源列类型，别凭印象写小。
+
+**④ 顺带补的洞（诚实记账）**
+
+`upsertParty` 此前漏写 A 组的 5 列（`company_full_name` `mnemonic_code` `website` `fax`
+`legal_person_phone`）⇒ 客户表单里这几项**一填就漂移**。本批已补齐
+（`legal_person_phone` 在 `MdCustomerController.fromBody` 里**根本没有入参**，
+所以真机验不到它，只能靠 SQL 侧对齐）。
+
+### 3.2e 批 2b 落地记录（`V11.521.0`）—— 子表双写与**清空语义**
+
+批 1 把 `party_cert`/`party_bank`/`party_address` 建好并回填了，但**双写一开始没覆盖它们**。
+这不是小事：客户表单里 `tax_number` / `bank_name` / `bank_account` / `address` 都是可编辑项，
+并存期只要有人填一次**银行账号**，`party_bank` 就永远缺这一行 —— **读路径一造就等于丢数据**
+（"配了不生效 / 接了没走通"的同一类包袱）。
+
+**① 幂等键（`V11.521.0`）—— 与批 1 回填的行形状一一对应，不许另起一套**
+
+| 子表 | 幂等键（部分唯一索引） | 对应批 1 回填口径（`V11.506.0` §5.2~5.4） |
+|---|---|---|
+| `party_cert` | `(party_id, cert_type) WHERE deleted = 0` | 执照 `BUSINESS_LICENSE`、税务 `TAX` 各一条 |
+| `party_bank` | `(party_id) WHERE deleted = 0 AND is_default = 1` | 源表那**唯一一个**账户 ⇒ 它天然是默认账户 |
+| `party_address` | `(party_id, address_type) WHERE deleted = 0` | 源表地址 ⇒ **注册地址**（`address_type = 1`） |
+
+三张表建时**只有 IDENTITY 主键 + 普通索引**，没有可写 `ON CONFLICT` 的键 —— 这就是为什么
+批 2b 必须先补索引。非默认账户**不设唯一约束**，将来"多账户"进来不会被挡。
+
+**② 清空语义：源列被清空时必须软删镜像行**
+
+只 upsert 不软删的话，用户把银行账号删掉之后镜像里还留着一条旧账户 ——
+而这类"**多出来的**"漂移**对账脚本看不见**（它只比对"缺"）。
+⇒ `PartyMirrorWriter.mirrorSubTables` 对四类行都是「有值 ⇒ upsert / 空值 ⇒ 软删」。
+
+**③ 已知限制（明写出来，别当成"已覆盖"）**
+
+- `latitude` / `longitude` **不写**：这两列 `Party` 实体根本没映射、全仓也没有消费方
+  （实测 21 行里仅 1 行有值，且非本模块写入）。想在双写里带上它们，得先给实体补字段；
+  在那之前"不写"比"写个死值"诚实。批 1 回填按源表搬过一次，故存量行可能有值。
+- `business_license`（执照号）在 `MdCustomerController.fromBody` 里**没有入参**
+  ⇒ 真机上建不出 `BUSINESS_LICENSE` 行，验收脚本只验了 `TAX` 那一条。
+- 三张子表**没有指向 `party` 的外键** ⇒ 验收入口的自清理必须显式删它们
+  （`verify-party-dual-write.cjs` 的 `cleanup()` 已覆盖），否则探针会以"子表孤儿"留下来。
+
+**④ 对账脚本同步重写（`tools/sync-party-from-biz-party.cjs`）**
+
+它此前**已经过期到会帮倒忙**：补边时**不写 B 组列** ⇒ 补出来的是一条"只有 id 和方向"的
+残缺边，而且因为边已存在，之后再也没人会去刷它。重写后它与双写逐字同口径：
+- 方向改成**可并存**（`roles` 含 CUSTOMER ⇒ SALE、含 SUPPLIER 或 `party_type=2` ⇒ PURCHASE）。
+  ⚠️ 建表回填用的是 `CASE ... THEN 'SALE' ELSE 'PURCHASE'` 的**单边**口径 ⇒
+  "既是客户又是供应商"的行一直**缺一条边**，只有按新口径才能补出来；
+- 商务条件按方向归属（⑲）；子表四类行也一起补；
+- 差额快照从 4 个数扩到 6 个（新增 `边缺商务条件`、`子表缺行`、`主档无租户`）；
+- ⚠️ 没有 `tenant_id` 的主体**建不了边**（边必须有 tenant_id），双写那边也是跳过 + WARN
+  ⇒ 对账口径同样排除，否则会报一个**永远补不上**的假差额。
+
+### 3.2f 批 3（C 组会员列）**不能按原写法做** —— 逐列判定与前置（2026-09-27 实测）
+
+原计划写的是「C 组 12 列**停写**」。**逐列查过之后，只有 4 列真能停。**
+剩下的 8 列都有业务逻辑在读 `biz_party` 这一列（不是"少个展示字段"，是会算错数）。
+
+**入口（写）只有 4 条**：
+① `MdCustomerController.fromBody`（`MdCustomerController.java:1535-1590`，
+被 `POST /erp/md/customer` 建档 / `PUT /{id}` 更新 / `POST /import` 三条路复用）；
+② `RetailOrderServiceImpl.java:674`（零售收银完单写 `points`）；
+③ `MemberLevelRuleController.java:81`（会员等级批处理 `UPDATE biz_party SET member_level=?`）；
+④ `PartyController.java:117-132`（通用 CRUD 直接收 `@RequestBody Party` 落库 —— ⚠️ **只删 `fromBody` 的 set 并不彻底**，这条也在写）。
+
+| 列 | 谁在读（`biz_party` 这一列） | 停写会怎样 | 能不能停 |
+|---|---|---|---|
+| `points` | 零售 `RetailOrderServiceImpl:663`（**余额校验 + 扣减**）、等级升级门槛 `MemberLevelRuleController:137`、商城 `MallAuthServiceImpl:471/489`、筛选 `PartyMapper.xml:186` | **积分闭环直接拆掉**（余额永远算成旧值） | ❌ **必须先迁权威值** |
+| `member_level` | 升降级判定 `MemberLevelRuleController:126/137`、促销定向 `PromoRefQueryMapper:41`、`PartyMapper.xml:170` | 自动升降级永远算旧值 | ❌ 需先切读 |
+| `member_card_no` | 会员列表 `PartyMapper.xml:142`、营销触发、商城、等级批处理 | "谁是会员"判定失效，会员列表/营销定向一起空 | ❌ 需先有目标表 |
+| `member_name` | 同 `member_card_no` | 同上 | ❌ 需先有目标表 |
+| `member_total_consume` | 消费额升级门槛 | 门槛失效（且此列**当前已无人写入**，只有表单能填） | ❌ 需先切读 |
+| `member_valid_end` | 卡到期营销 `selectCardExpiring` | 到期营销无候选 | ❌ 需先切读 |
+| `birthday` | 生日营销 `selectBirthday` | 生日营销无候选 | ❌ 需先切读 |
+| `customer_one_pass` | 预售报表 `PreOrderAnalysisReportServiceImpl:205` | 报表该列变空 | ⚠️ 仅报表，可随前端一起停 |
+| `member_valid_start` | 仅 `PartyMapper.xml:199` 排序 | 展示/排序变空 | ✅ 可停 |
+| `member_card_status` | 仅展示 / 排序 | 展示变空 | ✅ 可停 |
+| `member_initial_points` | 仅展示 | 展示变空 | ✅ 可停 |
+| `member_issue_time` | 仅展示 | 展示变空 | ✅ 可停 |
+
+**⚠️ 前置条件（做完才能动这 8 列）**：
+1. `shop_user` **接不了**：它没有卡号/积分/生日/等级字段，且当时 **0 行**（"自然人也还没有"）。
+2. 积分台账 `mkt_points_batch` / `mkt_points_journal`、卡积分 `erp_loyalty_card.points` 都存在，
+   **但零售余额的权威值仍是 `biz_party.points`** ⇒ 要么把权威值迁到台账汇总并切读，
+   要么明确"零售余额 = 台账汇总"再停写。**这一步没做完就停写 `points` = 拆功能。**
+3. 前端 `md/customer/components/MemberCardModal.vue` 仍会提交这些字段
+   ⇒ 只改后端会出现"保存成功但回显丢失"，**前后端必须同批改**。
+
+**✅ 本轮已做的部分**：那 4 张 `member_card_no` 的行已**导出留档**
+（`docs/archive/party-member-cards-20260927.csv`，附 `docs/archive/README.md` 说明为什么留、
+以及"别拿它的 `points` 当台账"）—— 按纪律**导出留档 + 列弃用**，不给它们编一个自然人。
+
+
+
+
 
 | 方案 | 做法 | 可逆性 | 评价 |
 |---|---|---|---|
