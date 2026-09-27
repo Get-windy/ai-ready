@@ -338,6 +338,58 @@ A 组 27 列若全部塞进 `party` ⇒ **41 列，超本仓"主表 ≤25 列"�
 （`docs/archive/party-member-cards-20260927.csv`，附 `docs/archive/README.md` 说明为什么留、
 以及"别拿它的 `points` 当台账"）—— 按纪律**导出留档 + 列弃用**，不给它们编一个自然人。
 
+### 3.2g 批 3 定案与落地：积分改成「**只追加台账为权威**」（2026-09-27）
+
+§3.2f 把批 3 判成"做不了"，是因为当时的前提是"会员语义并入 `shop_user`"而 `shop_user` 接不住。
+**按业界惯例重新定案后，前提换了，批 3 就能做** —— 关键认识是：
+
+**业界口径（多方一致，已检索）**：**余额绝不落主档**。可变余额字段会同时坏在四处 ——
+重试重复发放、并发丢更新、"我的积分去哪了"答不出来、出错没法安全更正。
+正确形态是「**只追加台账 + 派生余额 + 唯一约束做幂等**」，且**幂等键是"业务事件标识"而不是请求标识**。
+（Salesforce 的 `LoyaltyProgramMember` 不存余额、余额在 `LoyaltyMemberCurrency`、
+变动走 `TransactionJournal` → `LoyaltyLedger` → `LoyaltyPointsAggregate`，
+官方把 `Points__c = Points__c + amount` 这种触发器直接列为**反模式**。）
+
+**本仓的决定性发现：目标模型早就建好了，只是主链路一直绕过它。**
+- `mkt_points_batch`（批次：`earned_points`/`remaining_points`/`expire_time`/`source`）+ `mkt_points_journal`
+  （只追加流水：`change_type`/`change_points`/`balance_after`/`batch_id`/`source_bill_no`）
+  = **现成的"批次 + 流水"台账**；`PointsLedgerServiceImpl` 的 earn/use/expire **实现完整**；
+- `erp_loyalty_card`（卡：`program_id`/`card_code`/`expiration_date`）+ `erp_member_level`（等级规则）也在；
+- **但这三张表全是 0 行**，而 `biz_party.points` 有数据 ⇒ 数据全在**设计上最不该放的地方**。
+
+**已落地的四个动作**（`V11.522.0` / `V11.523.0` + 三个模块的代码改动，提交 `3f3a9c2c`）：
+
+| 动作 | 内容 | 为什么必须 |
+|---|---|---|
+| **台账补幂等键** | 流水/批次按**业务事件**唯一：`(tenant_id, partner_id, change_type, source_bill_no) WHERE deleted=0 AND source_bill_no IS NOT NULL` | 台账原本**零防重键** ⇒ 同一张单重试两次就重复发分。"迁到台账"之前必须先让它守得住 |
+| **顺带修多租户 bug** | `uk_loyalty_card_code` 是**全局**唯一（只有 `card_code` 一列）⇒ **A 店的卡号会挡住 B 店**；改成 `(tenant_id, card_code)` + `(tenant_id, program_id, partner_id)` | 卡号是"这家店的会员卡号" |
+| **存量期初入账** | 4 个主体 / 620 分 → `source='OPENING'` 批次 + `OPENING` 流水。⚠️ **不设有效期**（旧模型无此概念，凭空设到期日＝静默销毁积分）；⚠️ **不给"有分没卡"的行编卡**（如实入账 + 报出来） | 不猜 |
+| **零售切台账 + 表单停写 10 列** | `RetailOrderServiceImpl.applyMemberPoints` 改读/写台账；`MdCustomerController.fromBody` 停写 10 个会员列（保留 `birthday`/`customer_one_pass`，**明知而保留**） | 只有"写路径真的走台账"，台账才成为权威 |
+
+**两个坑（实测，别重踩）**：
+1. **零售结算是按 `party id` 找会员的**（`order.getCustomerId()`），**手里没有卡号**；而台账三个 API 是
+   **卡号版**（`earn` 第一行就 `memberCardNo == null → return null`）⇒ 必须补"按主体"的一组
+   （台账表本来就有 `partner_id` 列，是"账本来就支持、只是没暴露"）。
+2. 台账两表的 `id` 由 Java 雪花给、**表上没有默认值** ⇒ 任何"从 SQL 搬数据进台账"都会撞
+   「null value in column id」。照 `party_tenant`（`V11.507.1`）先例补**序列默认值**（起始 9e18 避开雪花）。
+
+**数字口径订正**：先前说"32 行有积分"是**含软删**的；**未删只有 4 行、合计 620 分**，
+其中 **1 行（400 分）没有卡号** ⇒ 进得了台账但**走不了卡路径兑付**，需业务补发卡。
+
+**硬控制**：`tools/verify-points-ledger.cjs` —— 断言"期初**逐主体**对平 + 每批次都有流水"
+（比总量相等强：总量相等也可能"张三的搬到李四头上"），并报告账实对照与"有分没卡"清单。
+当前（迁移未应用）它正确报出"4 个主体/620 分未进台账"，证明不是空跑。
+
+**⏳ 还没做的（下一步，按依赖排序）**：
+1. **前端同批改**（否则"保存成功但回显丢失"）：`views/erp/md/customer/form.vue` 会员区、
+   `components/MemberCardModal.vue`、`views/marketing/member-manage/index.vue`；
+   ⚠️ 且**会员卡模块目前没有独立前端页面**（`loyaltyCardApi` 全仓零调用）⇒ 停写卡号后用户**无处发卡**，
+   这是必须先补的（否则不是"搬到新家"，是"把入口删了"）。
+2. **读点切换**：`MallAuthServiceImpl`（读 `biz_party.points`/卡号）、`MdCustomerController` 详情 VO、
+   `PartyMapper.xml` 的积分区间筛选与排序。
+3. **等级写点**：`MemberLevelRuleController` 的 `UPDATE biz_party SET member_level` → 写 `erp_loyalty_card`。
+4. **真机 E2E**（当前被"0.3.26 未全仓 install"挡住，见提交说明）。
+
 
 
 
