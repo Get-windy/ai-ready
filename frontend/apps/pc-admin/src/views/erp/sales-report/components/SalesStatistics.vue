@@ -426,7 +426,29 @@ onUnmounted(() => {
   chart = null
 })
 
-defineExpose({ handleQuery })
+/**
+ * 结果集打印负载（父页「打印」时取用），形状与其它结果集页统一为 `{ title, columns, rows }`。
+ * 打的是「销售明细」那张表的当前数据（父页没有 documentId，装配器那条路不适用）。
+ */
+const printData = computed(() => ({
+  title: '销售统计明细',
+  columns: [
+    { key: 'date', title: '日期' },
+    { key: 'sales', title: '销售额', align: 'right' },
+    { key: 'orderCount', title: '订单数', align: 'right' },
+    { key: 'avgOrderValue', title: '平均客单价', align: 'right' },
+    { key: 'returnCount', title: '退货数', align: 'right' }
+  ],
+  rows: detailData.value.map(row => ({
+    date: row.date || '',
+    sales: `¥${formatAmount(row.sales)}`,
+    orderCount: row.orderCount ?? 0,
+    avgOrderValue: `¥${formatAmount(row.avgOrderValue)}`,
+    returnCount: row.returnCount ?? 0
+  }))
+}))
+
+defineExpose({ handleQuery, printData })
 </script>
 
 <style scoped>

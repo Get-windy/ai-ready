@@ -154,6 +154,12 @@
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="finance-pending-confirm"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -171,6 +177,8 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { receiptApi, preReceiptApi } from '@/api/finance'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'FinancePendingConfirm' })
 
@@ -608,13 +616,19 @@ async function handleBatchConfirm() {
 }
 
 // ═══ 工具栏操作 ═══
-function handlePrintF8() {
-  if (allRows.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint: handlePrintF8 } = useListPrint({
+  pageCode: 'finance-pending-confirm',
+  // 列是 computed（随 Tab / 列配置变），静态生成器写不进模板 → 明确按数据列打
+  useDataColumns: true,
+  title: '待确认',
+  columns: () => currentColumns,
+  rows: () => allRows.value,
+  selectedRows: () => selectedRows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 async function handleExport() {
   if (allRows.value.length === 0) {

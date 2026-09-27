@@ -121,7 +121,7 @@
           @add="showCreateModal"
           @edit="editRecord"
           @delete="handleDelete"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @search="handleSearch"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"

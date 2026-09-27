@@ -122,7 +122,7 @@
           :selectable="false"
           add-text="新增类型"
           @add="handleAddType"
-          @refresh="debounceClick('refresh', fetchTypeData)"
+          @refresh="debounceClick('refresh', fetchTypeData)()"
           @page-change="handleTypePageChange"
           @filter-change="handleFilterChange"
         >

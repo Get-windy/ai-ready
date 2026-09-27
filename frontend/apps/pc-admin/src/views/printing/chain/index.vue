@@ -63,7 +63,7 @@
           @add="handleAdd"
           @edit="handleEdit"
           @delete="handleDeleteConfirm"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
         >

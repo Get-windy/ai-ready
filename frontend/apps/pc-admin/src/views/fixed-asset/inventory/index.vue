@@ -121,7 +121,7 @@
           :min-empty-rows="12"
           @add="showCreateModal"
           @edit="editRecord"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @search="handleSearch"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"

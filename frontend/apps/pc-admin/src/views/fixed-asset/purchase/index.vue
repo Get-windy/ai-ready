@@ -136,7 +136,7 @@
           @edit="editRecord"
           @delete="handleDelete"
           @batch-delete="handleBatchDelete"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @search="handleSearch"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"

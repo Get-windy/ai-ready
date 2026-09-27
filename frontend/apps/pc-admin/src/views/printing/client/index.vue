@@ -112,7 +112,7 @@
           @add="handleAdd"
           @delete="handleDeleteConfirm"
           @batch-delete="handleBatchDelete"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"

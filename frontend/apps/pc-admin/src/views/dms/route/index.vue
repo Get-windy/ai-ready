@@ -1528,6 +1528,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="dms-route"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -1568,6 +1574,8 @@ import {
 import { riderApi } from '@/api/dms/rider'
 import { channelApi } from '@/api/dms/channel'
 import { mdRouteApi } from '@/api/md'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 const locale = { emptyText: '暂无数据' }
 
@@ -2548,9 +2556,16 @@ async function handleRefreshAll() {
   message.success('已刷新')
 }
 
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'dms-route',
+  title: '配送路线',
+  columns: () => stopColumns,
+  rows: () => planResult.value?.stops || [],
+  emptyTip: '没有可打印的数据',
+})
 
 const exportRows = computed<Record<string, any>[]>(() => {
   if (activeCapability.value === 'plan') {

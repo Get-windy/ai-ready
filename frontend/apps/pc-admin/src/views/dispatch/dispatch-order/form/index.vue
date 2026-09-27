@@ -325,6 +325,14 @@
         </a-tabs>
       </a-modal>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="dispatch-task"
+    :document-id="printData.id"
+    :print-data="printData"
+    @print-success="handlePrintSuccess"
+  />
   </ErrorBoundary>
 </template>
 
@@ -350,6 +358,7 @@ import { taskApi } from '@/api/dms/task'
 import optionsApi from '@/api/options'
 import { mdRouteApi } from '@/api/md'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'DispatchOrderForm' })
 
@@ -1064,12 +1073,31 @@ function handlePrint() {
   printCurrent()
 }
 
-async function printCurrent() {
+// ═══ 打印（按单据打印） ═══
+// 配送任务单：后端已为 pageCode='dispatch-task' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+function printCurrent() {
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
+    return
+  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
+}
+
+/** 打印成功 → 回写打印次数（次数只在真的出纸之后加） */
+async function handlePrintSuccess() {
+  if (!formData.id) return
   try {
     await taskApi.print(Number(formData.id))
     formData.printCount = (Number(formData.printCount) || 0) + 1
-  } catch { /* 打印次数失败不阻断打印 */ }
-  window.print()
+  } catch (e) {
+    console.warn('[配送单] 打印次数回写失败', e)
+  }
 }
 
 function formatNow(): string {

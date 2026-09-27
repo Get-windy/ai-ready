@@ -987,7 +987,12 @@ const ALL_SPECS: TemplateSpec[] = [
 
   // ── ERP 统一销售 ──────────────────────────────────────────
   {
-    pageCodes: ['erp/sale', 'erp/sales-analysis', 'erp/sales-report'],
+    // 只留真实存在的 page-code：
+    //  · 原 `erp/sales-analysis` 全站没有这个页面；
+    //  · 原 `erp/sales-report` 是**销售报表看板**（图表 + 榜单，没有单据主键），
+    //    它走结果集打印（页面自己给 `{title, columns, rows}`），
+    //    在这里给它发一份「销售订单」模板 ⇒ 点打印打出来的是一张没数据的销售订单。
+    pageCodes: ['erp/sale'],
     name: 'ERP销售_默认模板',
     businessType: 'sales_order',
     docTitle: '销售订单',

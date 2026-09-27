@@ -78,11 +78,17 @@
             </template>
             导出
           </a-button>
-          <PrintButton
-            page-code="erp/sales-report"
-            button-size="small"
-            tooltip="打印当前报表"
-          />
+          <a-tooltip title="打印当前页签的报表">
+            <a-button
+              size="small"
+              @click="handlePrint"
+            >
+              <template #icon>
+                <PrinterOutlined />
+              </template>
+              打印
+            </a-button>
+          </a-tooltip>
         </a-space>
       </template>
 
@@ -633,6 +639,13 @@
           :show-actions="false"
         />
       </a-drawer>
+
+      <!-- 打印：结果集打印（打的是当前页签正在看的这份数据，见 handlePrint） -->
+      <PrintDialog
+        ref="printDialogRef"
+        page-code="erp-sales-report"
+        :print-data="printData"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -650,10 +663,12 @@ import {
   ExportOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  PlusOutlined
+  PlusOutlined,
+  PrinterOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
@@ -695,6 +710,15 @@ interface DetailDataItem {
 /** 子组件引用类型 */
 interface SubComponentRef {
   handleQuery?: (params: Record<string, unknown>) => Promise<void>
+  /**
+   * 结果集打印负载（见 handlePrint）。
+   * 形如 `{ title, columns, rows }`，与本项目其它结果集页一致。
+   */
+  printData?: {
+    title: string
+    columns: Array<{ key: string; title: string; align?: string }>
+    rows: Array<Record<string, unknown>>
+  }
 }
 
 // ── 常量配置 ──────────────────────────────────────────────
@@ -1049,6 +1073,28 @@ const refreshSubComponents = (extraParams?: Record<string, unknown>) => {
       })
     }
   })
+}
+
+// ── 打印当前页签（结果集打印）─────────────────────────────
+// 看板没有 documentId，后端装配器那条路在这里不适用：页面把自己正在看的这批数据
+// 交给 PrintDialog（`{ title, columns, rows }`），由 v2 结果集模板按数据里的列动态画表头。
+const printDialogRef = ref<any>(null)
+const printData = ref<Record<string, unknown>>({})
+
+const handlePrint = () => {
+  const refMap: Record<string, SubComponentRef | undefined> = {
+    statistics: statisticsRef.value,
+    customer: customerRef.value,
+    product: productRef.value,
+    trend: trendRef.value,
+  }
+  const payload = refMap[activeTab.value]?.printData
+  if (!payload || payload.rows.length === 0) {
+    message.warning('当前页签没有可打印的数据')
+    return
+  }
+  printData.value = { ...payload, printTime: new Date().toLocaleString('zh-CN') }
+  printDialogRef.value?.open?.()
 }
 
 // ── 搜索处理 ──────────────────────────────────────────────

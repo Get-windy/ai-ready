@@ -173,6 +173,12 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="finance-profit-report"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -190,6 +196,8 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { reportApi } from '@/api/finance'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'FinanceProfitReport' })
 
@@ -259,13 +267,16 @@ function handleRefresh() {
 }
 
 // ═══ 打印(F8) ═══
-function handlePrintF8() {
-  if (rows.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint: handlePrintF8 } = useListPrint({
+  pageCode: 'finance-profit-report',
+  title: '利润报表',
+  columns: () => columns,
+  rows: () => rows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

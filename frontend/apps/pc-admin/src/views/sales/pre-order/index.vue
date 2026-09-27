@@ -390,6 +390,7 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import type { FunctionButtonSetting, QueryFieldSetting } from '@/components/PageConfigPanel/index.vue'
 import { preOrderApi } from '@/api/erp'
 import { productCategoryApi } from '@/api/erp/product'
+import { printDocuments } from '@/utils/printDocuments'
 import { useRouter } from 'vue-router'
 
 defineOptions({ name: 'PreOrderList' })
@@ -1067,20 +1068,20 @@ async function handleBatchOrder() {
   })
 }
 
-// ═══ 打印（F8） ═══
-function handlePrint() {
+// ═══ 打印（F8）：按模板逐张渲染已勾选单据 ═══
+// 原先是 preOrderApi.print(ids[0])（只回写打印次数）+ window.print() —— 打出来是整个后台界面，
+// 不是单据。现在走后端「单据打印」接口取 HTML（pageCode=sale-pre-order 已注册装配器与模板）。
+async function handlePrint() {
   const ids = selectedOrderIds.value
   if (ids.length === 0) {
     message.warning('请先选择要打印的预订货单')
     return
   }
-  preOrderApi.print(ids[0] as number).then(() => {
-    message.success('打印计数已递增')
-    window.print()
-    fetchData()
-  }).catch(() => {
-    window.print()
-  })
+  const done = await printDocuments('sale-pre-order', ids as number[], '预订货单')
+  if (!done) return
+  // 次数回写：后端只有单张计数端点，失败不影响已出纸
+  await Promise.all(ids.map(id => preOrderApi.print(id as number).catch(() => null)))
+  fetchData()
 }
 
 const handleError = (error: Error) => {

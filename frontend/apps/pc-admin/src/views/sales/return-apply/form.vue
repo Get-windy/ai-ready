@@ -128,6 +128,13 @@
         @change="handleQuickSearchConfirm"
       />
     </a-modal>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="sale-return-apply"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </div>
 </template>
 
@@ -160,6 +167,7 @@ import { saleReturnApi } from '@/api/erp'
 import { PRODUCT_SALES_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1124,14 +1132,20 @@ function formatNow() {
 // ═══════════════════════════════════════
 
 /** 打印(F8)：按打印配置调用浏览器打印（未保存单据禁止打印） */
+// ═══ 打印（按单据打印） ═══
+// 退货申请单：后端已为 pageCode='sale-return-apply' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
 function handlePrint() {
-  if (!formData.orderNo) {
+  if (!formData.id) {
     message.warning('请先保存单据后再打印')
     return
   }
-  // 打印次数：本地累加，保存时随单据落库
-  formData.printCount = (formData.printCount || 0) + 1
-  window.print()
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
 }
 
 /** 导入：读取 CSV/TXT（列：货号,数量,单价），按货号/条码匹配系统商品生成明细 */

@@ -36,7 +36,7 @@
               <a-tooltip title="F5: 刷新 | Ctrl+N: 新增 | Ctrl+E: 导出">
                 <a-button
                   size="small"
-                  @click="debounceClick('refresh', fetchData)"
+                  @click="debounceClick('refresh', fetchData)()"
                 >
                   <template #icon>
                     <ReloadOutlined />
@@ -46,7 +46,7 @@
               <a-tooltip title="导出 (Ctrl+E)">
                 <a-button
                   size="small"
-                  @click="debounceClick('export', handleExport)"
+                  @click="debounceClick('export', handleExport)()"
                 >
                   <template #icon>
                     <ExportOutlined />
@@ -56,7 +56,7 @@
               <a-tooltip title="打印 (Ctrl+P)">
                 <a-button
                   size="small"
-                  @click="debounceClick('print', handlePrint)"
+                  @click="debounceClick('print', handlePrint)()"
                 >
                   <template #icon>
                     <PrinterOutlined />
@@ -83,7 +83,7 @@
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDelete"
-        @refresh="debounceClick('refresh', fetchData)"
+        @refresh="debounceClick('refresh', fetchData)()"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
       >
@@ -110,7 +110,7 @@
             <template #extra>
               <a-button
                 type="primary"
-                @click="debounceClick('refresh', fetchData)"
+                @click="debounceClick('refresh', fetchData)()"
               >
                 <template #icon>
                   <ReloadOutlined />
@@ -286,7 +286,7 @@
       <!-- 打印弹窗：与「商品」页同一范式（结果集打印，列与行都由页面给） -->
       <PrintDialog
         ref="printDialogRef"
-        page-code="erp/mall/product"
+        page-code="erp-mall-product"
         :print-data="printData"
       />
     </PageContainer>
@@ -318,9 +318,11 @@ const selectedRowKeys = ref<number[]>([])
 // ═══ 打印（结果集打印：打的是"当前列表/勾选的这批商品"，不是某一张单据）═══
 // 改造前这里挂的是 <PrintButton>（打印链入口），但既没给 businessId 也没给 record，
 // 于是拿空载荷去找打印链 —— 按钮点了不会有任何输出。列表页的正确做法与「商品」页一致：
-// 把列定义 + 当前行交给 PrintDialog，模板由「打印模板」里为 erp/mall/product 建的那份决定。
+// 把列定义 + 当前行交给 PrintDialog，模板由「打印模板」里为 erp-mall-product 建的那份决定。
+// ⚠️ page-code 里不能有 `/`：它在业务级接口里是**路径段**（/documents/{pageCode}/templates），
+//    `/` 会被前端编成 %2F，Tomcat 直接判 400。所以这里用连字符而不是路由路径。
 const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
-const printData = ref<Record<string, any>>({ pageTitle: '商城商品列表', columns: [], rows: [] })
+const printData = ref<Record<string, any>>({ title: '商城商品列表', columns: [], rows: [] })
 
 /** 要打印的行：勾选了就打勾选的，否则打当前页 */
 function printableRows(): MallProduct[] {
@@ -581,13 +583,13 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 function handleKeydown(e: KeyboardEvent) {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
   if (e.key === 'F5') {
-    e.preventDefault(); debounceClick('refresh', fetchData)
+    e.preventDefault(); debounceClick('refresh', fetchData)()
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault(); handleAdd()
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-    e.preventDefault(); debounceClick('export', handleExport)
+    e.preventDefault(); debounceClick('export', handleExport)()
   }
 }
 

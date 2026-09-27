@@ -223,6 +223,13 @@
       </div>
     </a-modal>
 
+    <!-- ═══ 打印：结果集打印（打的是当前筛选出的这批价格，不是某一张单据）═══ -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="purchase-price-track"
+      :print-data="printData"
+    />
+
     <!-- ═══ 导入隐藏文件输入 ═══ -->
     <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFileChange" />
   </ErrorBoundary>
@@ -243,6 +250,8 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import ProductSelector from '@/components/business/ProductSelector/ProductSelector.vue'
 import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import * as XLSX from 'xlsx'
 
 defineOptions({ name: 'PurchasePriceTrack' })
@@ -711,10 +720,22 @@ function handleExport() {
   message.success('导出成功')
 }
 
-// ═══ 打印 ═══
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+// 现在交给 PrintDialog：列定义直接用页面自己的 columns（内部筛掉行号/勾选/操作列），
+// 模板按数据里的列画表头，所以列改了不用去改模板。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'purchase-price-track',
+  title: '采购价格跟踪',
+  columns: () => columns,
+  // 打的就是屏幕上这批（含「仅显示已选中」的过滤结果）；日期列在表格里是槽位格式化过的，打印按同一格式
+  rows: () => visibleTableData.value.map((r: any) => ({
+    ...r,
+    purchaseDate: formatDate(r.purchaseDate),
+    lastModifyTime: formatDate(r.lastModifyTime),
+  })),
+  emptyTip: '没有可打印的数据',
+})
 
 onMounted(() => {
   loadCategoryTree()

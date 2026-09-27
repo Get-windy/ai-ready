@@ -373,7 +373,35 @@ onUnmounted(() => {
   chart = null
 })
 
-defineExpose({ handleQuery })
+/**
+ * 结果集打印负载（父页「打印」时取用）。
+ *
+ * 形如 `{ title, columns, rows }`，模板用 `items.columnsFrom: "columns"` 按这里的列动态画表头，
+ * 所以列改在这里、不用去改模板。列必须显式写 —— 表格的 `vxeColumns` 带 slot 渲染
+ * （排名/金额/增长率都是自定义单元格），直接拿去打印会打出占位符。
+ * `columns` 的 key 必须与 `rows` 的键一一对应，否则那一列空白。
+ */
+const printData = computed(() => ({
+  title: '客户销售排行',
+  columns: [
+    { key: 'rank', title: '排名', align: 'center' },
+    { key: 'name', title: '客户名称' },
+    { key: 'customerType', title: '客户类型', align: 'center' },
+    { key: 'totalAmount', title: '销售总额', align: 'right' },
+    { key: 'orderCount', title: '订单数量', align: 'right' },
+    { key: 'growth', title: '同比增长', align: 'right' }
+  ],
+  rows: dataSource.value.map(item => ({
+    rank: `TOP ${item.rank}`,
+    name: item.name || '',
+    customerType: item.customerType || '',
+    totalAmount: `¥${formatAmount(item.totalAmount)}`,
+    orderCount: item.orderCount ?? 0,
+    growth: `${item.growth ?? 0}%`
+  }))
+}))
+
+defineExpose({ handleQuery, printData })
 </script>
 
 <style scoped>

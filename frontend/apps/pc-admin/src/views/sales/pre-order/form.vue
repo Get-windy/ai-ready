@@ -200,6 +200,15 @@
       style="display:none"
       @change="handleImportFileChange"
     >
+
+    <!-- 打印：按模板渲染（pageCode=sale-pre-order） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="sale-pre-order"
+      :document-id="printData.id"
+      :print-data="printData"
+      @print-success="handlePrintSuccess"
+    />
   </div>
 </template>
 
@@ -225,6 +234,7 @@ import optionsApi from '@/api/options'
 import { PRODUCT_EXTEND_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
 import * as XLSX from 'xlsx'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -925,6 +935,33 @@ function handleProductSelectConfirm(products: any[]) {
   message.success(`已选择 ${products.length} 个商品`)
 }
 
+// ═══ 打印（模板渲染，走 erp-printing 系统级路径）═══
+// 后端已为 pageCode='sale-pre-order' 注册 SalePreOrderPrintDataProvider 并有已发布模板，
+// 所以页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 preOrderApi.print(id)（只回写打印次数）+ window.print() —— 打出来是整个后台界面。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+function openPrintDialog() {
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
+    return
+  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open()
+}
+
+/** 打印成功 → 回写打印次数（次数只在真的出纸之后加） */
+async function handlePrintSuccess() {
+  if (!formData.id) return
+  try {
+    await preOrderApi.print(Number(formData.id))
+    formData.printCount = (formData.printCount || 0) + 1
+  } catch (e) {
+    console.warn('[预订货单] 打印次数回写失败', e)
+  }
+}
+
 function handleAction(actionKey: string, _parentKey?: string) {
   switch (actionKey) {
     case 'history': router.push('/sales/pre-order'); break
@@ -937,17 +974,8 @@ function handleAction(actionKey: string, _parentKey?: string) {
     case 'save-draft': handleSaveDraft(); break
     case 'print-pre-order':
     case 'print-summary':
-      if (formData.id) {
-        preOrderApi.print(formData.id).then(() => {
-          formData.printCount = (formData.printCount || 0) + 1
-          message.success('打印计数已递增')
-          window.print()
-        }).catch(() => {
-          window.print()
-        })
-      } else {
-        window.print()
-      }
+      // 两个入口共用同一份模板 —— 模板本身就带合计与金额大写，「汇总」不会丢
+      openPrintDialog()
       break
     case 'copy-pre-order':
       const copyData = { ...formData }

@@ -84,6 +84,12 @@ class PrintTaskServiceImplTest {
 
             when(templateMapper.selectById(1L)).thenReturn(template);
             when(printerMapper.selectById(1L)).thenReturn(printer);
+            // PrintTask.id 是 IdType.AUTO，真实库会在 insert 后回填主键（MQ 消息带的就是它）；
+            // mock 不会回填，不补这一步发出去的就是 null，与生产行为不符。
+            when(taskMapper.insert(any(PrintTask.class))).thenAnswer(inv -> {
+                inv.getArgument(0, PrintTask.class).setId(1L);
+                return 1;
+            });
 
             cn.aiedge.erp.printing.dto.PrintTaskCreateRequest request =
                     new cn.aiedge.erp.printing.dto.PrintTaskCreateRequest();
@@ -98,7 +104,8 @@ class PrintTaskServiceImplTest {
             verify(taskMapper).insert(argThat((PrintTask t) ->
                     t.getTemplateId().equals(1L) && t.getPrinterId().equals(1L)
             ));
-            verify(rabbitTemplate).convertAndSend(eq("print.queue"), anyLong());
+            // 入队消息必须带**回填后的**主键，消费者靠它回查任务
+            verify(rabbitTemplate).convertAndSend(eq("print.queue"), eq(1L));
         }
 
         @Test

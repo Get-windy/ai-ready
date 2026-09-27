@@ -190,6 +190,12 @@
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="wh-move-order-list"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -209,6 +215,8 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { moveApi, type WmsMoveTask } from '@/api/wms/move'
 import { WMS_STATUS_MAP, MOVE_TYPE_MAP, DETAIL_STATUS_MAP, formatQty, formatTime } from '../whTask'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'WhMoveOrderList' })
 
@@ -477,10 +485,16 @@ async function handleCancel(record: any) {
 }
 
 // ═══ 打印 / 导出 ═══
-function handlePrint() {
-  if (tableData.value.length === 0) { message.warning('没有可打印的数据'); return }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'wh-move-order-list',
+  title: '移库单',
+  columns: () => currentColumns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 function handleExport() {
   if (tableData.value.length === 0) { message.warning('没有可导出的数据'); return }
   const cols = currentColumns.value.filter((c: any) => c.key !== 'rowNo' && c.key !== 'action' && c.title)

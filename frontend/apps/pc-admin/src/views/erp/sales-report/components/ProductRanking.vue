@@ -366,7 +366,29 @@ onUnmounted(() => {
   chart = null
 })
 
-defineExpose({ handleQuery })
+/**
+ * 结果集打印负载（父页「打印」时取用），形状与其它结果集页统一为 `{ title, columns, rows }`。
+ * 列显式写：表格的 `vxeColumns` 带 slot 渲染，不能直接拿去打印。
+ */
+const printData = computed(() => ({
+  title: '商品销售排行',
+  columns: [
+    { key: 'rank', title: '排名', align: 'center' },
+    { key: 'name', title: '商品名称' },
+    { key: 'totalAmount', title: '销售总额', align: 'right' },
+    { key: 'volume', title: '销量', align: 'right' },
+    { key: 'margin', title: '毛利率', align: 'right' }
+  ],
+  rows: dataSource.value.map(item => ({
+    rank: `TOP ${item.rank}`,
+    name: item.code ? `${item.name}(${item.code})` : (item.name || ''),
+    totalAmount: `¥${formatAmount(item.totalAmount)}`,
+    volume: item.volume ?? 0,
+    margin: `${item.margin ?? 0}%`
+  }))
+}))
+
+defineExpose({ handleQuery, printData })
 </script>
 
 <style scoped>

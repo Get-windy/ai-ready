@@ -150,7 +150,7 @@
           :show-batch-delete="false"
           :selectable="false"
           :min-empty-rows="12"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
         >

@@ -275,6 +275,12 @@
         </a-radio-group>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="erp-stock-alert-config"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -290,6 +296,8 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 // ── 错误处理 ──
 function handleError(err: any) {
@@ -556,9 +564,16 @@ function handleExport() {
 }
 
 // ── 打印 (F8) ──
-function handlePrintF8() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint: handlePrintF8 } = useListPrint({
+  pageCode: 'erp-stock-alert-config',
+  title: '商品分类',
+  columns: () => columns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 // ── 比较口径 ──
 const comparisonModalVisible = ref(false)

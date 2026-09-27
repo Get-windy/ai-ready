@@ -39,7 +39,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-5655}"
-VERSION="0.3.25"
+VERSION="0.3.26"
 JAR="backend/core/api/core-api/target/core-api-${VERSION}-exec.jar"
 # 默认只构建「核心模块 + 聚合模块」，其余业务模块从本地仓库取，避免全仓重建。
 # ⚠️ 改了别的业务模块（如 erp/erp-finance）时必须显式带上它，否则 core-api 打包会从

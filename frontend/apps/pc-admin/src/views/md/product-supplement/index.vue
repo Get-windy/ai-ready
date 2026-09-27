@@ -415,6 +415,12 @@
         </div>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-product-supplement"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -443,6 +449,8 @@ import {
   mallTagApi,
   productUnitGroupApi,
 } from '@/api/erp/product'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 /**
  * 商品辅助资料（资料 → 商品管理 → 商品辅助资料）
@@ -736,9 +744,16 @@ function handleToggleTagStatus(record: any) {
 }
 
 // ── 打印（F8） / 导出 ──
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-product-supplement',
+  title: '商品补充资料',
+  columns: () => brandColumns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 async function handleExport() {
   try {

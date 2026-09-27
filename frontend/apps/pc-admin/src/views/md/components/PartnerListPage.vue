@@ -81,12 +81,6 @@
           </a-button>
           <a-button
             size="small"
-            @click="handlePrint"
-          >
-            <PrinterOutlined /> 打印(F8)
-          </a-button>
-          <a-button
-            size="small"
             @click="handleExport"
           >
             <DownloadOutlined /> 导出
@@ -513,7 +507,6 @@ import {
   InboxOutlined,
   PaperClipOutlined,
   SettingOutlined,
-  PrinterOutlined,
   UploadOutlined,
   EditOutlined,
   CloseOutlined,
@@ -1050,10 +1043,6 @@ function handleBatchStatus() {
   })
 }
 
-function handlePrint() {
-  window.print()
-}
-
 function handleBatchDelete() {
   if (selectedRows.value.length === 0) {
     message.warning('请先选择记录')
@@ -1143,10 +1132,6 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
     handleAdd()
-  }
-  if (e.key === 'F8') {
-    e.preventDefault()
-    handlePrint()
   }
 }
 

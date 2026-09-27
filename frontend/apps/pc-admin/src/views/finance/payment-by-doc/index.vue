@@ -227,6 +227,12 @@
       @change="handlePageConfigChange"
     />
 
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="finance-payment-by-doc"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -247,6 +253,8 @@ import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { paymentByDocApi } from '@/api/finance'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'FinancePaymentByDoc' })
 const router = useRouter()
@@ -772,13 +780,19 @@ function handleSelectionChange(rows: any[]) {
 // ═══ 工具栏操作 ═══
 function handleRefresh() { fetchData() }
 
-function handlePrintF8() {
-  if (tableData.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint: handlePrintF8 } = useListPrint({
+  pageCode: 'finance-payment-by-doc',
+  // 列是 computed（随 Tab / 列配置变），静态生成器写不进模板 → 明确按数据列打
+  useDataColumns: true,
+  title: '按单付款',
+  columns: () => currentColumns,
+  rows: () => tableData.value,
+  selectedRows: () => selectedRows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleExport() {
   if (tableData.value.length === 0) {

@@ -330,6 +330,12 @@
         </a-form>
       </a-modal>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-payment-method"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -351,6 +357,8 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import optionsApi from '@/api/options'
 import { paymentMethodApi, METHOD_TYPE_OPTIONS, METHOD_TYPE_MAP } from '@/api/payment/md'
 import type { PaymentMethodQuery } from '@/api/payment/md'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 defineOptions({ name: 'MdPaymentMethod' })
 
@@ -610,13 +618,16 @@ function handleDelete(record: any) {
 }
 
 // ═══ 打印(F8) ═══
-function handlePrint() {
-  if (tableData.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-payment-method',
+  title: 'md-payment-method',
+  columns: () => columns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

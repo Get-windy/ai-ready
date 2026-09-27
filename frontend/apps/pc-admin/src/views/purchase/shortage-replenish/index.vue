@@ -251,6 +251,12 @@
       @change="handlePageConfigChange"
     />
 
+    <!-- 打印：结果集打印（勾选则打勾选，否则打当前这批） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="purchase-shortage-replenish"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -269,6 +275,8 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { stockReportApi, type ShortageReplenishItem } from '@/api/analytics'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 import { optionsApi } from '@/api/options'
 import request from '@/utils/request'
 
@@ -589,10 +597,16 @@ function handleExport() {
   message.success('导出成功')
 }
 
-// ═══ 打印 ═══
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面。勾选了就打勾选的，否则打当前这批。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'purchase-shortage-replenish',
+  title: '缺货补货',
+  columns: () => columns,
+  rows: () => tableData.value,
+  selectedRows: () => selectedRows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 采购：跳转采购订单表单，预填选中商品 ═══
 function handlePurchase() {

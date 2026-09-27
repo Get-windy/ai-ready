@@ -74,6 +74,7 @@ def backend_page_codes():
       implements PrintDataProvider 的类里
         · PAGE_CODE = "xxx"            → 取该常量
         · pageCode() { return "xxx"; } → 取字面量
+        · new GenericPrintDataProvider("xxx", …)  → 声明式登记（@Bean 里一行一个页面）
     """
     found = {}          # pageCode -> [文件…]（>1 即重复注册）
     unknown = []        # 认不出 pageCode 的实现
@@ -81,6 +82,17 @@ def backend_page_codes():
     # erp-sales / erp-purchase 在 erp/ 下，配送任务的在 dms/ 下（漏扫会得出"没注册"的错结论）
     for path in walk_files(BACKEND, ('.java',)):
         text = read(path)
+        rel = os.path.relpath(path, ROOT)
+        # 测试源不算注册：单测里也会 new GenericPrintDataProvider("stock-in", …)，
+        # 那是夹具不是登记（曾把它当成"重复注册"误报）
+        if 'src/test' in rel.replace('\\', '/'):
+            continue
+        # 声明式登记：一个类里可能登记很多页（库存 8 个单据就是一个类）
+        generic = re.findall(r'new\s+GenericPrintDataProvider\(\s*"([^"]+)"', text)
+        if generic:
+            for code in generic:
+                found.setdefault(code, []).append(rel)
+            continue
         if 'implements PrintDataProvider' not in text:
             continue
         literals = re.findall(r'PAGE_CODE\s*=\s*"([^"]+)"', text)
@@ -88,7 +100,6 @@ def backend_page_codes():
             literals = re.findall(r'pageCode\(\)\s*\{[^}]*return\s+"([^"]+)"', text, re.S)
         if not literals:
             literals = re.findall(r'return\s+"([a-z][a-z0-9\-]*)"\s*;', text)
-        rel = os.path.relpath(path, ROOT)
         if len(literals) == 1:
             found.setdefault(literals[0], []).append(rel)
         else:
@@ -158,10 +169,24 @@ def check_codes():
     front_codes = sorted(front)
     print(f'  前端用到的 page-code（{len(front_codes)} 个）: {front_codes}')
 
+    # page-code 在业务级接口里是**路径段**：/v2/print/documents/{pageCode}/templates。
+    # 带 `/` 的 page-code 前端会编成 %2F，Tomcat 直接判 400（ALLOW_ENCODED_SLASH 默认关），
+    # 于是「取模板 → 渲染」整条链第一个请求就断 —— 而静态看代码一切正常。
+    # 实测：erp/sales-report、erp/mall/product 曾恒 400，2026-09-27 改成连字符。
+    slash = [c for c in front_codes if '/' in c]
+    note(not slash,
+         f'page-code 含 `/`，业务级接口会 400（路径段不容斜杠），改用连字符: {slash}' if slash
+         else 'page-code 都不含 `/`（可安全用作路径段）')
+
     if db is None:
         print('  ⚠️ 没装 psycopg2，跳过库里的模板比对')
         return
     print(f'  库里有模板的 page_code: {sorted(db)}')
+
+    slash_db = sorted(c for c in db if '/' in c)
+    note(not slash_db,
+         f'库里有含 `/` 的 page_code（同上，取模板会 400）: {slash_db}' if slash_db
+         else '库里 page_code 也都不含 `/`')
 
     # 前端在用、但后端没有装配器 → 只能走「页面自己给数据」的兼容路径（不是错误，但要知情）
     compat = [c for c in front_codes if c not in back]

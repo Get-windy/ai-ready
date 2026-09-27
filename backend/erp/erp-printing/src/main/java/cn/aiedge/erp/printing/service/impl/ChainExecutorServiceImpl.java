@@ -249,18 +249,20 @@ public class ChainExecutorServiceImpl implements ChainExecutorService {
     }
 
     /**
-     * 渲染模板 HTML 并分发到客户端
+     * 渲染模板 HTML 并分发到客户端。
+     *
+     * <p>这里<b>不</b>写任务状态：状态由 {@link #dispatchToClient} 一次写定
+     * （拿到锁 → PRINTING，锁被占用 → QUEUED，没指定客户端 → FAILED）。
+     * 原先在分发前先写一次 QUEUED，会被紧随其后的分支立刻覆盖（QUEUED→QUEUED
+     * 或 QUEUED→PRINTING）；两者同处一个事务，外部也观察不到中间态，
+     * 所以那次 UPDATE 纯属多余。</p>
      */
     private void renderAndDispatch(SysPrintTask task) throws Exception {
-        // 1. 标记为队列中
-        task.setStatus("QUEUED");
-        taskMapper.updateById(task);
-
-        // 2. 渲染（预渲染 HTML 在 data_json 中标记，最终客户端渲染）
+        // 渲染（预渲染 HTML 在 data_json 中标记，最终客户端渲染）
         // 实际客户端收到任务后，会使用本地渲染引擎进行最终渲染
         // 这里也可以直接预渲染成 HTML 存到 result_log 或扩展字段
 
-        // 3. 分发到客户端
+        // 分发到客户端
         dispatchToClient(task);
     }
 

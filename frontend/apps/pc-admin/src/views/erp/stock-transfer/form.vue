@@ -181,6 +181,13 @@
         </a-tabs>
       </a-modal>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="stock-transfer"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -211,6 +218,7 @@ import { stockTransferApi, userPageConfigApi } from '@/api/erp'
 import optionsApi from '@/api/options'
 import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'StockTransferForm' })
 
@@ -925,12 +933,20 @@ async function handleAction(actionKey: string) {
 }
 
 // ── 打印(F8) ──
+// ═══ 打印（按单据打印） ═══
+// 库存调拨单：后端已为 pageCode='stock-transfer' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
 function handlePrint() {
-  if (formData.orderNo) {
-    window.print()
-  } else {
+  if (!formData.id) {
     message.warning('请先保存单据后再打印')
+    return
   }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
 }
 
 // ── 导入：读本地文本/CSV 解析商品明细 ──

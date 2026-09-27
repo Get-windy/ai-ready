@@ -424,6 +424,12 @@
       @change="handlePageConfigChange"
     />
 
+    <!-- 打印：结果集打印（勾选则打勾选，否则打当前这批） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="purchase-sales-driven"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -443,6 +449,8 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 // ═══ 状态映射 ═══
 const STATUS_MAP: Record<number, string> = {
@@ -807,10 +815,16 @@ function handleExportMenu({ key }: { key: string | number }) {
   }
 }
 
-// ═══ 打印 ═══
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面。勾选了就打勾选的，否则打当前这批。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'purchase-sales-driven',
+  title: '销售驱动采购',
+  columns: () => columns,
+  rows: () => tableData.value,
+  selectedRows: () => selectedRows.value,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 采购成品/采购原料（行级二次确认） ═══
 function handlePurchase(mode: 'FINISHED' | 'MATERIAL', record: any) {

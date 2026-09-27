@@ -261,9 +261,9 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { userPageConfigApi } from '@/api/erp'
 import { saleOrderApi } from '@/api/erp'
-import { printingApi } from '@/api/printing'
 import { useUserStore } from '@/stores/user'
 import { exportCsvWithLoading } from '@/utils/exportCsv'
+import { printDocuments } from '@/utils/printDocuments'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import PrintDialog from '@/components/PrintDialog/index.vue'
 import SalePackageDrawer from '@/components/business/SalePackageDrawer/index.vue'
@@ -1066,74 +1066,17 @@ const handlePrintF8 = async () => {
   await openPrintDialog(first)
 }
 
-/** 批量打印：登记打印次数 + 按同一模板连续打印已勾选单据 */
+/** 批量打印：连续渲染并打印已勾选单据，成功后再登记打印次数 */
 const handleBatchPrint = async () => {
   const ids = getSelectedIds()
   if (!ids.length) { message.warning('请先勾选要打印的单据'); return }
   try {
+    const done = await printDocuments('sale', ids, '销售订单')
+    if (!done) return
+    // 次数回写放在真的出纸之后 —— 原来先 +1 再打印，渲染失败也会把次数记上
     await saleOrderApi.batchPrint(ids)
-    const done = await printContinuous(ids)
-    if (done) fetchData()
+    fetchData()
   } catch { message.error('打印失败') }
-}
-
-/** 取出完整 HTML 文档里的 <style> 块（合并多份文档时集中放 head） */
-function extractStyles(html: string): string {
-  return (html.match(/<style[\s\S]*?<\/style>/gi) || []).join('\n')
-}
-
-/** 取出 <body> 内部内容；没有 body 标记就原样返回 */
-function extractBody(html: string): string {
-  const m = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-  return m ? m[1] : html
-}
-
-/**
- * 连续打印：逐张走后端「单据打印」接口取 HTML，再合并成一个打印任务。
- *
- * 合并成一次打印是**客户端本分**（后端没有「多单据一次打印」的能力），保留；
- * 但「挑模板 → 取数 → 渲染」不再自己抄一遍 —— 那条流水线归服务端，
- * 抄一份就会像原来那样连带复制它的缺陷（列配置/字段口径/打印设置各写各的）。
- *
- * ⚠️ 合并时**不能把整份文档塞进 <body>**：每张渲染结果都是完整 HTML（含自己的
- * <style> 与 @page），文档套文档会让内层 <head>/<style> 被浏览器丢弃，
- * 模板样式与纸张尺寸全部失效（原来就是这么写的）。这里抽出各自 body 内容拼接，
- * 样式取第一份（同一 pageCode 的模板，引擎 CSS 一致）。
- */
-async function printContinuous(ids: any[]): Promise<boolean> {
-  const parts: string[] = []
-  for (const id of ids) {
-    const res: any = await printingApi.renderDocument('sale', id)
-    const html = res?.data?.html || res?.html || ''
-    if (html) parts.push(html)
-  }
-  if (!parts.length) {
-    message.warning('没有可打印的内容：请确认单据存在，且「打印模板」里有已发布的销售订单模板')
-    return false
-  }
-
-  const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
-  document.body.appendChild(iframe)
-  const doc = iframe.contentDocument || iframe.contentWindow?.document
-  if (!doc) { message.error('无法创建打印窗口'); return false }
-  doc.open()
-  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>销售订单打印</title>
-    ${extractStyles(parts[0])}
-    <style>
-      body{margin:0;font-family:SimSun,serif;font-size:12px}
-      .merged-doc{page-break-after:always}
-      .merged-doc:last-child{page-break-after:auto}
-    </style></head><body>
-    ${parts.map(h => `<div class="merged-doc">${extractBody(h)}</div>`).join('')}
-    </body></html>`)
-  doc.close()
-  await new Promise(r => setTimeout(r, 300))
-  iframe.contentWindow?.focus()
-  iframe.contentWindow?.print()
-  setTimeout(() => document.body.removeChild(iframe), 1000)
-  message.success(`已发送 ${ids.length} 张单据到打印机`)
-  return true
 }
 
 // 商品汇总（打开汇总弹窗）

@@ -24,6 +24,13 @@
             <groupId>cn.aiedge</groupId>
             <artifactId>core-base</artifactId>
         </dependency>
+    <!-- 打印服务依赖（登记单据打印装配器，让单据能被「单据打印」统一接口渲染）
+         ⚠️ 依赖方向 wms → erp-printing 不成环：erp-printing 只依赖 core-base -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-printing</artifactId>
+      <version>${project.version}</version>
+    </dependency>
         <!-- ERP 库存模块（WMS 库存变动同步镜像到仓库级汇总账 erp_stock） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>

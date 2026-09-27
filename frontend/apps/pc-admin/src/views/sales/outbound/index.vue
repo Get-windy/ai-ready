@@ -441,6 +441,7 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { outboundApi } from '@/api/erp'
+import { printDocuments } from '@/utils/printDocuments'
 import { productCategoryApi } from '@/api/erp/product'
 import { useRouter } from 'vue-router'
 
@@ -1285,28 +1286,27 @@ function formatAmount(amount: number): string {
 
 // ═══ 功能按钮事件 ═══
 
-function handleBatchPrint() {
+/**
+ * 批量打印：逐张走后端渲染已发布模板，再合并一次发给打印机。
+ *
+ * 原先是 `outboundApi.batchPrint(...)` + 「打印任务已提交」—— 那个端点**只回写打印次数**，
+ * 不渲染也不出纸，属于假打印（同一类缺陷在出库单表单页已修）。次数回写改到出纸之后。
+ */
+async function handleBatchPrint() {
   if (selectedRowKeys.value.length === 0) {
     message.warning('请先选择要打印的出库单')
     return
   }
-  // 打印配置：勾选「始终使用最后一次打印的模板」后不再让操作员选择模板
-  const skipTemplateSelect = printConfig.alwaysLastTemplate
-  Modal.confirm({
-    title: '批量打印',
-    content: skipTemplateSelect
-      ? `将使用上次打印模板打印选中的 ${selectedRowKeys.value.length} 条出库单，确认继续？`
-      : `确定要打印选中的 ${selectedRowKeys.value.length} 条出库单吗？`,
-    onOk: async () => {
-      try {
-        await outboundApi.batchPrint(selectedRowKeys.value)
-        message.success('打印任务已提交')
-        fetchData()
-      } catch (error: any) {
-        message.error(error?.response?.data?.message || '批量打印失败')
-      }
-    },
-  })
+  const ids = selectedRowKeys.value.map(k => Number(k))
+  const done = await printDocuments('sale-outbound', ids, '销售出库单')
+  if (!done) return
+  try {
+    await outboundApi.batchPrint(ids)
+  } catch (error) {
+    // 次数回写失败不影响「已经出纸」，不打断用户
+    console.warn('[销售出库单] 打印次数回写失败', error)
+  }
+  fetchData()
 }
 
 function handleProductSummary() {

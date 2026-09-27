@@ -249,6 +249,13 @@
         </a-tabs>
       </a-modal>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="stock-split"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -269,6 +276,7 @@ import optionsApi from '@/api/options'
 import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 import { ASSEMBLE_STATUS } from '@/utils/statusConfig'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'StockSplitForm' })
 
@@ -945,9 +953,20 @@ function handleExecute() {
 }
 
 // ── 工具栏 ──
+// ═══ 打印（按单据打印） ═══
+// 库存拆分单：后端已为 pageCode='stock-split' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
 function handlePrint() {
-  if (!formData.splitNo) { message.warning('请先保存单据后再打印'); return }
-  window.print()
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
+    return
+  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
 }
 function handleHistory() {
   router.push('/erp/stock-split')

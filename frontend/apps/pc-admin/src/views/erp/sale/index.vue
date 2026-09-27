@@ -144,27 +144,16 @@
         @update:open="showPageConfig = $event"
         @change="handlePageConfigChange"
       />
-      <!-- ═══ 批量打印弹窗 ═══ -->
-      <a-modal
-        v-model:open="showPrintDialog"
-        title="批量打印"
-        width="400px"
-        :mask-closable="false"
-        @ok="confirmPrint"
-      >
-        <div style="margin-bottom:12px;color:#888;font-size:12px">
-          已选择 {{ selectedRows.length }} 条订单
-        </div>
-        <a-form layout="vertical">
-          <a-form-item label="打印模板">
-            <a-select v-model:value="printTemplate">
-              <a-select-option value="default">默认模板</a-select-option>
-              <a-select-option value="detail">详细模板</a-select-option>
-              <a-select-option value="compact">紧凑模板</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-form>
-      </a-modal>
+      <!-- 打印（模板渲染，走 erp-printing 系统级路径）：
+           原来这里是自写的「默认/详细/紧凑模板」下拉 + 只把打印次数 +1 的假弹窗 ——
+           选的模板从未发给后端，点了不会出纸。 -->
+      <PrintDialog
+        ref="printDialogRef"
+        page-code="sale"
+        :document-id="printData.id"
+        :print-data="printData"
+        @print-success="handlePrintSuccess"
+      />
       <!-- ═══ 物流备注弹窗 ═══ -->
       <a-modal
         v-model:open="showLogisticsRemarkModal"
@@ -239,6 +228,8 @@ import type {
 } from '@/components/DocCenterLayout'
 import { saleOrderApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { printDocuments } from '@/utils/printDocuments'
 
 // ── 状态管理 ──
 const router = useRouter()
@@ -1223,70 +1214,56 @@ function handleToolbarAction(key: string) {
   }
 }
 
-const printTemplate = ref('default')
-const showPrintDialog = ref(false)
+// ═══ 打印（模板渲染，走 erp-printing 系统级路径）═══
+// 后端已为 pageCode='sale' 注册 SaleOrderPrintDataProvider，并有已发布的默认模板，
+// 所以页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+/** 本次打印涉及的单据 ID，打印成功后回写打印次数 */
+const printingIds = ref<string[]>([])
 
-/** 获取打印配置 */
-function getPrintConfig(): { alwaysLastTemplate: boolean, printAfterSubmit: boolean } {
-  try {
-    const raw = localStorage.getItem('sale-order-form-print-config')
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      return {
-        alwaysLastTemplate: parsed.alwaysLastTemplate ?? false,
-        printAfterSubmit: parsed.printAfterSubmit ?? false,
-      }
-    }
-  } catch {}
-  return { alwaysLastTemplate: false, printAfterSubmit: false }
-}
-
-/** 保存最后一次使用的模板 */
-function saveLastPrintTemplate(template: string) {
-  try {
-    localStorage.setItem('sale-order-last-print-template', template)
-  } catch {}
-}
-
-/** 恢复最后一次使用的模板 */
-function loadLastPrintTemplate(): string {
-  try {
-    return localStorage.getItem('sale-order-last-print-template') || 'default'
-  } catch {
-    return 'default'
+/** 单张打印：打开打印弹窗（可挑模板、预览、选份数、走打印链） */
+function handlePrint(record: any) {
+  const id = record?.id ?? record?.orderId
+  if (!id) {
+    message.warning('未找到可打印的单据')
+    return
   }
+  printData.value = { id }
+  printingIds.value = [String(id)]
+  printDialogRef.value?.open()
 }
 
-function handleBatchPrint() {
+/** 批量打印：连续渲染已勾选订单、一次发给打印机，出纸后再登记打印次数 */
+async function handleBatchPrint() {
   if (selectedRows.value.length === 0) {
     message.warning('请先选择要打印的订单')
     return
   }
-  const printConfig = getPrintConfig()
-  printTemplate.value = loadLastPrintTemplate()
-  // 如果开启"始终使用最后打印模板"，跳过选择弹窗直接打印
-  if (printConfig.alwaysLastTemplate) {
-    doPrint(selectedRows.value.map(r => Number(r.id)), printTemplate.value)
-    return
-  }
-  showPrintDialog.value = true
-}
-
-async function confirmPrint() {
   const ids = selectedRows.value.map(r => Number(r.id))
-  await doPrint(ids, printTemplate.value)
-  showPrintDialog.value = false
-}
-
-async function doPrint(ids: number[], template: string) {
+  const done = await printDocuments('sale', ids, '销售订单')
+  if (!done) return
   try {
     await saleOrderApi.batchPrint(ids)
-    saveLastPrintTemplate(template)
-    message.success(`已打印 ${ids.length} 条订单（模板: ${template}）`)
-    fetchData()
-  } catch (e: any) {
-    message.error(e?.response?.data?.message || '打印失败')
+  } catch (e) {
+    // 次数回写失败不影响「已经出纸」，不打断用户
+    console.warn('[销售订单] 打印次数回写失败', e)
   }
+  fetchData()
+}
+
+/** 打印成功 → 累加「打印次数」后刷新（次数回写只在真的打印之后） */
+async function handlePrintSuccess() {
+  const ids = printingIds.value
+  printingIds.value = []
+  if (ids.length) {
+    try {
+      await saleOrderApi.batchPrint(ids.map(Number))
+    } catch (e) {
+      console.warn('[销售订单] 打印次数回写失败', e)
+    }
+  }
+  fetchData()
 }
 
 function handleProductSummary() {
@@ -1569,16 +1546,6 @@ async function confirmPayment() {
     fetchData()
   } catch (e: any) {
     message.error(e?.response?.data?.message || '收款失败')
-  }
-}
-
-async function handlePrint(record: any) {
-  try {
-    await saleOrderApi.batchPrint([Number(record.id)])
-    message.success(`订单 ${record.orderNo} 打印成功`)
-    fetchData()
-  } catch (e: any) {
-    message.error(e?.response?.data?.message || '打印失败')
   }
 }
 

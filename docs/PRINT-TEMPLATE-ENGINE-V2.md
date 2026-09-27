@@ -147,8 +147,22 @@ Spring 按 `pageCode` 收进 `PrintDataProviderRegistry`；**同一 pageCode 注
 
 已知属结果集打印（保持兼容路径，不要再试图补装配器）：
 `md:product` / `md:barcode` / `md:location` / `md:product-price` / `dms:verification` /
-`ship-query` / `dispatch-query` / `erp/sales-report`。
-它们的 `print-data` 刻意围绕"我正在看的这批数据"构造（`{title, columns, rows}` 或 `{pageTitle, rows, total}`）。
+`erp-mall-product` / `erp-sales-report`。
+它们的 `print-data` 刻意围绕"我正在看的这批数据"构造，统一形状是 `{title, columns, rows, printTime}`
+（`ship-query` / `dispatch-query` 不在此列 —— 它们打的是销售出库单 / 配送任务单本体，
+有委托实现的后端装配器，见下面「同一个单据被多个入口打印」）。
+
+### page-code 是路径段，不能含 `/`
+
+三个业务级端点都把 page-code 放在**路径**里（`/documents/{pageCode}/templates`），
+所以 page-code 必须能安全当路径段用：
+
+- 前端会对它做 `encodeURIComponent`，`/` 变成 `%2F`；
+- Tomcat 的 `ALLOW_ENCODED_SLASH` 默认关，见到 `%2F` 直接回 **400**（不是 404，也不是「模板不存在」）；
+- 于是「取模板 → 渲染」在第一个请求就断，而静态看代码一切正常。
+
+实测 `erp/sales-report`、`erp/mall/product` 曾恒 400（2026-09-27 已改成 `erp-sales-report` /
+`erp-mall-product`）。`tools/check-print-wiring.py` 有这条守卫，新页面别再起带 `/` 的编码。
 
 ### 接入一个新页面（4 步）
 
@@ -183,6 +197,7 @@ Spring 按 `pageCode` 收进 `PrintDataProviderRegistry`；**同一 pageCode 注
 |---|---|
 | `tools/check-print-wiring.py` | 接入检查：pageCode 三方对齐 / 权限码 / 接口路径。三类漂移一次抓出 |
 | `tools/verify-print-document.cjs <pageCode> <documentId> [templateId]` | 端到端验证：登录 → 取模板 → 渲染 → 断言内容 |
+| `tools/e2e-sale-pre-order-print.cjs` | 预订货单**造单 + 打印**端到端。dev 库里该表本来是空的，没有 documentId 就验不了这条链 —— 页面数据为空的单据照这个写一个 |
 | `tools/ql361-print-template-seed.py <json> <pageCode> --name … [--apply] [--template-id N]` | 模板落库；`--template-id` 精确改写某行（按名字匹配会被空格拆词坑到） |
 | `tools/ql361-print-template-convert.py` | ql361 模板 → v1 格式（**仅供研究对标**，转换产物缺单号/合计/页码，不能当生产模板） |
 
@@ -198,9 +213,39 @@ Spring 按 `pageCode` 收进 `PrintDataProviderRegistry`；**同一 pageCode 注
   既没模板也没装配器，点打印必然报「还没有已发布的打印模板」。
   凡 `:page-code="变量"` 的写法，`tools/check-print-wiring.py` 判不了（会提示人工确认），
   变量映射表里的每个值都要跟对应页面的字面量逐个核对。
+- **写验证脚本时雪花 ID 只能按字符串传**：本库单据/商品 ID 是 `990000000000000001` 这个量级，
+  超过 JS 安全整数 `2^53` —— 写成字面量数字会被静默取整成 `...000`，后端收到的是**另一个 ID**
+  （表现为 `商品不存在：…000`）。读回来没事：后端把 Long 序列化成了字符串。
 - `v-permission` 校验不到的码会**移除元素**（不是置灰）→ 权限码写错就是按钮消失，且不报错。
 - `ExpressionEvaluator` 走 SpEL，字段值必须写 `#value`（裸写 `value` 会被当根对象属性 → 求值失败）。
 - `PrintDialog` 的预览必须用 `srcdoc` iframe：用 `v-html` 会把模板的 `<style>` 提到当前页面里生效，
   污染整个后台界面。
 - 打印文档不要在 `<body>` 里再套一层 `<html>` —— 内层 `<head>/<style>` 会被丢弃，模板的字体与
   纸张设置随之失效（所见与所打不一致）。
+
+## 七、结果集页的统一接法（`useListPrint`）
+
+列表 / 查询 / 报表页**不要各写一遍**打印逻辑 —— 用 `@/composables/useListPrint`：
+
+```ts
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'purchase-doc-query',   // 与库里的模板一致，且不含 `/`
+  title: '采购单据查询',
+  columns: () => columns,           // 页面自己的列定义，原样给
+  rows: () => tableData.value,
+  selectedRows: () => selectedRows.value,   // 可选：勾选了就打勾选的
+})
+```
+```vue
+<PrintDialog ref="printDialogRef" page-code="purchase-doc-query" :print-data="printData" />
+```
+
+它替页面做三件事：筛列（行号 / 勾选 / 操作 / 图片 / `defaultHidden` 不打）、
+按列自带的 `formatter(value, record)` 格式化单元格（与表格同格式）、组装 `{title, columns, rows}`。
+列由数据给（`items.columnsFrom`），所以页面的列变了不用去改模板。
+
+**宽表要横向**：`table-layout:fixed` + 表头 `nowrap`，A4 纵向放不下多少列。
+约定 **可打印列 > 14 就用横向模板**（`tool-results/print-template-v2/_result-set-landscape.json`，
+`pageWidth 297 / pageHeight 210`；模板名写「结果集模板（横向·v2）」以便一眼分辨）。
+实测 `purchase-doc-query`（37 列）、`purchase-sales-driven`（42 列）用横向，
+其余结果集页（≤14 列）用纵向的 `_result-set.json`。

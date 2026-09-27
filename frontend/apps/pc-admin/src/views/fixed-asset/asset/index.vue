@@ -38,7 +38,7 @@
               v-permission="'fixed-asset:asset:list'"
               size="small"
               :loading="refreshLoading"
-              @click="debounceClick('refresh', fetchData)"
+              @click="debounceClick('refresh', fetchData)()"
             >
               <template #icon>
                 <ReloadOutlined />
@@ -125,7 +125,7 @@
           @edit="editAsset"
           @delete="handleDeleteWithConfirm"
           @batch-delete="handleBatchDelete"
-          @refresh="debounceClick('refresh', fetchData)"
+          @refresh="debounceClick('refresh', fetchData)()"
           @search="handleSearch"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"

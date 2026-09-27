@@ -354,6 +354,12 @@
         placeholder="请输入整单备注内容"
       />
     </a-modal>
+    <!-- 打印：结果集打印（打的是当前筛选出的这批单据） -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="purchase-doc-query"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -373,6 +379,8 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { purchaseDocUnifiedApi } from '@/api/purchase'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 const router = useRouter()
 
@@ -717,10 +725,16 @@ function handleExportMenu({ key }: { key: string | number }) {
   }
 }
 
-// ═══ 打印 ═══
-function handlePrint() {
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面。列直接取页面自己的 columns，
+// 模板按数据里的列画表头；勾选了就打勾选的，否则打当前这批。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'purchase-doc-query',
+  title: '采购单据查询',
+  columns: () => columns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 // ═══ 复制 ═══
 const COPY_ROUTE_MAP: Record<string, string> = {

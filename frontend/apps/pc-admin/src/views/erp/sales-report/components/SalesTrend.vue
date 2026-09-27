@@ -430,7 +430,29 @@ onUnmounted(() => {
   chart = null
 })
 
-defineExpose({ handleQuery })
+/**
+ * 结果集打印负载（父页「打印」时取用），形状与其它结果集页统一为 `{ title, columns, rows }`。
+ * 打的是「趋势明细」那张表的当前数据。
+ */
+const printData = computed(() => ({
+  title: '销售趋势明细',
+  columns: [
+    { key: 'period', title: '周期' },
+    { key: 'currentSales', title: '本期销售', align: 'right' },
+    { key: 'lastSales', title: '上期销售', align: 'right' },
+    { key: 'growth', title: '增长率', align: 'right' },
+    { key: 'orderCount', title: '订单数', align: 'right' }
+  ],
+  rows: trendData.value.map(row => ({
+    period: row.period || '',
+    currentSales: `¥${formatAmount(row.currentSales)}`,
+    lastSales: `¥${formatAmount(row.lastSales)}`,
+    growth: `${row.growth ?? 0}%`,
+    orderCount: row.orderCount ?? 0
+  }))
+}))
+
+defineExpose({ handleQuery, printData })
 </script>
 
 <style scoped>

@@ -199,6 +199,12 @@
         @success="handleImportSuccess"
       />
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="md-logistics"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -223,6 +229,8 @@ import BaseDataImportWizard from '@/components/business/BaseDataImportWizard/ind
 import { partnerApi } from '@/api/erp/partner'
 import type { Partner } from '@/api/erp/partner'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 const router = useRouter()
 
@@ -366,13 +374,16 @@ function handleBatchStatus(status: 'ENABLED' | 'DISABLED') {
 }
 
 // ═══ 打印(F8) ═══
-function handlePrint() {
-  if (tableData.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint } = useListPrint({
+  pageCode: 'md-logistics',
+  title: '基本信息导入',
+  columns: () => columns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 function handleF8Key(e: KeyboardEvent) {
   if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {

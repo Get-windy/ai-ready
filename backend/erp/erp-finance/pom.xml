@@ -22,6 +22,13 @@
             <groupId>cn.aiedge</groupId>
             <artifactId>core-base</artifactId>
         </dependency>
+    <!-- 打印服务依赖（登记单据打印装配器，让单据能被「单据打印」统一接口渲染）
+         ⚠️ 依赖方向 erp-finance → erp-printing 不成环：erp-printing 只依赖 core-base -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-printing</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
         <!-- 预算模块：费用/支出单据记账后回写《预算执行》（P1 执行回写） -->
         <dependency>

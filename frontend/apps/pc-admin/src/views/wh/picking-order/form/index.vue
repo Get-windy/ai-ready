@@ -144,6 +144,13 @@
         </a-tabs>
       </a-modal>
     </PageContainer>
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="wh-picking-order"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </ErrorBoundary>
 </template>
 
@@ -167,6 +174,7 @@ import { pickApi, type WmsPickTask, type WmsPickDetail } from '@/api/wms/pick'
 import { userPageConfigApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { PICK_STATUS_MAP, PICK_SOURCE_TYPE_OPTIONS, pickSourceTypeText, formatQty } from '../../whTask'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'WhPickingOrderForm' })
 
@@ -496,7 +504,7 @@ async function handleAction(actionKey: string) {
       showFormConfig.value = true
       break
     case 'print':
-      window.print()
+      openPrintDialog()
       break
     case 'import':
       handleImport()
@@ -608,6 +616,21 @@ onMounted(async () => {
     if (formData.defaultPriority !== undefined) formData.priority = formData.defaultPriority
   }
 })
+// ═══ 打印（按单据打印） ═══
+// 拣货单：后端已为 pageCode='wh-picking-order' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+function openPrintDialog() {
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
+    return
+  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
+}
 </script>
 
 <style scoped>

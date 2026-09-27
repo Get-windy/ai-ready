@@ -139,6 +139,12 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
+    <!-- 打印：结果集打印 -->
+    <PrintDialog
+      ref="printDialogRef"
+      page-code="erp-alert-query"
+      :print-data="printData"
+    />
   </ErrorBoundary>
 </template>
 
@@ -153,6 +159,8 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { stockAlertQueryApi } from '@/api/erp/stockAlert'
 import { productCategoryApi } from '@/api/erp/product'
 import request from '@/utils/request'
+import PrintDialog from '@/components/PrintDialog/index.vue'
+import { useListPrint } from '@/composables/useListPrint'
 
 // ═══ 状态 ═══
 const loading = ref(false)
@@ -298,13 +306,16 @@ function onWarehouseModeChange() {
 }
 
 // ═══ 工具栏操作 ═══
-function handlePrintF8() {
-  if (tableData.value.length === 0) {
-    message.warning('没有可打印的数据')
-    return
-  }
-  window.print()
-}
+// ═══ 打印（结果集打印） ═══
+// 原先是 window.print() —— 打出来是整个后台界面（菜单/工具栏/翻页都跟着上纸）。
+// 列取页面自己的列定义，模板按数据里的列画表头（改列不用改模板）。
+const { printDialogRef, printData, handlePrint: handlePrintF8 } = useListPrint({
+  pageCode: 'erp-alert-query',
+  title: '商品分类',
+  columns: () => defaultColumns,
+  rows: () => tableData.value,
+  emptyTip: '没有可打印的数据',
+})
 
 async function handleExport() {
   try {

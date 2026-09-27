@@ -105,6 +105,13 @@
       @reset="resetSettings"
       @drag-end="handleColumnDrag"
     />
+  <!-- 打印：按单据打印 -->
+  <PrintDialog
+    ref="printDialogRef"
+    page-code="stock-bom"
+    :document-id="printData.id"
+    :print-data="printData"
+  />
   </div>
 </template>
 
@@ -125,6 +132,7 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { stockBomApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+import PrintDialog from '@/components/PrintDialog/index.vue'
 
 defineOptions({ name: 'StockBomForm' })
 
@@ -449,7 +457,7 @@ function handleAction(actionKey: string) {
       pageConfigOpen.value = true
       break
     case 'print':
-      window.print()
+      openPrintDialog()
       break
     case 'export':
       handleExport()
@@ -501,6 +509,21 @@ onMounted(() => {
     for (let i = 0; i < 5; i++) handleAddProduct()
   }
 })
+// ═══ 打印（按单据打印） ═══
+// BOM 清单：后端已为 pageCode='stock-bom' 登记装配器并有已发布模板，
+// 页面只给单据主键 —— 取数 / 挑模板 / 渲染都在服务端。
+// 原先是 window.print() —— 打出来是整个后台界面（菜单、工具栏、翻页都跟着上纸）。
+const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
+const printData = ref<Record<string, any>>({})
+
+function openPrintDialog() {
+  if (!formData.id) {
+    message.warning('请先保存单据后再打印')
+    return
+  }
+  printData.value = { id: formData.id }
+  printDialogRef.value?.open?.()
+}
 </script>
 
 <style scoped>
