@@ -21,7 +21,7 @@
 | 后端 `@SaCheckPermission` 引用的码 | 1712 个，**missing_in_db = 0**（后端侧干净） |
 | `sys_permission` 有效码 | 1821 个 |
 | 前端 `v-permission` 用到的码 | 282 个 |
-| **前端用、库里没有** | 起初 **107** → 已修 33 处 + 删 7 个本就不该有的 gate → **剩 67** |
+| **前端用、库里没有** | 起初 **107** → 已修 62 处 + 删 14 个本就不该有的 gate → **剩 29** |
 
 机制：`v-permission` 校验不到就 **removeChild**（不是置灰）⇒ 码不存在 = 按钮
 **对所有人隐藏且不报错**（管理员也看不见）。
@@ -35,7 +35,21 @@
 | 动词同义 | `supplier:add → supplier:create`、`finance:payment:edit → finance:payment:update`、`wms:event:process → wms:event:execute` | 10 |
 | 多了一层命名空间 | `erp:fixed-asset:asset:list → fixed-asset:asset:list`（19 条）、`erp:mall:product:edit → mall:product:update`、`erp:stock:export → stock:export` | 21 |
 
-## 四、待决 67 个，分三类
+## 四、A 档已完成（2026-09-27）—— 漂移 107 → 29
+
+A 档按「页面 → API → 后端端点注解」逐条定目标码，**只改前端、未动库**：
+- 多余命名空间：`erp:fixed-asset:*`→`fixed-asset:*`、`erp:mall:product:*`→`mall:product:*`、`erp:stock:*`→`stock:*`、`erp:partner:*`→`party:*`
+- 页面与真实模块对不上：`wms:wave:*`→`wms:pick:*`（波次页调的是 /wms/pick/wave/*）、`erp:shipment:*`→`sale:outbound:*`（发货页调的是 /erp/sale/outbound/*）、`order:center:*`→`sale:order:*`、`budget:plan:*`→`budget:adjustment:*` / `budget:template:*`
+- 纯 UI / 导航动作去掉 gate：刷新、取消编辑、复制单号、返回、报表看板的刷新/导出/重试、个人资料与通知的自身操作
+
+## 五、B 档已执行（2026-09-27）—— 补 29 个权限点
+
+见 `backend/core/api/core-api/src/main/resources/db/migration/V11.519.0__Seed_Frontend_Referenced_Permissions.sql`：
+`tenant_id=0`（系统级定义）/ `permission_type=3` / 授 `SYSTEM_ADMIN`；id 131000–131028、授权行 9169200–9169229。
+已实测：SQL 事务内试跑通过并回滚干净 → 落库 → **复扫漂移 = 0**。
+（版本号原拟 V11.515.0，实测与并行会话的 Grant_Analytics 撞车，已改 V11.519.0。）
+
+## 六、原分类（留档）
 
 ### A. 前端命名空间/动作词对不上，**改前端即可，不动库**（约 30 个）
 

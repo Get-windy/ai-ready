@@ -150,7 +150,7 @@
         <div class="action-area">
           <a-space>
             <a-button
-              v-permission="'erp:stock:inbound'"
+              v-permission="'stock:in:create'"
               type="primary"
               @click="handleInbound"
             >
@@ -160,7 +160,7 @@
               入库
             </a-button>
             <a-button
-              v-permission="'erp:stock:outbound'"
+              v-permission="'stock:out:create'"
               @click="handleOutbound"
             >
               <template #icon>
@@ -169,7 +169,7 @@
               出库
             </a-button>
             <a-button
-              v-permission="'erp:stock:stocktake'"
+              v-permission="'stock:take:create'"
               @click="handleStocktake"
             >
               <template #icon>
@@ -178,7 +178,7 @@
               盘点
             </a-button>
             <a-button
-              v-permission="'erp:stock:lock'"
+              v-permission="'stock:freeze'"
               @click="handleLock"
             >
               <template #icon>
@@ -262,7 +262,7 @@
                   查看
                 </a-button>
                 <a-button
-                  v-permission="'erp:stock:edit'"
+                  v-permission="'stock:create'"
                   type="link"
                   size="small"
                   @click="handleEdit(record)"
@@ -276,7 +276,7 @@
                 >
                   库存明细
                 </a-button>
-                <a-dropdown v-permission="'erp:stock:lock'">
+                <a-dropdown v-permission="'stock:freeze'">
                   <a-button
                     type="link"
                     size="small"

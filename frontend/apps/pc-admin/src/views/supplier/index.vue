@@ -395,7 +395,7 @@
               </a-tooltip>
               <a-tooltip title="绩效">
                 <a-button
-                  v-permission.disabled="'supplier:performance'"
+                  v-permission.disabled="'supplier:performance:view'"
                   type="link"
                   size="small"
                   @click="handlePerformance(record)"

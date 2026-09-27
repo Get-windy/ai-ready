@@ -131,7 +131,7 @@
           >
             <template #batch-actions="{ selectedRows: rows }">
               <a-button
-                v-permission="'budget:plan:batchpublish'"
+                v-permission="'budget:template:publish'"
                 size="small"
                 :disabled="!canBatchPublish(rows)"
                 @click="handleBatchPublish(rows)"
@@ -195,7 +195,7 @@
               >
                 <a-tooltip title="查看">
                   <a-button
-                    v-permission="'budget:plan:view'"
+                    v-permission="'budget:template:detail'"
                     type="link"
                     size="small"
                     @click="handleView(record)"
@@ -210,7 +210,7 @@
                   title="编辑"
                 >
                   <a-button
-                    v-permission="'budget:plan:edit'"
+                    v-permission="'budget:template:update'"
                     type="link"
                     size="small"
                     @click="handleEdit(record)"

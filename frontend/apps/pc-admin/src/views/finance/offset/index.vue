@@ -206,7 +206,7 @@
                 tooltip="打印"
               />
               <a-button
-                v-permission="'finance:offset:view'"
+                v-permission="'finance:offset:detail'"
                 type="link"
                 size="small"
                 @click="handleView(record)"

@@ -44,7 +44,6 @@
           </a-tooltip>
           <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
             <a-button
-              v-permission="'erp:sales:refresh'"
               size="small"
               @click="debounceClick('refresh', handleRefresh)"
             >
@@ -61,7 +60,6 @@
           </span>
           <a-tooltip title="Ctrl+N 新建报表">
             <a-button
-              v-permission="'erp:sales:create'"
               size="small"
               @click="debounceClick('create', handleCreate)"
             >
@@ -72,7 +70,6 @@
             </a-button>
           </a-tooltip>
           <a-button
-            v-permission="'erp:sales:openexportmodal'"
             size="small"
             @click="handleOpenExportModal"
           >
@@ -372,7 +369,6 @@
         >
           <template #action>
             <a-button
-              v-permission="'erp:sales:refresh'"
               size="small"
               type="primary"
               @click="handleRefresh"
@@ -402,7 +398,6 @@
         >
           <template #action>
             <a-button
-              v-permission="'erp:sales:retrysection'"
               size="small"
               @click="handleRetrySection('statistics')"
             >
@@ -424,7 +419,6 @@
         >
           <template #action>
             <a-button
-              v-permission="'erp:sales:retrysection'"
               size="small"
               @click="handleRetrySection('customer')"
             >
@@ -446,7 +440,6 @@
         >
           <template #action>
             <a-button
-              v-permission="'erp:sales:retrysection'"
               size="small"
               @click="handleRetrySection('product')"
             >
@@ -468,7 +461,6 @@
         >
           <template #action>
             <a-button
-              v-permission="'erp:sales:retrysection'"
               size="small"
               @click="handleRetrySection('trend')"
             >

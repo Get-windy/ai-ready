@@ -31,7 +31,7 @@
               <ReloadOutlined /> 刷新
             </a-button>
             <a-button
-              v-permission="'wms:wave:create'"
+              v-permission="'wms:pick:create'"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -96,7 +96,7 @@
                       暂无数据
                     </p>
                     <a-button
-                      v-permission="'wms:wave:create'"
+                      v-permission="'wms:pick:create'"
                       type="primary"
                       size="small"
                       class="empty-state-action"
@@ -123,7 +123,7 @@
                   <a-space :size="4">
                     <a-tooltip title="查看">
                       <a-button
-                        v-permission="'wms:wave:view'"
+                        v-permission="'wms:pick:detail'"
                         type="link"
                         size="small"
                         @click="handleView(record as any)"
@@ -133,7 +133,7 @@
                     </a-tooltip>
                     <a-tooltip title="编辑">
                       <a-button
-                        v-permission="'wms:wave:edit'"
+                        v-permission="'wms:pick:create'"
                         type="link"
                         size="small"
                         @click="handleEdit(record as any)"
@@ -146,7 +146,7 @@
                       title="生成拣货任务"
                     >
                       <a-button
-                        v-permission="'wms:wave:create-tasks'"
+                        v-permission="'wms:pick:create'"
                         type="link"
                         size="small"
                         @click="handleCreateTasks(record as any)"
@@ -159,7 +159,7 @@
                       title="删除"
                     >
                       <a-button
-                        v-permission="'wms:wave:delete'"
+                        v-permission="'wms:pick:delete'"
                         type="link"
                         size="small"
                         danger

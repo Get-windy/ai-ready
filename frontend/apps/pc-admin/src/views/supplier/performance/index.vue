@@ -4,7 +4,6 @@
       <div class="performance-header">
         <div class="performance-header__left">
           <a-button
-            v-permission="'supplier:performance:back'"
             type="text"
             class="performance-header__back"
             @click="handleBack"

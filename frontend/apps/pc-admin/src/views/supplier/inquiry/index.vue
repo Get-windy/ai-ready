@@ -4,7 +4,6 @@
       <div class="inquiry-header">
         <div class="inquiry-header__left">
           <a-button
-            v-permission="'supplier:inquiry:back'"
             type="text"
             class="inquiry-header__back"
             @click="handleBack"

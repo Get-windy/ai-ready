@@ -39,7 +39,6 @@
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <a-button
-            v-permission="'erp:shipment:refresh'"
             size="small"
             :loading="loading"
             @click="handleRefresh"
@@ -215,7 +214,7 @@
             <a-space>
               <a-tooltip title="查看详情">
                 <a-button
-                  v-permission="'erp:shipment:view'"
+                  v-permission="'sale:outbound:view'"
                   type="link"
                   size="small"
                   @click="handleView(record)"
@@ -230,7 +229,7 @@
                 title="审核"
               >
                 <a-button
-                  v-permission="'erp:shipment:approve'"
+                  v-permission="'sale:outbound:approve'"
                   type="link"
                   size="small"
                   @click="handleApprove(record)"
@@ -245,7 +244,7 @@
                 title="出库"
               >
                 <a-button
-                  v-permission="'erp:shipment:ship'"
+                  v-permission="'sale:outbound:update'"
                   type="link"
                   size="small"
                   @click="handleShip(record)"
@@ -316,7 +315,7 @@
         <a-space>
           <a-button
             v-if="detailData?.status === 0 && !editMode"
-            v-permission="'erp:shipment:startedit'"
+            v-permission="'sale:outbound:update'"
             size="small"
             @click="handleStartEdit"
           >
@@ -488,13 +487,12 @@
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <template v-if="editMode">
             <a-button
-              v-permission="'erp:shipment:canceledit'"
               @click="handleCancelEdit"
             >
               取消
             </a-button>
             <a-button
-              v-permission="'erp:shipment:saveedit'"
+              v-permission="'sale:outbound:update'"
               type="primary"
               @click="handleSaveEdit"
             >
@@ -507,7 +505,7 @@
             </a-button>
             <a-button
               v-if="detailData?.status === 0"
-              v-permission="'erp:shipment:approve'"
+              v-permission="'sale:outbound:approve'"
               type="primary"
               @click="handleApprove(detailData)"
             >
@@ -515,7 +513,7 @@
             </a-button>
             <a-button
               v-if="detailData?.status === 1"
-              v-permission="'erp:shipment:ship'"
+              v-permission="'sale:outbound:update'"
               type="primary"
               @click="handleShip(detailData)"
             >
@@ -814,7 +812,7 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-button
-              v-permission="'erp:shipment:removeitem'"
+              v-permission="'sale:outbound:update'"
               type="link"
               danger
               size="small"
@@ -830,7 +828,7 @@
         </template>
       </a-table>
       <a-button
-        v-permission="'erp:shipment:additem'"
+        v-permission="'sale:outbound:update'"
         type="dashed"
         block
         style="margin-top: 8px;"

@@ -199,7 +199,7 @@
         </span>
         <a-divider type="vertical" />
         <a-button
-          v-permission="'order:center:batchdelete'"
+          v-permission="'sale:order:delete'"
           size="small"
           type="primary"
           danger
@@ -237,7 +237,7 @@
         </span>
         <a-button
           v-if="!isEmptyDueToFilter"
-          v-permission="'order:center:createorder'"
+          v-permission="'sale:order:create'"
           type="primary"
           size="large"
           @click="handleCreateOrder"
@@ -484,7 +484,7 @@
               >
                 <a-tooltip title="查看详情">
                   <a-button
-                    v-permission="'order:center:view'"
+                    v-permission="'sale:order:view'"
                     type="link"
                     size="small"
                     class="action-btn"
@@ -503,7 +503,6 @@
 
                 <a-tooltip title="复制订单号">
                   <a-button
-                    v-permission="'order:center:copyorderno'"
                     type="link"
                     size="small"
                     class="action-btn"
@@ -536,7 +535,7 @@
                   />
                   <a-tooltip title="提交审批">
                     <a-button
-                      v-permission="'order:center:quicksubmit'"
+                      v-permission="'sale:order:submit'"
                       type="link"
                       size="small"
                       class="action-btn action-btn--submit"
@@ -554,7 +553,7 @@
                   />
                   <a-tooltip title="审批通过">
                     <a-button
-                      v-permission="'order:center:quickapprove'"
+                      v-permission="'sale:order:approve'"
                       type="link"
                       size="small"
                       class="action-btn action-btn--approve"
@@ -572,7 +571,7 @@
                   />
                   <a-tooltip title="取消订单">
                     <a-button
-                      v-permission="'order:center:quickcancel'"
+                      v-permission="'sale:order:cancel'"
                       type="link"
                       size="small"
                       class="action-btn action-btn--cancel"
