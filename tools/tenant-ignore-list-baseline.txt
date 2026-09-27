@@ -1,0 +1,32 @@
+# 门禁 tools/audit-tenant-ignore-list.cjs 的**基线（棘轮）**：只能缩，不能涨。
+#
+# 每行一张"**被 MyBatis 用到、却没有 tenant_id 列、又不在 IGNORE_TENANT_TABLES**"的表。
+# 这类表在**非超管租户会话**下必然报错：拦截器会给 SELECT 注入 `AND tenant_id = <会话租户>`
+# （字段不存在 ⇒ SQL 报「字段 tenant_id 不存在」），给 INSERT **自动补一列** tenant_id
+# （同样是字段不存在，而且报错会让整个事务静默回滚）。
+# 超管因豁免租户隔离而不报 ⇒ 这类缺口**能长期不被发现**。
+#
+# ⚠️ 这些**不是"已确认无害"**，是"**待逐张判定**"。每张只有两个合法出路，二选一：
+#     (A) 它本来就该是共享/系统级 ⇒ 补进 IGNORE_TENANT_TABLES（并在配置里写明理由）；
+#     (B) 它本该按租户切分、只是漏了列 ⇒ **那是数据模型缺口**，补一个 tenant_id 列（迁移）。
+#     ⚠️ 别图省事一律走 (A)：那会把"本该隔离的数据"变成"所有租户可见"。
+#
+# 实测（2026-09-27）：下面 16 张**当前都是 0 行** ⇒ 还没有数据受损，属**潜伏**状态；
+# 但只要相应端点被租户会话走到就会 500/静默回滚。
+# 判定完一张就删一行；**门禁对新增行会直接判违规**（CI/评审里拦下来）。
+erp_cost_sharing_expense_item
+erp_discount_rule
+erp_price_calculation_request
+erp_price_calculation_result
+erp_pricing_rule
+erp_pricing_strategy
+erp_purchase_exchange_approval_record
+fin_reconciliation_item
+gateway_log
+kb_document
+kb_document_chunk
+report_schedule_log
+supplier_notification_config
+supplier_notification_record
+sys_file_permission
+sys_system_log
